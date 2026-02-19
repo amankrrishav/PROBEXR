@@ -11,52 +11,81 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [mode, setMode] = useState("text");
+  const [error, setError] = useState(null);
 
-  async function handleAnalyze() {
-    if (!text.trim()) return;
+  // ==============================
+  // 1️⃣ Resolve Input
+  // ==============================
+  async function resolveInput() {
+    const trimmed = text.trim();
 
-    setLoading(true);
-    setCopied(false);
-
-    let finalText = text;
-
-    try {
-      // URL Mode Handling
-      if (mode === "url") {
-        finalText = await fetchTextFromUrl(text);
-      }
-
-      // Minimum word check
-      if (finalText.trim().split(/\s+/).length < 50) {
-        alert("Minimum 50 words required.");
-        setLoading(false);
-        return;
-      }
-
-      // Core Analysis
-      const reading = getReadingTime(finalText);
-      const difficulty = getDifficulty(finalText);
-
-      // Adaptive Summary
-      const summary = generateAdaptiveSummary(
-        finalText,
-        difficulty.score
-      );
-
-      setResult({ reading, difficulty, summary });
-
-    } catch (err) {
-      alert(err.message || "Something went wrong.");
+    if (!trimmed) {
+      throw new Error("Input cannot be empty.");
     }
 
-    setLoading(false);
+    if (mode === "url") {
+      return await fetchTextFromUrl(trimmed);
+    }
+
+    return trimmed;
   }
 
+  // ==============================
+  // 2️⃣ Full Analysis Pipeline
+  // ==============================
+  async function runPipeline(inputText) {
+    const wordCount = inputText.split(/\s+/).length;
+
+    if (wordCount < 50) {
+      throw new Error("Minimum 50 words required.");
+    }
+
+    const reading = getReadingTime(inputText);
+    const difficulty = getDifficulty(inputText);
+
+    // 🔥 Calls FastAPI ML backend
+    const summary = await generateAdaptiveSummary(inputText);
+
+    return { reading, difficulty, summary };
+  }
+
+  // ==============================
+  // 3️⃣ Analyze Handler
+  // ==============================
+  async function handleAnalyze() {
+    if (loading) return;
+
+    setLoading(true);
+    setError(null);
+    setCopied(false);
+
+    try {
+      const inputText = await resolveInput();
+      const output = await runPipeline(inputText);
+      setResult(output);
+    } catch (err) {
+      setError(err.message || "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ==============================
+  // 4️⃣ Copy Handler
+  // ==============================
   function handleCopy() {
     if (!result) return;
 
-    const snippet = `📖 ${result.reading.average} read · Difficulty ${result.difficulty.score}/10 (${result.difficulty.label})
-💡 "${result.summary}"`;
+    const snippet =
+      "📖 " +
+      result.reading.average +
+      " read · Difficulty " +
+      result.difficulty.score +
+      "/10 (" +
+      result.difficulty.label +
+      ")\n💡 \"" +
+      result.summary +
+      "\"";
 
     navigator.clipboard.writeText(snippet);
 
@@ -64,20 +93,35 @@ export default function App() {
     setTimeout(() => setCopied(false), 2000);
   }
 
+  // ==============================
+  // UI
+  // ==============================
   return (
     <div className="app">
       <header>
         <h1>ReadPulse</h1>
-        <p>Paste text or URL — get reading time, difficulty, and adaptive summary.</p>
+        <p>Paste text or URL — neural summarizer engine.</p>
       </header>
+
+      {error && (
+        <div style={{ color: "#ef4444", marginBottom: "16px" }}>
+          {error}
+        </div>
+      )}
 
       {!result && (
         <>
           <div style={{ marginBottom: "12px", display: "flex", gap: "8px" }}>
-            <button onClick={() => setMode("text")}>
+            <button
+              onClick={() => setMode("text")}
+              disabled={loading}
+            >
               Paste Text
             </button>
-            <button onClick={() => setMode("url")}>
+            <button
+              onClick={() => setMode("url")}
+              disabled={loading}
+            >
               From URL
             </button>
           </div>
@@ -88,6 +132,7 @@ export default function App() {
               placeholder="Paste at least 50 words..."
               value={text}
               onChange={(e) => setText(e.target.value)}
+              disabled={loading}
             />
           ) : (
             <input
@@ -95,6 +140,7 @@ export default function App() {
               placeholder="https://example.com/article"
               value={text}
               onChange={(e) => setText(e.target.value)}
+              disabled={loading}
               style={{
                 width: "100%",
                 padding: "14px",
@@ -113,21 +159,13 @@ export default function App() {
 
       {result && (
         <div className="results">
-          {/* Reading Time */}
           <div className="section">
             <h2>Reading Time</h2>
-            <p>
-              Casual: <span className="highlight">{result.reading.casual}</span>
-            </p>
-            <p>
-              Average: <span className="highlight">{result.reading.average}</span>
-            </p>
-            <p>
-              Fast: <span className="highlight">{result.reading.fast}</span>
-            </p>
+            <p>Casual: <span className="highlight">{result.reading.casual}</span></p>
+            <p>Average: <span className="highlight">{result.reading.average}</span></p>
+            <p>Fast: <span className="highlight">{result.reading.fast}</span></p>
           </div>
 
-          {/* Difficulty */}
           <div className="section">
             <h2>Difficulty</h2>
             <p>
@@ -143,7 +181,7 @@ export default function App() {
 
             <DifficultyBar score={result.difficulty.score} />
 
-            {result.difficulty.topWords.length > 0 && (
+            {result.difficulty.topWords?.length > 0 && (
               <div
                 style={{
                   marginTop: "16px",
@@ -172,7 +210,6 @@ export default function App() {
             )}
           </div>
 
-          {/* Summary */}
           <div className="section">
             <h2>Summary</h2>
             <p>{result.summary}</p>
@@ -182,7 +219,13 @@ export default function App() {
             {copied ? "Copied ✓" : "Copy Result"}
           </button>
 
-          <button onClick={() => setResult(null)}>
+          <button
+            onClick={() => {
+              setResult(null);
+              setText("");
+              setError(null);
+            }}
+          >
             Analyze Another
           </button>
         </div>
