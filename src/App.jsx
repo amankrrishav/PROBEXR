@@ -2,7 +2,7 @@ import { useState } from "react";
 import { getReadingTime } from "./utils/readingTime";
 import { getDifficulty } from "./utils/difficulty";
 import DifficultyBar from "./components/DifficultyBar";
-import { generateSummary } from "./utils/summarizer";
+import { generateAdaptiveSummary } from "./utils/summarizer";
 import { fetchTextFromUrl } from "./utils/fetchFromUrl";
 
 export default function App() {
@@ -13,30 +13,40 @@ export default function App() {
   const [mode, setMode] = useState("text");
 
   async function handleAnalyze() {
-    if (!text) return;
+    if (!text.trim()) return;
 
     setLoading(true);
+    setCopied(false);
 
     let finalText = text;
 
     try {
+      // URL Mode Handling
       if (mode === "url") {
         finalText = await fetchTextFromUrl(text);
       }
 
+      // Minimum word check
       if (finalText.trim().split(/\s+/).length < 50) {
         alert("Minimum 50 words required.");
         setLoading(false);
         return;
       }
 
+      // Core Analysis
       const reading = getReadingTime(finalText);
       const difficulty = getDifficulty(finalText);
-      const summary = generateSummary(finalText);
+
+      // Adaptive Summary
+      const summary = generateAdaptiveSummary(
+        finalText,
+        difficulty.score
+      );
 
       setResult({ reading, difficulty, summary });
+
     } catch (err) {
-      alert(err.message);
+      alert(err.message || "Something went wrong.");
     }
 
     setLoading(false);
@@ -58,7 +68,7 @@ export default function App() {
     <div className="app">
       <header>
         <h1>ReadPulse</h1>
-        <p>Paste text or URL — get reading time, difficulty, and summary.</p>
+        <p>Paste text or URL — get reading time, difficulty, and adaptive summary.</p>
       </header>
 
       {!result && (
@@ -103,28 +113,21 @@ export default function App() {
 
       {result && (
         <div className="results">
+          {/* Reading Time */}
           <div className="section">
             <h2>Reading Time</h2>
             <p>
-              Casual:{" "}
-              <span className="highlight">
-                {result.reading.casual}
-              </span>
+              Casual: <span className="highlight">{result.reading.casual}</span>
             </p>
             <p>
-              Average:{" "}
-              <span className="highlight">
-                {result.reading.average}
-              </span>
+              Average: <span className="highlight">{result.reading.average}</span>
             </p>
             <p>
-              Fast:{" "}
-              <span className="highlight">
-                {result.reading.fast}
-              </span>
+              Fast: <span className="highlight">{result.reading.fast}</span>
             </p>
           </div>
 
+          {/* Difficulty */}
           <div className="section">
             <h2>Difficulty</h2>
             <p>
@@ -169,6 +172,7 @@ export default function App() {
             )}
           </div>
 
+          {/* Summary */}
           <div className="section">
             <h2>Summary</h2>
             <p>{result.summary}</p>

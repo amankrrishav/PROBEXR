@@ -1,4 +1,8 @@
-export function generateSummary(text) {
+// =============================
+// 1️⃣ CORE SCORING ENGINE
+// =============================
+
+function generateCoreSummary(text) {
   if (!text) return "Summary unavailable.";
 
   const sentences = text.match(/[^.!?]+[.!?]+/g);
@@ -6,7 +10,6 @@ export function generateSummary(text) {
     return text.slice(0, 140) + "...";
   }
 
-  // --- CLEAN & TOKENIZE ---
   const words = text
     .toLowerCase()
     .replace(/[^a-zA-Z\s]/g, "")
@@ -20,7 +23,6 @@ export function generateSummary(text) {
     "also","very","such","many","some","most","more"
   ]);
 
-  // --- BUILD FREQUENCY MAP ---
   const freq = {};
   words.forEach(word => {
     if (word.length > 3 && !stopWords.has(word)) {
@@ -56,7 +58,7 @@ export function generateSummary(text) {
 
     let score = 0;
 
-    // 1️⃣ Normalized TF score
+    // 1️⃣ Normalized term frequency
     sentenceWords.forEach(word => {
       if (freq[word]) {
         score += freq[word] / maxFreq;
@@ -65,10 +67,10 @@ export function generateSummary(text) {
 
     score = score / sentenceWords.length;
 
-    // 2️⃣ Smooth positional decay (less aggressive)
+    // 2️⃣ Smooth positional decay
     score *= 1 / (1 + index * 0.15);
 
-    // 3️⃣ Definition boost (for encyclopedia style)
+    // 3️⃣ Definition boost
     if (/is|are|refers to|defined as/.test(lower) && index <= 2) {
       score *= 1.4;
     }
@@ -83,18 +85,18 @@ export function generateSummary(text) {
       score *= 1.4;
     }
 
-    // 6️⃣ Abstract concept bonus
+    // 6️⃣ Abstract concept density bonus
     const abstractMatches = lower.match(/(tion|ment|ity|ness|ism)\b/gi);
     if (abstractMatches) {
       score += abstractMatches.length * 0.3;
     }
 
-    // 7️⃣ Length penalty (too long = diluted)
+    // 7️⃣ Length penalty
     if (sentenceWords.length > 35) {
       score *= 0.85;
     }
 
-    // 8️⃣ List-style penalty
+    // 8️⃣ List penalty
     if (/^(first|second|third|finally)/i.test(clean)) {
       score *= 0.6;
     }
@@ -106,4 +108,89 @@ export function generateSummary(text) {
   });
 
   return bestSentence;
+}
+
+
+// =============================
+// 2️⃣ TEXT PROFILE ENGINE
+// =============================
+
+function computeTextProfile(text, difficultyScore) {
+  const lower = text.toLowerCase();
+  const words = lower.split(/\s+/);
+  const totalWords = words.length;
+
+  const abstractMatches = lower.match(/(tion|ment|ity|ness|ism)\b/gi) || [];
+  const abstractDensity = abstractMatches.length / totalWords;
+
+  const technicalSignals = [
+    "model","data","analysis","theory",
+    "empirical","quantitative","probability",
+    "optimization","framework","algorithm"
+  ];
+
+  const narrativeSignals = [
+    "he","she","they","once","when",
+    "after","before","story","journey"
+  ];
+
+  let techScore = 0;
+  let narrativeScore = 0;
+
+  technicalSignals.forEach(w => {
+    if (lower.includes(w)) techScore++;
+  });
+
+  narrativeSignals.forEach(w => {
+    if (lower.includes(w)) narrativeScore++;
+  });
+
+  if (difficultyScore <= 4) return "simple";
+  if (techScore > 2 || abstractDensity > 0.08) return "technical";
+  if (narrativeScore > techScore) return "story";
+  return "analytical";
+}
+
+
+// =============================
+// 3️⃣ STYLE TRANSFORMERS
+// =============================
+
+function simplify(sentence) {
+  return sentence
+    .replace(/demonstrates|indicates/gi, "shows")
+    .replace(/therefore|thus/gi, "so")
+    .replace(/approximately/gi, "about")
+    .replace(/ultimately/gi, "in the end");
+}
+
+function compress(sentence) {
+  return sentence
+    .replace(/\bshows\b/gi, "empirically demonstrates")
+    .replace(/\bidea\b/gi, "conceptual framework");
+}
+
+function preserveNarrativeTone(sentence) {
+  return sentence.replace(/^Ultimately,/i, "In the end,");
+}
+
+
+// =============================
+// 4️⃣ PUBLIC EXPORT
+// =============================
+
+export function generateAdaptiveSummary(text, difficultyScore) {
+  const profile = computeTextProfile(text, difficultyScore);
+  const baseSummary = generateCoreSummary(text);
+
+  switch(profile) {
+    case "simple":
+      return simplify(baseSummary);
+    case "technical":
+      return compress(baseSummary);
+    case "story":
+      return preserveNarrativeTone(baseSummary);
+    default:
+      return baseSummary;
+  }
 }
