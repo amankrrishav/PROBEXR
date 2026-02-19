@@ -30,7 +30,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Dev only. Restrict in production.
+    allow_origins=["*"],  # Dev only
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -92,15 +92,11 @@ def summarize(request: TextRequest):
         raise HTTPException(status_code=400, detail="Text too short")
 
     # -------------------------
-    # Preprocessing Clean Layer
+    # Preprocessing
     # -------------------------
 
-    text = re.sub(r"\[\d+\]", "", text)  # remove citations like [1]
-    text = re.sub(r"\s+", " ", text)     # normalize whitespace
-
-    # -------------------------
-    # Sentence Tokenization
-    # -------------------------
+    text = re.sub(r"\[\d+\]", "", text)
+    text = re.sub(r"\s+", " ", text)
 
     sentences = sent_tokenize(text)
 
@@ -112,7 +108,6 @@ def summarize(request: TextRequest):
     # -------------------------
 
     embeddings = embedder.encode(sentences)
-
     X = torch.tensor(np.array(embeddings), dtype=torch.float32)
 
     with torch.no_grad():
@@ -126,25 +121,28 @@ def summarize(request: TextRequest):
 
     for index, (sentence, model_score) in enumerate(zip(sentences, scores)):
 
-        # Positional bias
         position_bias = 0.15 * (1 / (1 + index))
-
-        # Length normalization penalty
         length_penalty = len(sentence.split()) / 40
+
+        resolution_bias = 0
+        if index > len(sentences) * 0.7:
+            resolution_bias = 0.05
+
+        dialogue_penalty = 0
+        if sentence.strip().startswith(("\"", "“", "'")):
+            dialogue_penalty = 0.05
 
         final_score = (
             0.75 * model_score +
-            0.3 * position_bias -
-            0.05 * length_penalty
+            0.3 * position_bias +
+            resolution_bias -
+            0.05 * length_penalty -
+            dialogue_penalty
         )
 
         scored_sentences.append((sentence, final_score))
 
-    ranked = sorted(
-        scored_sentences,
-        key=lambda x: x[1],
-        reverse=True
-    )
+    ranked = sorted(scored_sentences, key=lambda x: x[1], reverse=True)
 
     # -------------------------
     # Redundancy Filtering + Dynamic Top-K
@@ -167,14 +165,12 @@ def summarize(request: TextRequest):
             selected_embeddings
         )[0]
 
-        # Skip if too similar
         if max(similarities) > 0.75:
             continue
 
         selected.append(sentence)
         selected_embeddings.append(current_emb)
 
-        # Dynamic stopping logic
         if len(sentences) < 6 and len(selected) == 1:
             break
         elif len(sentences) < 15 and len(selected) == 2:
@@ -182,6 +178,12 @@ def summarize(request: TextRequest):
         elif len(selected) == 3:
             break
 
+    # -------------------------
+    # Preserve Original Order
+    # -------------------------
+
+    ordered = sorted(selected, key=lambda s: sentences.index(s))
+
     return {
-        "summary": " ".join(selected)
+        "summary": " ".join(ordered)
     }
