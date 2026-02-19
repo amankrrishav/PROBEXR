@@ -6,6 +6,7 @@ from pydantic import BaseModel
 import torch
 from sentence_transformers import SentenceTransformer
 from nltk.tokenize import sent_tokenize
+from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 import nltk
 import re
@@ -84,6 +85,7 @@ def health():
 
 @app.post("/summarize")
 def summarize(request: TextRequest):
+
     text = request.text.strip()
 
     if not text or len(text.split()) < 30:
@@ -93,11 +95,8 @@ def summarize(request: TextRequest):
     # Preprocessing Clean Layer
     # -------------------------
 
-    # Remove citation brackets like [1], [3][4]
-    text = re.sub(r"\[\d+\]", "", text)
-
-    # Remove multiple spaces / line breaks
-    text = re.sub(r"\s+", " ", text)
+    text = re.sub(r"\[\d+\]", "", text)  # remove citations like [1]
+    text = re.sub(r"\s+", " ", text)     # normalize whitespace
 
     # -------------------------
     # Sentence Tokenization
@@ -120,19 +119,69 @@ def summarize(request: TextRequest):
         scores = model(X).numpy().flatten()
 
     # -------------------------
-    # Ranking
+    # Advanced Ranking System
     # -------------------------
 
+    scored_sentences = []
+
+    for index, (sentence, model_score) in enumerate(zip(sentences, scores)):
+
+        # Positional bias
+        position_bias = 0.15 * (1 / (1 + index))
+
+        # Length normalization penalty
+        length_penalty = len(sentence.split()) / 40
+
+        final_score = (
+            0.75 * model_score +
+            0.3 * position_bias -
+            0.05 * length_penalty
+        )
+
+        scored_sentences.append((sentence, final_score))
+
     ranked = sorted(
-        zip(sentences, scores),
+        scored_sentences,
         key=lambda x: x[1],
         reverse=True
     )
 
-    # Select top 2 sentences (safe)
-    top_k = min(2, len(ranked))
-    top_sentences = [s.strip() for s, _ in ranked[:top_k]]
+    # -------------------------
+    # Redundancy Filtering + Dynamic Top-K
+    # -------------------------
+
+    selected = []
+    selected_embeddings = []
+
+    for sentence, score in ranked:
+
+        if len(selected) == 0:
+            selected.append(sentence)
+            selected_embeddings.append(embedder.encode([sentence])[0])
+            continue
+
+        current_emb = embedder.encode([sentence])[0]
+
+        similarities = cosine_similarity(
+            [current_emb],
+            selected_embeddings
+        )[0]
+
+        # Skip if too similar
+        if max(similarities) > 0.75:
+            continue
+
+        selected.append(sentence)
+        selected_embeddings.append(current_emb)
+
+        # Dynamic stopping logic
+        if len(sentences) < 6 and len(selected) == 1:
+            break
+        elif len(sentences) < 15 and len(selected) == 2:
+            break
+        elif len(selected) == 3:
+            break
 
     return {
-        "summary": " ".join(top_sentences)
+        "summary": " ".join(selected)
     }
