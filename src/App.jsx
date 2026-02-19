@@ -2,41 +2,43 @@ import { useState } from "react";
 import { getReadingTime } from "./utils/readingTime";
 import { getDifficulty } from "./utils/difficulty";
 import DifficultyBar from "./components/DifficultyBar";
+import { generateSummary } from "./utils/summarizer";
+import { fetchTextFromUrl } from "./utils/fetchFromUrl";
 
 export default function App() {
   const [text, setText] = useState("");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [mode, setMode] = useState("text");
 
   async function handleAnalyze() {
-    if (text.trim().split(/\s+/).length < 50) {
-      alert("Minimum 50 words required.");
-      return;
-    }
+    if (!text) return;
 
     setLoading(true);
 
-    // Core logic (instant)
-    const reading = getReadingTime(text);
-    const difficulty = getDifficulty(text);
+    let finalText = text;
 
-    // AI call
-    let summary = "—";
     try {
-      const res = await fetch("/api/summarize", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text }),
-      });
+      if (mode === "url") {
+        finalText = await fetchTextFromUrl(text);
+      }
 
-      const data = await res.json();
-      summary = data.summary || "Summary unavailable.";
-    } catch {
-      summary = "Summary unavailable.";
+      if (finalText.trim().split(/\s+/).length < 50) {
+        alert("Minimum 50 words required.");
+        setLoading(false);
+        return;
+      }
+
+      const reading = getReadingTime(finalText);
+      const difficulty = getDifficulty(finalText);
+      const summary = generateSummary(finalText);
+
+      setResult({ reading, difficulty, summary });
+    } catch (err) {
+      alert(err.message);
     }
 
-    setResult({ reading, difficulty, summary });
     setLoading(false);
   }
 
@@ -56,17 +58,43 @@ export default function App() {
     <div className="app">
       <header>
         <h1>ReadPulse</h1>
-        <p>Paste any text — get reading time, difficulty, and summary.</p>
+        <p>Paste text or URL — get reading time, difficulty, and summary.</p>
       </header>
 
       {!result && (
         <>
-          <textarea
-            rows={12}
-            placeholder="Paste at least 50 words..."
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-          />
+          <div style={{ marginBottom: "12px", display: "flex", gap: "8px" }}>
+            <button onClick={() => setMode("text")}>
+              Paste Text
+            </button>
+            <button onClick={() => setMode("url")}>
+              From URL
+            </button>
+          </div>
+
+          {mode === "text" ? (
+            <textarea
+              rows={12}
+              placeholder="Paste at least 50 words..."
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+            />
+          ) : (
+            <input
+              type="url"
+              placeholder="https://example.com/article"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "14px",
+                borderRadius: "12px",
+                border: "1.5px solid #e2dfd8",
+                fontSize: "1rem",
+              }}
+            />
+          )}
+
           <button onClick={handleAnalyze} disabled={loading}>
             {loading ? "Analyzing..." : "Analyze"}
           </button>
