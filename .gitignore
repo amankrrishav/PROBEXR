@@ -84,7 +84,12 @@ summary_model_xsum.pt
 
 
 
-
+ml_env/
+node_modules/
+__pycache__/
+*.pyc
+*.pt
+.vercel/
 
 
 
