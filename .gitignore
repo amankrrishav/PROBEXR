@@ -1,105 +1,60 @@
+# ===============================
 # Logs
+# ===============================
 logs
 *.log
 npm-debug.log*
 yarn-debug.log*
-yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# ===============================
+# Environment Files
+# ===============================
+.env
+.env.local
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
+# ===============================
+# Node / Frontend
+# ===============================
+frontend/node_modules/
+frontend/dist/
+node_modules/
+dist/
+dist-ssr/
+
+# ===============================
+# Python / Backend
+# ===============================
+backend/venv/
+ml_env/
+__pycache__/
+*.pyc
+
+# ===============================
+# ML Model Weights (Do NOT Commit)
+# ===============================
+*.pt
+*.bin
+*.safetensors
+
+# ===============================
+# HuggingFace Cache
+# ===============================
+.cache/
+
+# ===============================
+# Vercel
+# ===============================
+.vercel/
+
+# ===============================
+# Editor / OS
+# ===============================
+.vscode/
+.idea/
 .DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-
-#Environment variables
-.env.local
-
-#Ignore .env files, but not .env.example
-.env 
-.vercel
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# -------------------------
-# Python / ML
-# -------------------------
-
-ml_env/
-__pycache__/
-*.pyc
-
-# Model weights
-*.pt
-*.bin
-*.safetensors
-
-# HuggingFace model folders
-bart_xsum_model/
-summary_model.pt
-summary_model_xsum.pt
-
-# HF cache (optional)
-.cache/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-ml_env/
-node_modules/
-__pycache__/
-*.pyc
-*.pt
-.vercel/
-
-
-
-
-
-
-
-
-
-
-# HuggingFace model folders (alternative)
-ml/bart_xsum/
-ml/bart_xsum_model/
