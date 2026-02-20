@@ -91,10 +91,7 @@ def summarize(request: TextRequest):
     if not text or len(text.split()) < 30:
         raise HTTPException(status_code=400, detail="Text too short")
 
-    # -------------------------
-    # Preprocessing
-    # -------------------------
-
+    # Clean citations and normalize whitespace
     text = re.sub(r"\[\d+\]", "", text)
     text = re.sub(r"\s+", " ", text)
 
@@ -103,10 +100,7 @@ def summarize(request: TextRequest):
     if len(sentences) == 0:
         raise HTTPException(status_code=400, detail="No valid sentences found")
 
-    # -------------------------
-    # Embedding + Inference
-    # -------------------------
-
+    # Embed sentences
     embeddings = embedder.encode(sentences)
     X = torch.tensor(np.array(embeddings), dtype=torch.float32)
 
@@ -114,30 +108,23 @@ def summarize(request: TextRequest):
         scores = model(X).numpy().flatten()
 
     # -------------------------
-    # Advanced Ranking System
+    # Neural + Light Structural Ranking
     # -------------------------
 
     scored_sentences = []
 
     for index, (sentence, model_score) in enumerate(zip(sentences, scores)):
 
-        position_bias = 0.15 * (1 / (1 + index))
+        # Light positional bias
+        position_bias = 0.1 * (1 / (1 + index))
+
+        # Light length normalization
         length_penalty = len(sentence.split()) / 40
 
-        resolution_bias = 0
-        if index > len(sentences) * 0.7:
-            resolution_bias = 0.05
-
-        dialogue_penalty = 0
-        if sentence.strip().startswith(("\"", "“", "'")):
-            dialogue_penalty = 0.05
-
         final_score = (
-            0.75 * model_score +
-            0.3 * position_bias +
-            resolution_bias -
-            0.05 * length_penalty -
-            dialogue_penalty
+            0.85 * model_score +
+            0.15 * position_bias -
+            0.05 * length_penalty
         )
 
         scored_sentences.append((sentence, final_score))
@@ -178,10 +165,7 @@ def summarize(request: TextRequest):
         elif len(selected) == 3:
             break
 
-    # -------------------------
-    # Preserve Original Order
-    # -------------------------
-
+    # Preserve original order
     ordered = sorted(selected, key=lambda s: sentences.index(s))
 
     return {

@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from sentence_transformers import SentenceTransformer
-from sklearn.metrics.pairwise import cosine_similarity
 from datasets import load_dataset
 from nltk.tokenize import sent_tokenize
+from rouge_score import rouge_scorer
 import nltk
 import numpy as np
 
@@ -41,45 +41,41 @@ criterion = nn.BCELoss()
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 # ----------------------------------
-# Build Training Data (Human-Aligned)
+# Build Training Data (ROUGE-Aligned)
 # ----------------------------------
 
 X = []
 y = []
 
-print("Building training dataset...")
+print("Building training dataset with ROUGE labeling...")
+
+scorer = rouge_scorer.RougeScorer(['rougeL'], use_stemmer=True)
 
 for sample in dataset:
     article = sample["article"]
     summary = sample["highlights"]
 
     article_sentences = sent_tokenize(article)
-    summary_sentences = sent_tokenize(summary)
 
-    if not article_sentences or not summary_sentences:
+    if not article_sentences:
         continue
 
-    # Embed sentences
-    article_embeddings = embedder.encode(article_sentences)
-    summary_embeddings = embedder.encode(summary_sentences)
+    sentence_scores = []
 
-    labels = np.zeros(len(article_sentences))
+    # Compute ROUGE-L score between each sentence and full summary
+    for sentence in article_sentences:
+        rouge_score_value = scorer.score(summary, sentence)['rougeL'].fmeasure
+        sentence_scores.append(rouge_score_value)
 
-    # For each summary sentence,
-    # find most similar article sentence
-    for summary_emb in summary_embeddings:
-        sims = cosine_similarity(
-            article_embeddings,
-            summary_emb.reshape(1, -1)
-        ).flatten()
+    # Select top 20% highest scoring sentences as positive
+    top_n = max(1, int(len(article_sentences) * 0.2))
+    top_indices = np.argsort(sentence_scores)[-top_n:]
 
-        best_index = np.argmax(sims)
-        labels[best_index] = 1
-
-    # Store embeddings + labels
-    for emb, label in zip(article_embeddings, labels):
+    # Embed and label
+    for i, sentence in enumerate(article_sentences):
+        emb = embedder.encode([sentence])[0]
         X.append(emb)
-        y.append(label)
+        y.append(1 if i in top_indices else 0)
 
 print("Dataset built.")
 

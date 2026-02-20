@@ -29,3 +29,41 @@ dist-ssr
 #Ignore .env files, but not .env.example
 .env 
 .vercel
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# -------------------------
+# Python / ML
+# -------------------------
+
+ml_env/
+__pycache__/
+*.pyc
+
+# Model weights
+*.pt
+*.bin
+*.safetensors
+
+# HuggingFace model folders
+bart_xsum_model/
+summary_model.pt
+summary_model_xsum.pt
+
+# HF cache (optional)
+.cache/
