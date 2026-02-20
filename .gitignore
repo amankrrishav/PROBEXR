@@ -67,3 +67,34 @@ summary_model_xsum.pt
 
 # HF cache (optional)
 .cache/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# HuggingFace model folders (alternative)
+ml/bart_xsum/
+ml/bart_xsum_model/
