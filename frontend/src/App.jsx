@@ -12,10 +12,21 @@ export default function App() {
   const [dark, setDark] = useState(false);
 
   const [loading, setLoading] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(0);
   const [error, setError] = useState(null);
 
   const [hasSummary, setHasSummary] = useState(false);
   const [summaryText, setSummaryText] = useState("");
+
+  // =====================
+  // Loading Messages
+  // =====================
+  const loadingMessages = [
+    "Analyzing structure…",
+    "Ranking sentences…",
+    "Removing redundancy…",
+    "Finalizing summary…"
+  ];
 
   // =====================
   // Counts
@@ -56,13 +67,29 @@ export default function App() {
 
       setSummaryText(summary);
       setHasSummary(true);
-
     } catch (err) {
       setError(err.message || "Failed to connect to backend.");
     } finally {
       setLoading(false);
     }
   }
+
+  // =====================
+  // Rotating Loading Effect
+  // =====================
+  useEffect(() => {
+    if (!loading) return;
+
+    setLoadingStep(0);
+    let step = 0;
+
+    const interval = setInterval(() => {
+      step = (step + 1) % loadingMessages.length;
+      setLoadingStep(step);
+    }, 900);
+
+    return () => clearInterval(interval);
+  }, [loading]);
 
   // =====================
   // Theme Load
@@ -120,6 +147,7 @@ export default function App() {
             text={text}
             setText={setText}
             loading={loading}
+            loadingMessage={loadingMessages[loadingStep]}
             error={error}
             wordCount={wordCount}
             charCount={charCount}

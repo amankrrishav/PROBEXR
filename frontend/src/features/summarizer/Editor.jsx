@@ -2,6 +2,7 @@ export default function Editor({
   text,
   setText,
   loading,
+  loadingMessage,   // ✅ added
   error,
   wordCount,
   charCount,
@@ -30,7 +31,7 @@ export default function Editor({
         </div>
       )}
 
-      <div className="bg-white dark:bg-[#121212] border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm">
+      <div className="bg-white dark:bg-[#121212] border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm transition-all duration-300">
 
         <textarea
           rows={hasSummary ? 6 : 8}
@@ -52,7 +53,7 @@ export default function Editor({
             disabled={loading}
             className="px-6 py-2.5 rounded-full text-sm font-medium bg-black text-white dark:bg-white dark:text-black hover:opacity-90 transition disabled:opacity-50"
           >
-            {loading ? "Analyzing…" : "Summarize"}
+            {loading ? loadingMessage : "Summarize"}
           </button>
 
         </div>
