@@ -1,37 +1,23 @@
-// src/services/api.js
+/**
+ * API — backend endpoints. Add new feature endpoints here (or in separate modules).
+ * Uses client.js for base URL and request helper. Matches backend contract.
+ */
+import { request } from "./client.js";
 
-const BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
-
-function parseErrorDetail(detail) {
-  if (typeof detail === "string") return detail;
-  if (Array.isArray(detail) && detail.length > 0) {
-    const first = detail[0];
-    if (first?.msg != null) return first.msg;
-    if (typeof first === "string") return first;
-  }
-  return "Summarization failed";
-}
-
+/**
+ * POST /summarize — { text } → { summary }
+ */
 export async function summarizeText(text) {
-  const response = await fetch(`${BASE_URL}/summarize`, {
+  const data = await request("/summarize", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
     body: JSON.stringify({ text }),
   });
-
-  if (!response.ok) {
-    let message = "Summarization failed";
-    try {
-      const errorData = await response.json();
-      message = parseErrorDetail(errorData.detail) || message;
-    } catch {
-      message = response.statusText || message;
-    }
-    throw new Error(message);
-  }
-
-  const data = await response.json();
   return data.summary;
+}
+
+/**
+ * GET / — health check. Use for future: ping backend, show mode (extractive vs groq).
+ */
+export async function getHealth() {
+  return request("/");
 }
