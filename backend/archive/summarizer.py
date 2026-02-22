@@ -1,5 +1,8 @@
-# hybrid_bart_cnn_test.py
-
+"""
+Legacy / experimental: hybrid extractive + BART summarizer.
+Not used by the main server. Requires PyTorch, sentence-transformers, transformers, nltk.
+Run from backend/ with: python -m archive.summarizer (and summary_model.pt in cwd if needed).
+"""
 import torch
 import numpy as np
 import re
@@ -81,7 +84,7 @@ print("\n--- EXTRACTIVE DRAFT ---\n")
 print(extractive_summary)
 
 # -------------------------
-# Generative Rewrite (Balanced Controlled)
+# Generative Rewrite (Production-Level)
 # -------------------------
 
 inputs = tokenizer(
@@ -94,12 +97,12 @@ inputs = tokenizer(
 with torch.no_grad():
     summary_ids = bart_model.generate(
         inputs["input_ids"],
-        max_length=65,              # increased to prevent truncation
-        min_length=25,
-        num_beams=4,
+        max_length=300,
+        min_length=120,
+        num_beams=5,
         no_repeat_ngram_size=3,
         repetition_penalty=1.2,
-        length_penalty=1.0,         # balanced compression
+        length_penalty=1.2,
         early_stopping=True
     )
 
@@ -109,6 +112,5 @@ final_summary = tokenizer.decode(
     clean_up_tokenization_spaces=True
 )
 
-print("\n--- FINAL HYBRID SUMMARY (BART-CNN) ---\n")
+print("\n--- FINAL HYBRID SUMMARY (PRODUCTION CONFIG) ---\n")
 print(final_summary)
-print("\n---------------------------------------\n")

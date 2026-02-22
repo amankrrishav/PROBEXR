@@ -2,7 +2,7 @@ export default function Editor({
   text,
   setText,
   loading,
-  loadingMessage,   // ✅ added
+  loadingMessage,
   error,
   wordCount,
   charCount,
@@ -20,7 +20,7 @@ export default function Editor({
           </h1>
 
           <p className="text-gray-500 dark:text-gray-400 mb-10">
-            Paste text or URL. Get the point instantly.
+            Paste text. Get the point instantly.
           </p>
         </>
       )}

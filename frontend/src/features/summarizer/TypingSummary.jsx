@@ -1,29 +1,58 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function TypingSummary({ text }) {
   const [displayedText, setDisplayedText] = useState("");
+  const [showFull, setShowFull] = useState(false);
+  const intervalRef = useRef(null);
 
   useEffect(() => {
     if (!text) return;
 
     setDisplayedText("");
+    setShowFull(false);
+
     let index = 0;
 
-    const interval = setInterval(() => {
-      setDisplayedText((prev) => prev + text[index]);
-      index++;
-
+    intervalRef.current = setInterval(() => {
       if (index >= text.length) {
-        clearInterval(interval);
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        return;
       }
+
+      setDisplayedText((prev) => prev + text.charAt(index));
+      index++;
     }, 6);
 
-    return () => clearInterval(interval);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, [text]);
 
+  function handleShowFull() {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    setDisplayedText(text);
+    setShowFull(true);
+  }
+
+  const isTyping = text && displayedText.length < text.length;
+
   return (
-    <p className="text-sm leading-relaxed whitespace-pre-line">
-      {displayedText}
-    </p>
+    <div>
+      <p className="text-[15px] leading-7 text-gray-700 dark:text-gray-300 whitespace-pre-line">
+        {displayedText}
+      </p>
+      {isTyping && (
+        <button
+          type="button"
+          onClick={handleShowFull}
+          className="mt-4 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline"
+        >
+          Show full
+        </button>
+      )}
+    </div>
   );
 }

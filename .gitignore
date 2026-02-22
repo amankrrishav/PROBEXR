@@ -26,6 +26,7 @@ dist-ssr/
 # Python / Backend
 # ===============================
 backend/venv/
+backend/.venv/
 ml_env/
 __pycache__/
 *.pyc
