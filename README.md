@@ -3,6 +3,8 @@
 ReadPulse is a full-stack article summarizer: paste text, get a short, human-like summary.  
 *Extract signal. Ignore noise.*
 
+Designed as an **open-source app** with a path to **subscription / startup** later (see [ROADMAP.md](ROADMAP.md) and [CONTRIBUTING.md](CONTRIBUTING.md)).
+
 **Backend:** Scalable FastAPI app, serverless/cloud-ready. **$0 options:** no API key = extractive summarization; or Groq/OpenRouter free tier for human-like summaries. No need to spend $5–10/month.
 
 ---

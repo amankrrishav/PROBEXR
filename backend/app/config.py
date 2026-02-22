@@ -52,6 +52,12 @@ class AppConfig:
         self.target_min_words = int(_env("SUMMARIZE_TARGET_MIN_WORDS", "80") or "80")
         self.target_max_words = int(_env("SUMMARIZE_TARGET_MAX_WORDS", "300") or "300")
 
+        # ----- Future: subscription / plans (add keys here when you add billing) -----
+        self.app_version = _env("APP_VERSION", "1.0.0") or "1.0.0"
+        self.subscription_enabled = (_env("SUBSCRIPTION_ENABLED", "0") or "0").lower() in ("1", "true", "yes")
+        self.free_daily_limit = int(_env("FREE_DAILY_LIMIT", "50") or "50")  # per IP or per user when auth exists
+        # When auth exists: API_KEY_HEADER, JWT_SECRET, STRIPE_WEBHOOK_SECRET, etc.
+
         # Resolve provider and default model if not set
         if not self.summarize_provider:
             if self.groq_api_key:

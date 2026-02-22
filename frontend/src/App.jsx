@@ -2,14 +2,17 @@
  * App — thin shell: composes config, hooks, and features (like backend main.py).
  * Add new features: new hook + feature folder, then wire here.
  */
+import { config } from "./config.js";
 import { useSummarizer } from "./hooks/useSummarizer.js";
 import { useTheme } from "./hooks/useTheme.js";
+import { useBackendHealth } from "./hooks/useBackendHealth.js";
 import { Sidebar } from "./features/layout";
 import { Editor, OutputCard } from "./features/summarizer";
 
 export default function App() {
   const { dark, toggleTheme } = useTheme();
   const summarizer = useSummarizer();
+  const { backendMode } = useBackendHealth();
 
   return (
     <div className="h-screen flex bg-[#F8F7F4] text-[#1A1A2E] dark:bg-[#0a0a0a] dark:text-white transition-colors duration-300">
@@ -17,6 +20,8 @@ export default function App() {
         dark={dark}
         toggleTheme={toggleTheme}
         resetWorkspace={summarizer.reset}
+        appName={config.appName}
+        backendMode={backendMode}
       />
       <main className="flex-1 overflow-y-auto">
         <div

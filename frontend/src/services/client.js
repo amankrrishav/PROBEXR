@@ -23,27 +23,44 @@ export function parseErrorDetail(detail) {
 
 /**
  * Generic request helper. Use for new endpoints (e.g. GET /health, POST /api/url-fetch).
+ * Applies request timeout to avoid hanging on slow backend.
  */
 export async function request(path, options = {}) {
+  const { requestTimeoutMs } = config;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), requestTimeoutMs);
+
   const url = `${getBaseUrl()}${path.startsWith("/") ? path : `/${path}`}`;
-  const res = await fetch(url, {
+  const init = {
     ...options,
+    signal: options.signal ?? controller.signal,
     headers: {
       "Content-Type": "application/json",
       ...options.headers,
     },
-  });
+  };
 
-  if (!res.ok) {
-    let message = res.statusText || "Request failed";
-    try {
-      const data = await res.json();
-      message = parseErrorDetail(data.detail) || data.error || message;
-    } catch {
-      // ignore
+  try {
+    const res = await fetch(url, init);
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      let message = res.statusText || "Request failed";
+      try {
+        const data = await res.json();
+        message = parseErrorDetail(data.detail) || data.error || message;
+      } catch {
+        // ignore
+      }
+      throw new Error(message);
     }
-    throw new Error(message);
-  }
 
-  return res.json();
+    return res.json();
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === "AbortError") {
+      throw new Error("Request timed out. Try again or use a shorter text.");
+    }
+    throw err;
+  }
 }

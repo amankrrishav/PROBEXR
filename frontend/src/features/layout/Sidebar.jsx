@@ -1,10 +1,10 @@
-export default function Sidebar({ dark, toggleTheme, resetWorkspace }) {
+export default function Sidebar({ dark, toggleTheme, resetWorkspace, appName, backendMode }) {
   return (
     <aside className="w-80 bg-white dark:bg-[#111111] border-r border-gray-200 dark:border-gray-800 flex flex-col">
 
       <div className="px-6 py-6 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
         <div className="text-lg font-semibold tracking-tight">
-          ReadPulse
+          {appName ?? "ReadPulse"}
         </div>
 
         <button
@@ -23,6 +23,14 @@ export default function Sidebar({ dark, toggleTheme, resetWorkspace }) {
           + New Summary
         </button>
       </div>
+
+      {backendMode && (
+        <div className="px-6 py-3 mt-auto border-t border-gray-100 dark:border-gray-800">
+          <p className="text-xs text-gray-400">
+            Backend: {backendMode}
+          </p>
+        </div>
+      )}
 
     </aside>
   );
