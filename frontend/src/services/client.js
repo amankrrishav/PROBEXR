@@ -3,6 +3,7 @@
  * Matches backend: same base URL, JSON request/response, parse errors.
  */
 import { config } from "../config.js";
+import { getAccessToken } from "./authStorage.js";
 
 export function getBaseUrl() {
   return config.apiBaseUrl.replace(/\/$/, "");
@@ -31,13 +32,21 @@ export async function request(path, options = {}) {
   const timeoutId = setTimeout(() => controller.abort(), requestTimeoutMs);
 
   const url = `${getBaseUrl()}${path.startsWith("/") ? path : `/${path}`}`;
+
+  const headers = {
+    "Content-Type": "application/json",
+    ...options.headers,
+  };
+
+  const token = getAccessToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   const init = {
     ...options,
     signal: options.signal ?? controller.signal,
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
+    headers,
   };
 
   try {
