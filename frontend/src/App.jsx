@@ -8,6 +8,7 @@ import { useSummarizer } from "./hooks/useSummarizer.js";
 import { useTheme } from "./hooks/useTheme.js";
 import { useBackendHealth } from "./hooks/useBackendHealth.js";
 import { useAuth } from "./hooks/useAuth.js";
+import { useSubscription } from "./hooks/useSubscription.js";
 import { Sidebar } from "./features/layout";
 import { Editor, OutputCard } from "./features/summarizer";
 import { AuthModal } from "./features/auth";
@@ -21,8 +22,10 @@ function isBrowser() {
 export default function App() {
   const { dark, toggleTheme } = useTheme();
   const summarizer = useSummarizer();
-  const { backendMode } = useBackendHealth();
-   const auth = useAuth();
+  const backendHealth = useBackendHealth();
+  const { backendMode } = backendHealth;
+  const auth = useAuth();
+  const subscription = useSubscription(backendHealth.backend, auth.user);
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState("signup");
@@ -96,8 +99,17 @@ export default function App() {
         user={auth.user}
         onOpenAuth={handleOpenAuth}
         onLogout={handleLogout}
+        plan={subscription.plan}
+        usageToday={subscription.usageToday}
+        limit={subscription.limit}
       />
       <main className="flex-1 overflow-y-auto">
+        {subscription.overLimit && (
+          <div className="mx-12 mt-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-900 dark:border-amber-500/40 dark:bg-amber-900/20 dark:text-amber-100">
+            <span className="font-medium">Free limit reached.</span>{" "}
+            Summaries now use Lite mode (simpler extractive summaries). Pro Mode will keep high-quality LLM summaries all day.
+          </div>
+        )}
         <div
           className={`px-12 py-16 transition-all duration-500 ${
             summarizer.hasSummary

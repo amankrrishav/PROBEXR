@@ -1,14 +1,23 @@
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+
 from app.config import get_config
+from app.deps import OptionalUser
 from app.schemas import TextRequest
 from app.services.summarizer import summarize
+from app.services.subscription import evaluate_summary_quality
+from app.db import get_session
+from sqlmodel import Session
 
 router = APIRouter(prefix="", tags=["summarize"])
 
 
 @router.post("/summarize")
-async def summarize_endpoint(request: TextRequest):
+async def summarize_endpoint(
+    request: TextRequest,
+    user: OptionalUser,
+    session: Session = Depends(get_session),
+):
     text = request.text.strip()
     cfg = get_config()
 
@@ -22,8 +31,14 @@ async def summarize_endpoint(request: TextRequest):
         )
 
     try:
-        summary = await summarize(text)
-        return {"summary": summary}
+        quality, usage_today, limit = evaluate_summary_quality(user, session)
+        summary = await summarize(text, quality=quality)
+        return {
+          "summary": summary,
+          "quality": quality,
+          "usage_today": usage_today,
+          "limit": limit,
+        }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except httpx.HTTPStatusError as e:
@@ -43,7 +58,7 @@ async def summarize_endpoint(request: TextRequest):
         except Exception:
             pass
         raise HTTPException(status_code=502, detail=msg or "Summarization failed.")
-    except httpx.RequestError as e:
+    except httpx.RequestError:
         raise HTTPException(
             status_code=503,
             detail="Cannot reach summarization service. Check your network and API key.",

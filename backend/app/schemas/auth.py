@@ -23,6 +23,9 @@ class UserRead(BaseModel):
     email: EmailStr
     is_active: bool
     created_at: datetime
+    plan: str
+    usage_today: int | None = None
+    usage_reset_at: datetime | None = None
 
     class Config:
         from_attributes = True

@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+
 from app.config import get_config
 
 router = APIRouter(tags=["health"])
@@ -17,7 +18,9 @@ def health():
         "status": f"{cfg.app_name} running",
         "version": cfg.app_version,
         "mode": mode or "extractive",
-        "capabilities": ["summarize"],  # Add "url_fetch", "export", etc. as you add features
+        "capabilities": ["summarize"],
         "subscription_enabled": cfg.subscription_enabled,
+        "free_daily_limit": cfg.free_daily_limit,
+        "plans": ["free", "pro"],
         "note": "extractive = free, no API key. Set GROQ_API_KEY (free) for better summaries.",
     }
