@@ -61,3 +61,22 @@ def login(payload: LoginRequest, session: Session = Depends(get_session)) -> Tok
 def read_me(current_user: CurrentUser) -> UserRead:
     return UserRead.model_validate(current_user)
 
+
+@router.post("/upgrade/demo-pro", response_model=UserRead)
+def upgrade_demo_pro(current_user: CurrentUser, session: Session = Depends(get_session)) -> UserRead:
+    """
+    Demo-only endpoint to flip the current user to Pro plan.
+    No real billing, safe for testing subscription flows.
+    """
+    user = session.get(User, current_user.id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    if user.plan != "pro":
+        user.plan = "pro"
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+
+    return UserRead.model_validate(user)
+

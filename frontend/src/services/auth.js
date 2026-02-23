@@ -23,3 +23,9 @@ export async function getCurrentUser() {
   });
 }
 
+export async function upgradeDemoPro() {
+  return request("/auth/upgrade/demo-pro", {
+    method: "POST",
+  });
+}
+

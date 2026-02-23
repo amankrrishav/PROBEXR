@@ -12,7 +12,7 @@ readpulse/
 │   ├── app/
 │   │   ├── main.py   # Mount routers here
 │   │   ├── config.py # Env and constants; add keys for new features
-│   │   ├── deps.py   # Optional auth, rate limits (placeholder today)
+│   │   ├── deps.py   # Auth + rate-limit dependencies (CurrentUser, OptionalUser)
 │   │   ├── schemas/  # Request/response models
 │   │   ├── routers/  # Route modules (health, summarize; add url_fetch, auth)
 │   │   └── services/ # Business logic (summarizer, llm, extractive)
@@ -22,9 +22,9 @@ readpulse/
 │   ├── src/
 │   │   ├── config.js      # Env and constants; add keys for new features
 │   │   ├── App.jsx        # Compose hooks + features
-│   │   ├── services/      # API client + endpoints
-│   │   ├── hooks/         # useSummarizer, useTheme, useBackendHealth
-│   │   └── features/      # layout, summarizer; add new feature folders
+│   │   ├── services/      # API client + endpoints (auth, summarize, etc.)
+│   │   ├── hooks/         # useSummarizer, useTheme, useBackendHealth, useAuth, useSubscription
+│   │   └── features/      # layout, summarizer, auth, subscription; add new feature folders
 │   └── package.json
 ├── ROADMAP.md        # Phases: MVP → features → auth → subscription
 └── CONTRIBUTING.md   # This file
@@ -39,7 +39,7 @@ readpulse/
 3. **Service** — Add logic in `backend/app/services/` (e.g. `url_fetch.py`).
 4. **Router** — Add `backend/app/routers/url_fetch.py`; mount in `app/main.py`:  
    `app.include_router(url_fetch.router, prefix="/api")`.
-5. **Auth/limits (optional)** — Use `deps.get_optional_user()` or a new dependency when you add auth/plans.
+5. **Auth/limits (optional)** — Use `deps.CurrentUser` / `deps.OptionalUser` and helpers in `app/services/subscription.py` when you add auth-only or plan-limited routes.
 
 ---
 
@@ -66,8 +66,8 @@ See root [README.md](README.md) and `backend/README.md`, `frontend/README.md` fo
 ## Subscription path (for maintainers)
 
 - **Config:** `SUBSCRIPTION_ENABLED`, `FREE_DAILY_LIMIT`, `APP_VERSION` already exist. Add Stripe (or other) env when you integrate.
-- **Backend:** Implement `deps.get_current_user` and optional `check_usage_limit`; return 429 with message when limit exceeded. Add `GET /me` or `GET /usage` for plan/usage.
-- **Frontend:** Use `config.subscription.enabled` and `showUpgradeCta`; show upgrade CTA and limit-reached UI when backend indicates it.
+- **Backend:** Per-user fields (`plan`, `usage_today`, `usage_reset_at`) and `app/services/subscription.py` are in place. Connect real billing to flip `plan` values instead of using the demo `POST /auth/upgrade/demo-pro` endpoint.
+- **Frontend:** Auth + Pro Mode demo UI exist (account dropdown, Pro modal, limit-reached banner). Later, wire these to real billing, a full pricing page, and feature gating by plan.
 - **Roadmap:** See [ROADMAP.md](ROADMAP.md) for phases.
 
 ---

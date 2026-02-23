@@ -12,6 +12,7 @@ import { useSubscription } from "./hooks/useSubscription.js";
 import { Sidebar } from "./features/layout";
 import { Editor, OutputCard } from "./features/summarizer";
 import { AuthModal } from "./features/auth";
+import { ProModal } from "./features/subscription";
 
 const USAGE_KEY = "readpulse.hasUsedFeatureOnce";
 
@@ -31,6 +32,7 @@ export default function App() {
   const [authModalMode, setAuthModalMode] = useState("signup");
   const [hasUsedFeatureOnce, setHasUsedFeatureOnce] = useState(false);
   const [snackbar, setSnackbar] = useState(null);
+  const [proModalOpen, setProModalOpen] = useState(false);
 
   useEffect(() => {
     if (!isBrowser()) return;
@@ -72,6 +74,24 @@ export default function App() {
     showSnackbar("Logged out.");
   }
 
+  function handleOpenProModal() {
+    setProModalOpen(true);
+  }
+
+  function handleCloseProModal() {
+    setProModalOpen(false);
+  }
+
+  async function handleUpgradeProDemo() {
+    try {
+      await auth.upgradeToDemoPro();
+      showSnackbar("Pro Mode activated (demo).");
+      handleCloseProModal();
+    } catch {
+      // error is shown inside the modal
+    }
+  }
+
   function handleSummarizeWithGate() {
     if (!hasUsedFeatureOnce) {
       setHasUsedFeatureOnce(true);
@@ -102,12 +122,21 @@ export default function App() {
         plan={subscription.plan}
         usageToday={subscription.usageToday}
         limit={subscription.limit}
+        onOpenPro={handleOpenProModal}
       />
       <main className="flex-1 overflow-y-auto">
         {subscription.overLimit && (
           <div className="mx-12 mt-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-900 dark:border-amber-500/40 dark:bg-amber-900/20 dark:text-amber-100">
             <span className="font-medium">Free limit reached.</span>{" "}
-            Summaries now use Lite mode (simpler extractive summaries). Pro Mode will keep high-quality LLM summaries all day.
+            Summaries now use Lite mode (simpler extractive summaries).{" "}
+            <button
+              type="button"
+              onClick={handleOpenProModal}
+              className="underline underline-offset-2"
+            >
+              Learn about Pro Mode
+            </button>{" "}
+            to keep high-quality LLM summaries all day.
           </div>
         )}
         <div
@@ -127,7 +156,12 @@ export default function App() {
             charCount={summarizer.charCount}
             hasSummary={summarizer.hasSummary}
             onSummarize={handleSummarizeWithGate}
-            handleKeyDown={summarizer.handleKeyDown}
+            handleKeyDown={(e) => {
+              if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                e.preventDefault();
+                handleSummarizeWithGate();
+              }
+            }}
           />
           {summarizer.hasSummary && (
             <OutputCard summaryText={summarizer.summaryText} />
@@ -145,6 +179,14 @@ export default function App() {
         submitting={auth.submitting}
         error={auth.error}
         onSuccess={showSnackbar}
+      />
+
+      <ProModal
+        open={proModalOpen}
+        onClose={handleCloseProModal}
+        onUpgrade={handleUpgradeProDemo}
+        submitting={auth.submitting}
+        error={auth.error}
       />
 
       {snackbar && (

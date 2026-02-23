@@ -12,9 +12,10 @@ Designed as an **open-source app** with a path to **subscription / startup** lat
 ## Project overview
 
 **Frontend (React + Vite)**  
-- Paste text (min 30 words)  
-- Calls backend `POST /summarize`  
-- Displays summary with typewriter effect and “Show full”  
+- Paste text (min 30 words).  
+- Calls backend `POST /summarize`.  
+- Displays summary with typewriter effect and “Show full”.  
+- Optional auth: sign up / log in modal, account dropdown, daily usage and plan display, and a demo Pro Mode upgrade flow.
 
 **Backend (FastAPI)**  
 - **Scalable structure:** `app/` with config, schemas, routers, services—add new features (e.g. URL fetch, auth) by adding modules and mounting routers.  
@@ -22,6 +23,7 @@ Designed as an **open-source app** with a path to **subscription / startup** lat
 - **Serverless/cloud-friendly:** Minimal deps (FastAPI, httpx, pydantic, uvicorn). No PyTorch, no local LLM. Deploy on Railway, Render, Fly, or serverless (e.g. Mangum for AWS Lambda).  
 - **$0 modes:** No API key → extractive summarization (sentence selection). Groq or OpenRouter free tier → human-like LLM summaries. No credit card or monthly spend required.
 - **Provider-agnostic:** Set one of `GROQ_API_KEY`, `OPENAI_API_KEY`, or `OPENROUTER_API_KEY`; provider and default model are auto-detected.  
+- **Auth + subscription-ready:** Email/password accounts with JWT, per-user plan + daily usage fields, and a fake Pro Mode upgrade endpoint (`POST /auth/upgrade/demo-pro`) for testing subscription UX before real billing.
 
 ---
 
@@ -110,4 +112,6 @@ backend/
 - Min 30 words; target length 80–300 words  
 - Typewriter effect with “Show full”  
 - Dark/light theme, Cmd/Ctrl+Enter to summarize  
+- Optional auth (email/password) with JWT and `/auth/me`  
+- Plan + daily usage display and Lite vs Pro behavior  
 - Clear errors (validation, timeout, rate limit, API key)
