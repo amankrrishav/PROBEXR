@@ -1,3 +1,15 @@
 from app.schemas.requests import TextRequest
+from app.schemas.auth import (
+    LoginRequest,
+    RegisterRequest,
+    Token,
+    UserRead,
+)
 
-__all__ = ["TextRequest"]
+__all__ = [
+    "TextRequest",
+    "LoginRequest",
+    "RegisterRequest",
+    "Token",
+    "UserRead",
+]

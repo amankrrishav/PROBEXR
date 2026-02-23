@@ -8,6 +8,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_config
 from app.routers import health, summarize
 
+#auth (mount router) 
+#new
+from app.routers import auth
+from app.db import init_db
+
+
+
+
 app = FastAPI(
     title="ReadPulse",
     description="Human-like article summarization API",
@@ -29,4 +37,15 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(summarize.router)
 
-# Future: app.include_router(url_fetch.router, prefix="/api")
+
+#new
+app.include_router(auth.router) 
+
+
+
+#new
+@app.on_event("startup")
+def on_startup():
+    init_db()
+
+# Future: app.include_router(url_fetch.router, prefix="/api")    
