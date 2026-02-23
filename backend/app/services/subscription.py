@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Literal, Tuple
 
 from sqlmodel import Session
@@ -61,9 +61,12 @@ logger = _get_logger()
 
 
 def _today_utc() -> datetime:
-    # Normalize to midnight UTC for daily limits
-    now = datetime.now(timezone.utc)
-    return datetime(year=now.year, month=now.month, day=now.day, tzinfo=timezone.utc)
+    """
+    Normalize to midnight UTC for daily limits, stored as naive datetimes.
+    Using naive UTC avoids offset-naive vs offset-aware comparison issues.
+    """
+    now = datetime.utcnow()
+    return datetime(year=now.year, month=now.month, day=now.day)
 
 
 def reset_usage_if_needed(user: User) -> None:

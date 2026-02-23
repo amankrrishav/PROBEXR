@@ -51,10 +51,10 @@ uvicorn app.main:app --reload
 
 ## Structure
 
-- **app/config.py** — Env-based config. Add new keys when adding features.
-- **app/schemas/** — Pydantic request/response models.
-- **app/routers/** — Route modules. Add a new file and mount in `main.py`.
-- **app/services/** — Business logic (summarizer, llm). Add new services as needed.
+- **app/config.py** — Env-based config. Add new keys when adding features (summarization, auth, subscription, etc.).
+- **app/schemas/** — Pydantic request/response models (summarize, auth, user).
+- **app/routers/** — Route modules (`health`, `summarize`, `auth`). Add a new file and mount in `main.py`.
+- **app/services/** — Business logic (summarizer, llm, extractive, auth, subscription). Add new services as needed.
 
 ## Add a feature
 

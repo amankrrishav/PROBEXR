@@ -12,6 +12,7 @@ export default function Sidebar({
   plan,
   usageToday,
   limit,
+  onOpenPro,
 }) {
   const [accountOpen, setAccountOpen] = useState(false);
 
@@ -54,10 +55,20 @@ export default function Sidebar({
                         {user.email}
                       </p>
                       <p className="text-[10px] text-gray-400">
-                        Account · ReadPulse
+                        {plan === "pro" ? "Pro Mode · ReadPulse" : "Account · ReadPulse"}
                       </p>
                     </div>
                   </div>
+
+                  {plan !== "pro" && (
+                    <button
+                      type="button"
+                      onClick={onOpenPro}
+                      className="mb-1 w-full rounded-full border border-gray-200 px-3 py-1.5 text-[11px] font-medium text-gray-800 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-100 dark:hover:bg-gray-900"
+                    >
+                      Upgrade to Pro
+                    </button>
+                  )}
 
                   <button
                     type="button"
@@ -101,10 +112,21 @@ export default function Sidebar({
           </p>
         )}
         {limit != null && (
-          <p>
-            Plan: <span className="font-medium capitalize">{plan || "free"}</span>{" "}
-            · Today: {usageToday ?? 0}/{limit}
-          </p>
+          <div className="flex items-center justify-between gap-2">
+            <p>
+              Plan: <span className="font-medium capitalize">{plan || "free"}</span>{" "}
+              · Today: {usageToday ?? 0}/{limit}
+            </p>
+            {plan !== "pro" && (
+              <button
+                type="button"
+                onClick={onOpenPro}
+                className="rounded-full border border-gray-300 px-2 py-0.5 text-[10px] font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-100 dark:hover:bg-gray-900"
+              >
+                Pro
+              </button>
+            )}
+          </div>
         )}
       </div>
 

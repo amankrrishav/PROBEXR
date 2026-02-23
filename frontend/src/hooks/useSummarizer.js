@@ -42,13 +42,6 @@ export function useSummarizer() {
     }
   }
 
-  function handleKeyDown(e) {
-    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-      e.preventDefault();
-      handleSummarize();
-    }
-  }
-
   function reset() {
     setHasSummary(false);
     setSummaryText("");
@@ -80,7 +73,6 @@ export function useSummarizer() {
     summaryText,
     quality,
     onSummarize: handleSummarize,
-    handleKeyDown,
     reset,
   };
 }
