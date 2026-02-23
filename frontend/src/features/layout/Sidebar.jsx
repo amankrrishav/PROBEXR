@@ -9,6 +9,9 @@ export default function Sidebar({
   user,
   onOpenAuth,
   onLogout,
+  plan,
+  usageToday,
+  limit,
 }) {
   const [accountOpen, setAccountOpen] = useState(false);
 
@@ -91,13 +94,19 @@ export default function Sidebar({
         </button>
       </div>
 
-      {backendMode && (
-        <div className="mt-auto border-t border-gray-100 px-6 py-3 dark:border-gray-800">
-          <p className="text-xs text-gray-400">
+      <div className="mt-auto border-t border-gray-100 px-6 py-3 text-xs text-gray-400 dark:border-gray-800">
+        {backendMode && (
+          <p className="mb-1">
             Backend: {backendMode}
           </p>
-        </div>
-      )}
+        )}
+        {limit != null && (
+          <p>
+            Plan: <span className="font-medium capitalize">{plan || "free"}</span>{" "}
+            · Today: {usageToday ?? 0}/{limit}
+          </p>
+        )}
+      </div>
 
     </aside>
   );

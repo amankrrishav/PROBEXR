@@ -15,6 +15,7 @@ export function useSummarizer() {
   const [error, setError] = useState(null);
   const [hasSummary, setHasSummary] = useState(false);
   const [summaryText, setSummaryText] = useState("");
+  const [quality, setQuality] = useState("full");
 
   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
   const charCount = text.length;
@@ -30,8 +31,9 @@ export function useSummarizer() {
       setError(null);
       setLoading(true);
       setHasSummary(false);
-      const summary = await summarizeText(text);
-      setSummaryText(summary);
+      const result = await summarizeText(text);
+      setSummaryText(result.summary);
+      setQuality(result.quality || "full");
       setHasSummary(true);
     } catch (err) {
       setError(err.message || "Failed to connect to backend.");
@@ -76,6 +78,7 @@ export function useSummarizer() {
     charCount,
     hasSummary,
     summaryText,
+    quality,
     onSummarize: handleSummarize,
     handleKeyDown,
     reset,

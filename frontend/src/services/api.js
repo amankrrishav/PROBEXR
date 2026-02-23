@@ -5,14 +5,19 @@
 import { request } from "./client.js";
 
 /**
- * POST /summarize — { text } → { summary }
+ * POST /summarize — { text } → { summary, quality, usage_today, limit }
  */
 export async function summarizeText(text) {
   const data = await request("/summarize", {
     method: "POST",
     body: JSON.stringify({ text }),
   });
-  return data.summary;
+  return {
+    summary: data.summary,
+    quality: data.quality ?? "full",
+    usageToday: data.usage_today ?? null,
+    limit: data.limit ?? null,
+  };
 }
 
 /**
