@@ -1,11 +1,11 @@
 # ReadPulse Backend
 
-Scalable FastAPI backend for human-like summarization. Serverless/cloud-ready.
+Scalable FastAPI backend for human-like summarization, TTS, chat, and flashcards. Serverless/cloud-ready.
 
 ## Cost: $0 options (no need to spend $5–10/month)
 
 - **No API key:** Backend uses **extractive** summarization (sentence selection). **$0**, works everywhere. Quality is lower than LLM but usable.
-- **Groq (free tier):** [console.groq.com/keys](https://console.groq.com/keys) — free, no credit card. Set `GROQ_API_KEY` for human-like summaries at **$0**.
+- **Groq (free tier):** [console.groq.com/keys](https://console.groq.com/keys) — free, no credit card. Set `GROQ_API_KEY` for human-like summaries, chat, and synthesis at **$0**.
 - **OpenRouter (free models):** Set `OPENROUTER_API_KEY` and use a free model (e.g. `meta-llama/llama-3.1-8b-instruct:free`). **$0** for limited use.
 
 You can run the backend **right now with $0** — no key = extractive; add a free Groq key for better quality.
@@ -52,9 +52,9 @@ uvicorn app.main:app --reload
 ## Structure
 
 - **app/config.py** — Env-based config. Add new keys when adding features (summarization, auth, subscription, etc.).
-- **app/schemas/** — Pydantic request/response models (summarize, auth, user).
-- **app/routers/** — Route modules (`health`, `summarize`, `auth`). Add a new file and mount in `main.py`.
-- **app/services/** — Business logic (summarizer, llm, extractive, auth, subscription). Add new services as needed.
+- **app/schemas/** — Pydantic request/response models. Includes schemas for `ChatRequest`, `FlashcardRequest`, `TTSRequest`, `SynthesizeRequest`, etc.
+- **app/routers/** — Route modules (`health`, `summarize`, `auth`, `chat`, `flashcards`, `tts`, `synthesis`, `ingest`). Mounted in `main.py`.
+- **app/services/** — Business logic (summarizer, llm, extractive, auth, subscription) keeping the routers thin.
 
 ## Add a feature
 

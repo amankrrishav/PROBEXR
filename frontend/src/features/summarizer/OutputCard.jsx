@@ -4,7 +4,7 @@ import DocumentActions from "./DocumentActions";
 import { useSummarizerContext } from "../../contexts/SummarizerContext.jsx";
 
 export default function OutputCard() {
-  const { summaryText, documentId } = useSummarizerContext();
+  const { summaryText, documentId, isRestored } = useSummarizerContext();
   return (
     <div className="bg-white dark:bg-[#121212] border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm">
 
@@ -12,7 +12,7 @@ export default function OutputCard() {
         Summary
       </h3>
 
-      <TypingSummary text={summaryText} />
+      <TypingSummary text={summaryText} instant={isRestored} />
 
       {documentId && (
         <>

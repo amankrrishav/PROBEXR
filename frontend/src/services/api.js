@@ -38,6 +38,16 @@ export async function ingestUrl(url) {
 }
 
 /**
+ * POST /api/ingest/text — { text, title } -> Document
+ */
+export async function ingestText(text, title = "Pasted Text") {
+  return request("/api/ingest/text", {
+    method: "POST",
+    body: JSON.stringify({ text, title }),
+  });
+}
+
+/**
  * POST /api/synthesis/ — { document_ids, prompt } -> Synthesis
  */
 export async function synthesizeDocuments(documentIds, prompt = null) {
