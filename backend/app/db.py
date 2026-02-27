@@ -4,9 +4,8 @@ DATABASE_URL = "sqlite:///./readpulse.db"
 
 engine = create_engine(DATABASE_URL, echo=False)
 
-def init_db():
-    SQLModel.metadata.create_all(engine)
+from typing import Generator
 
-def get_session():
+def get_session() -> Generator[Session, None, None]:
     with Session(engine) as session:
         yield session

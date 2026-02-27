@@ -15,7 +15,9 @@ _llm = None
 Quality = Literal["full", "reduced"]
 
 
-def _get_llm():
+from typing import Any
+
+def _get_llm() -> Any:
     global _llm
     if _llm is None:
         from app.services import llm as m
@@ -30,16 +32,14 @@ def _clean_text(text: str) -> str:
     return text.strip()
 
 
-def _target_words(original_word_count: int, cfg) -> int:
+from app.config import AppConfig
+
+def _target_words(original_word_count: int, cfg: AppConfig) -> int:
     """
     Compute target word count for full-quality LLM summaries.
     """
     base = max(cfg.target_min_words, int(original_word_count * 0.25))
     return min(base, cfg.target_max_words)
-
-
-def _has_llm_provider(cfg) -> bool:
-    return bool(cfg.groq_api_key or cfg.openai_api_key or cfg.openrouter_api_key)
 
 
 async def summarize(text: str, quality: Quality = "full") -> str:
@@ -54,7 +54,7 @@ async def summarize(text: str, quality: Quality = "full") -> str:
         raise ValueError(f"Text too short. Minimum {cfg.min_words} words.")
 
     # Extractive path: always used when quality is reduced, or when no LLM provider exists.
-    if quality == "reduced" or not _has_llm_provider(cfg):
+    if quality == "reduced" or not cfg.has_llm_provider:
         return summarize_extractive(
             text,
             min_words=cfg.min_words,

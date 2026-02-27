@@ -10,8 +10,9 @@ from app.routers import health, summarize
 
 #auth (mount router) 
 #new
-from app.routers import auth
-from app.db import init_db
+from app.routers import auth, ingest, synthesis, chat, flashcards, tts
+from app.db import engine
+from app.middleware import LoggingMiddleware, setup_logging
 
 
 
@@ -24,6 +25,8 @@ app = FastAPI(
 
 cfg = get_config()
 origins = [o.strip() for o in cfg.cors_origins.split(",") if o.strip()] if cfg.cors_origins != "*" else ["*"]
+
+app.add_middleware(LoggingMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
@@ -39,13 +42,21 @@ app.include_router(summarize.router)
 
 
 #new
-app.include_router(auth.router) 
+app.include_router(auth.router)
+app.include_router(ingest.router, prefix="/api")
+app.include_router(synthesis.router, prefix="/api")
+app.include_router(chat.router, prefix="/api")
+app.include_router(flashcards.router, prefix="/api")
+app.include_router(tts.router, prefix="/api")
 
 
 
-#new
 @app.on_event("startup")
-def on_startup():
-    init_db()
+def on_startup() -> None:
+    setup_logging()
+
+@app.on_event("shutdown")
+def on_shutdown() -> None:
+    engine.dispose()
 
 # Future: app.include_router(url_fetch.router, prefix="/api")    

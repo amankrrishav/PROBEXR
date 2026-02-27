@@ -5,15 +5,13 @@ from app.config import get_config
 router = APIRouter(tags=["health"])
 
 
-def _has_llm_provider(cfg) -> bool:
-    return bool(cfg.groq_api_key or cfg.openai_api_key or cfg.openrouter_api_key)
-
+from typing import Any
 
 @router.get("/")
-def health():
+def health() -> dict[str, Any]:
     """Public health + capabilities. Frontend can show mode, version; later: plan, limits."""
     cfg = get_config()
-    mode = cfg.summarize_provider if _has_llm_provider(cfg) else "extractive"
+    mode = cfg.summarize_provider if cfg.has_llm_provider else "extractive"
     return {
         "status": f"{cfg.app_name} running",
         "version": cfg.app_version,

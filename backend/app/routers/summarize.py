@@ -12,12 +12,14 @@ from sqlmodel import Session
 router = APIRouter(prefix="", tags=["summarize"])
 
 
+from typing import Any
+
 @router.post("/summarize")
 async def summarize_endpoint(
     request: TextRequest,
     user: OptionalUser,
     session: Session = Depends(get_session),
-):
+) -> dict[str, Any]:
     text = request.text.strip()
     cfg = get_config()
 
