@@ -44,7 +44,7 @@ def summarize_extractive(text: str, min_words: int = 30, target_min: int = 80, t
     for i, s in enumerate(sentences):
         w = len(s.split())
         if w < 3:
-            score = -1
+            score = -1.0
         else:
             # Slight boost for first 2 and last 2 sentences; mild penalty for very long
             pos = i / max(n - 1, 1)

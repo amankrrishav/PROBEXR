@@ -90,13 +90,17 @@ class AppConfig:
         if self.summarize_provider == "groq":
             if not self.groq_api_key:
                 raise ValueError("GROQ_API_KEY is not set.")
-            return self.groq_api_key
+            return str(self.groq_api_key)
         if self.summarize_provider == "openai":
             if not self.openai_api_key:
                 raise ValueError("OPENAI_API_KEY is not set.")
-            return self.openai_api_key
+            return str(self.openai_api_key)
         if self.summarize_provider == "openrouter":
             if not self.openrouter_api_key:
                 raise ValueError("OPENROUTER_API_KEY is not set.")
-            return self.openrouter_api_key
+            return str(self.openrouter_api_key)
         raise ValueError("No LLM provider configured. Set one of GROQ_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY.")
+
+    @property
+    def has_llm_provider(self) -> bool:
+        return bool(self.groq_api_key or self.openai_api_key or self.openrouter_api_key)

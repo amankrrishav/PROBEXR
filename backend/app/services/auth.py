@@ -46,7 +46,9 @@ def verify_password(plain: str, hashed: str) -> bool:
 # JWT Token Creation
 # -------------------------
 
-def create_access_token(data: dict) -> str:
+from typing import Any
+
+def create_access_token(data: dict[str, Any]) -> str:
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
@@ -70,7 +72,7 @@ def _credentials_exception() -> HTTPException:
     )
 
 
-def _decode_token(token: str) -> dict:
+def _decode_token(token: str) -> dict[str, Any]:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     except JWTError:
@@ -93,6 +95,9 @@ async def get_current_user(
 
     payload = _decode_token(token)
     email = payload.get("sub")
+    if not email or not isinstance(email, str):
+        raise _credentials_exception()
+    
     user = get_user_by_email(session, email)
     if not user:
         raise _credentials_exception()
