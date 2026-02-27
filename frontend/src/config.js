@@ -6,7 +6,7 @@
 export const config = {
   appName: import.meta.env.VITE_APP_NAME || "ReadPulse",
   appVersion: import.meta.env.VITE_APP_VERSION || "1.0.0",
-  apiBaseUrl: import.meta.env.VITE_API_URL || "http://127.0.0.1:8000",
+  apiBaseUrl: import.meta.env.VITE_API_URL || "http://localhost:8000",
 
   // Request timeout (ms). Prevents hanging on slow backend.
   requestTimeoutMs: Number(import.meta.env.VITE_REQUEST_TIMEOUT_MS) || 120000,
