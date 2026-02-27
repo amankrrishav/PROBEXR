@@ -5,8 +5,8 @@ from typing import Any
 from app.db import get_session
 from app.schemas.requests import FlashcardRequest
 from app.models.flashcards import FlashcardSet, Flashcard
-from app.deps import OptionalUser
-from app.services.flashcards import generate_flashcards, generate_csv_export
+from app.deps import OptionalUser, DbSession
+from app.services.flashcards import generate_flashcards, generate_csv_export, export_flashcards
 
 router = APIRouter(prefix="/flashcards", tags=["flashcards"])
 
@@ -14,7 +14,7 @@ router = APIRouter(prefix="/flashcards", tags=["flashcards"])
 async def create_flashcards(
     request: FlashcardRequest,
     user: OptionalUser,
-    session: Session = Depends(get_session)
+    session: DbSession
 ) -> Any:
     if not user or user.id is None:
         raise HTTPException(
@@ -35,7 +35,7 @@ async def create_flashcards(
 def export_flashcards_csv(
     set_id: int,
     user: OptionalUser,
-    session: Session = Depends(get_session)
+    session: DbSession
 ) -> Any:
     if not user or user.id is None:
         raise HTTPException(
@@ -43,18 +43,11 @@ def export_flashcards_csv(
             detail="Authentication required for flashcards"
         )
         
-    fc_set = session.get(FlashcardSet, set_id)
-    if not fc_set or fc_set.user_id != user.id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Flashcard set not found or unauthorized"
-        )
-        
-    flashcards = session.exec(
-        select(Flashcard).where(Flashcard.set_id == set_id)
-    ).all()
-    
-    csv_data = generate_csv_export(list(flashcards))
+    try:
+        csv_data = export_flashcards(session, set_id, user.id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+
     
     return PlainTextResponse(
         content=csv_data,

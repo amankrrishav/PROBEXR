@@ -2,6 +2,7 @@
 ReadPulse backend — scalable, serverless-ready.
 Add new routers in app/routers and mount here.
 """
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -12,21 +13,29 @@ from app.routers import health, summarize
 #new
 from app.routers import auth, ingest, synthesis, chat, flashcards, tts
 from app.db import engine
-from app.middleware import LoggingMiddleware, setup_logging
+from app.middleware import LoggingMiddleware, RateLimitingMiddleware, setup_logging
 
 
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    setup_logging()
+    yield
+    engine.dispose()
 
 app = FastAPI(
     title="ReadPulse",
     description="Human-like article summarization API",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 cfg = get_config()
-origins = [o.strip() for o in cfg.cors_origins.split(",") if o.strip()] if cfg.cors_origins != "*" else ["*"]
+origins = [o.strip() for o in cfg.cors_origins.split(",") if o.strip()]
 
 app.add_middleware(LoggingMiddleware)
+app.add_middleware(RateLimitingMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
@@ -50,13 +59,5 @@ app.include_router(flashcards.router, prefix="/api")
 app.include_router(tts.router, prefix="/api")
 
 
-
-@app.on_event("startup")
-def on_startup() -> None:
-    setup_logging()
-
-@app.on_event("shutdown")
-def on_shutdown() -> None:
-    engine.dispose()
 
 # Future: app.include_router(url_fetch.router, prefix="/api")    

@@ -1,19 +1,20 @@
 import { useState } from "react";
 
+import { useAppContext } from "../../contexts/AppContext.jsx";
+import { useSummarizerContext } from "../../contexts/SummarizerContext.jsx";
+
 export default function Sidebar({
-  dark,
-  toggleTheme,
-  resetWorkspace,
   appName,
-  backendMode,
-  user,
   onOpenAuth,
   onLogout,
-  plan,
-  usageToday,
-  limit,
   onOpenPro,
+  activeTab,
+  setActiveTab,
 }) {
+  const { dark, toggleTheme, backendMode, auth, subscription } = useAppContext();
+  const { user } = auth;
+  const { plan, usageToday, limit } = subscription;
+  const { reset } = useSummarizerContext();
   const [accountOpen, setAccountOpen] = useState(false);
 
   const initial = user?.email ? user.email.charAt(0).toUpperCase() : null;
@@ -96,13 +97,31 @@ export default function Sidebar({
         </div>
       </div>
 
-      <div className="px-6 py-6">
+      <div className="px-6 py-6 border-b border-gray-100 dark:border-gray-800">
         <button
-          onClick={resetWorkspace}
-          className="w-full px-6 py-2.5 rounded-full text-sm font-medium bg-black text-white dark:bg-white dark:text-black hover:opacity-90 transition"
+          onClick={() => {
+            setActiveTab("summarize");
+            reset();
+          }}
+          className="w-full px-6 py-2.5 rounded-full text-sm font-medium bg-black text-white dark:bg-white dark:text-black hover:opacity-90 transition mb-4"
         >
           + New Summary
         </button>
+
+        <nav className="flex flex-col gap-2">
+          <button
+            onClick={() => setActiveTab("summarize")}
+            className={`text-left px-4 py-2 rounded-lg text-sm font-medium transition ${activeTab === 'summarize' ? 'bg-gray-100 dark:bg-gray-800 text-black dark:text-white' : 'text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white'}`}
+          >
+            Single Document
+          </button>
+          <button
+            onClick={() => setActiveTab("synthesize")}
+            className={`text-left px-4 py-2 rounded-lg text-sm font-medium transition ${activeTab === 'synthesize' ? 'bg-gray-100 dark:bg-gray-800 text-black dark:text-white' : 'text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white'}`}
+          >
+            Multi-Doc Synthesis <span className="text-[10px] bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded ml-2">PRO</span>
+          </button>
+        </nav>
       </div>
 
       <div className="mt-auto border-t border-gray-100 px-6 py-3 text-xs text-gray-400 dark:border-gray-800">

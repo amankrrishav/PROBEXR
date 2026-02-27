@@ -1,6 +1,8 @@
 from sqlmodel import SQLModel, create_engine, Session
 
-DATABASE_URL = "sqlite:///./readpulse.db"
+from app.config import get_config
+
+DATABASE_URL = get_config().database_url
 
 engine = create_engine(DATABASE_URL, echo=False)
 

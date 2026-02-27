@@ -1,9 +1,9 @@
 /**
  * Summarizer feature state and logic — keeps App thin. Add new feature hooks the same way.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { config } from "../config.js";
-import { summarizeText } from "../services/api.js";
+import { summarizeText, ingestUrl } from "../services/api.js";
 
 const MIN_WORDS = config.summarizer.minWords;
 const LOADING_MESSAGES = config.loadingMessages;
@@ -16,14 +16,21 @@ export function useSummarizer() {
   const [hasSummary, setHasSummary] = useState(false);
   const [summaryText, setSummaryText] = useState("");
   const [quality, setQuality] = useState("full");
+  const [isUrlMode, setIsUrlMode] = useState(false);
+  const [url, setUrl] = useState("");
+  const [documentId, setDocumentId] = useState(null);
 
   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
   const charCount = text.length;
 
-  async function handleSummarize() {
+  const handleSummarize = useCallback(async () => {
     if (loading) return;
-    if (wordCount < MIN_WORDS) {
+    if (!isUrlMode && wordCount < MIN_WORDS) {
       setError(`Minimum ${MIN_WORDS} words required.`);
+      return;
+    }
+    if (isUrlMode && !url.trim()) {
+      setError("Please enter a valid URL.");
       return;
     }
 
@@ -31,7 +38,18 @@ export function useSummarizer() {
       setError(null);
       setLoading(true);
       setHasSummary(false);
-      const result = await summarizeText(text);
+      setDocumentId(null);
+
+      let textToSummarize = text;
+
+      if (isUrlMode) {
+        const doc = await ingestUrl(url.trim());
+        textToSummarize = doc.cleaned_content;
+        setText(textToSummarize); // Auto-fill the text area so they can read what was ingested
+        setDocumentId(doc.id);
+      }
+
+      const result = await summarizeText(textToSummarize);
       setSummaryText(result.summary);
       setQuality(result.quality || "full");
       setHasSummary(true);
@@ -40,14 +58,16 @@ export function useSummarizer() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [loading, isUrlMode, wordCount, text, url]);
 
-  function reset() {
+  const reset = useCallback(() => {
     setHasSummary(false);
     setSummaryText("");
     setText("");
+    setUrl("");
+    setDocumentId(null);
     setError(null);
-  }
+  }, []);
 
   // Rotate loading message while loading
   useEffect(() => {
@@ -72,6 +92,11 @@ export function useSummarizer() {
     hasSummary,
     summaryText,
     quality,
+    isUrlMode,
+    setIsUrlMode,
+    url,
+    setUrl,
+    documentId,
     onSummarize: handleSummarize,
     reset,
   };

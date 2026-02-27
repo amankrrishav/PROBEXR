@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, memo } from "react";
 
-export default function TypingSummary({ text }) {
+const TypingSummary = memo(function TypingSummary({ text }) {
   const [displayedText, setDisplayedText] = useState("");
   const [showFull, setShowFull] = useState(false);
   const intervalRef = useRef(null);
@@ -55,4 +55,6 @@ export default function TypingSummary({ text }) {
       )}
     </div>
   );
-}
+});
+
+export default TypingSummary;

@@ -1,6 +1,10 @@
 import TypingSummary from "./TypingSummary";
+import ChatView from "./ChatView";
+import DocumentActions from "./DocumentActions";
+import { useSummarizerContext } from "../../contexts/SummarizerContext.jsx";
 
-export default function OutputCard({ summaryText }) {
+export default function OutputCard() {
+  const { summaryText, documentId } = useSummarizerContext();
   return (
     <div className="bg-white dark:bg-[#121212] border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm">
 
@@ -9,6 +13,13 @@ export default function OutputCard({ summaryText }) {
       </h3>
 
       <TypingSummary text={summaryText} />
+
+      {documentId && (
+        <>
+          <DocumentActions documentId={documentId} />
+          <ChatView documentId={documentId} />
+        </>
+      )}
 
     </div>
   );

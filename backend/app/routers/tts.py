@@ -4,7 +4,7 @@ from typing import Any
 from app.db import get_session
 from app.schemas.requests import TTSRequest
 from app.models.tts import AudioSummary
-from app.deps import OptionalUser
+from app.deps import OptionalUser, DbSession
 from app.services.tts import generate_audio_summary
 
 router = APIRouter(prefix="/tts", tags=["tts"])
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/tts", tags=["tts"])
 async def create_tts(
     request: TTSRequest,
     user: OptionalUser,
-    session: Session = Depends(get_session)
+    session: DbSession
 ) -> Any:
     if not user or user.id is None:
         raise HTTPException(

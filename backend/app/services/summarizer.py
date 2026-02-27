@@ -3,10 +3,14 @@ Summarization: LLM (human-like) when an API key is set, or free extractive fallb
 Reduced quality uses the simpler extractive summarizer even when an LLM is configured.
 """
 import re
-from typing import Literal
+from typing import Literal, Any, Tuple
+import httpx
+from sqlmodel import Session
 
 from app.config import get_config
 from app.services.extractive import summarize_extractive
+from app.services.subscription import evaluate_summary_quality
+from app.models.user import User
 
 # Lazy import so extractive path works without httpx when no key
 _llm = None
@@ -103,3 +107,41 @@ Write a cohesive summary of approximately {target_words} words. One or two short
     )
 
     return final_summary.strip() or "Summary could not be generated."
+
+async def process_summarize(text: str, user: User | None, session: Session) -> dict[str, Any]:
+    text = text.strip()
+    cfg = get_config()
+    if not text:
+        raise ValueError("Text is required.")
+    
+    if len(text.split()) < cfg.min_words:
+        raise ValueError(f"Text too short. Minimum {cfg.min_words} words.")
+
+    try:
+        quality, usage_today, limit = evaluate_summary_quality(user, session)
+        summary_text = await summarize(text, quality=quality)
+        return {
+            "summary": summary_text,
+            "quality": quality,
+            "usage_today": usage_today,
+            "limit": limit,
+        }
+    except httpx.HTTPStatusError as e:
+        msg = str(e)
+        if "timed out" in msg.lower() or e.response.status_code == 504:
+            raise ValueError("Summarization timed out. Try a shorter text.")
+        if e.response.status_code == 401:
+            raise ValueError("Summarization service misconfigured. Check API key.")
+        if e.response.status_code == 429:
+            raise ValueError("Rate limit exceeded. Try again in a moment.")
+        try:
+            body = e.response.json()
+            err = body.get("error", body.get("message", msg))
+            if isinstance(err, dict):
+                err = err.get("message", str(err))
+            msg = str(err)
+        except Exception:
+            pass
+        raise ValueError(msg or "Summarization failed.")
+    except httpx.RequestError:
+        raise ValueError("Cannot reach summarization service. Check your network and API key.")

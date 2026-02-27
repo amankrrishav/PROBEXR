@@ -26,9 +26,10 @@ class AppConfig:
         # App
         self.app_name = _env("APP_NAME", "ReadPulse") or "ReadPulse"
         self.debug = (_env("DEBUG", "0") or "0").lower() in ("1", "true", "yes")
+        self.environment = _env("ENVIRONMENT", "development") or "development"
 
         # CORS (comma-separated origins, or *)
-        self.cors_origins = _env("CORS_ORIGINS", "*") or "*"
+        self.cors_origins = _env("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000") or "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000"
 
         # Summarization: provider auto-detected from API keys
         self.summarize_provider: ProviderName | None = _env("SUMMARIZE_PROVIDER") or None  # type: ignore
@@ -51,6 +52,7 @@ class AppConfig:
         self.min_words = int(_env("SUMMARIZE_MIN_WORDS", "30") or "30")
         self.target_min_words = int(_env("SUMMARIZE_TARGET_MIN_WORDS", "80") or "80")
         self.target_max_words = int(_env("SUMMARIZE_TARGET_MAX_WORDS", "300") or "300")
+        self.database_url = _env("DATABASE_URL", "sqlite:///./readpulse.db") or "sqlite:///./readpulse.db"
 
         # ----- Future: subscription / plans (add keys here when you add billing) -----
         self.app_version = _env("APP_VERSION", "1.0.0") or "1.0.0"
@@ -60,6 +62,9 @@ class AppConfig:
         # When auth exists: API_KEY_HEADER, JWT_SECRET, STRIPE_WEBHOOK_SECRET, etc. #new
         self.SECRET_KEY = _env("SECRET_KEY", "dev-secret-change-this") or "dev-secret-change-this"
         self.ALGORITHM = _env("JWT_ALGORITHM", "HS256") or "HS256"
+
+        self.rate_limit_per_minute = int(_env("RATE_LIMIT_PER_MINUTE", "60") or "60")
+        self.rate_limit_llm_per_minute = int(_env("RATE_LIMIT_LLM_PER_MINUTE", "10") or "10")
 
 
         # Resolve provider and default model if not set
