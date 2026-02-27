@@ -1,12 +1,18 @@
 import { useEffect, useRef, useState, memo } from "react";
 
-const TypingSummary = memo(function TypingSummary({ text }) {
+const TypingSummary = memo(function TypingSummary({ text, instant = false }) {
   const [displayedText, setDisplayedText] = useState("");
   const [showFull, setShowFull] = useState(false);
   const intervalRef = useRef(null);
 
   useEffect(() => {
     if (!text) return;
+
+    if (instant) {
+      setDisplayedText(text);
+      setShowFull(true);
+      return;
+    }
 
     setDisplayedText("");
     setShowFull(false);

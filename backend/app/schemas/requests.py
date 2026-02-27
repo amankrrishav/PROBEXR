@@ -8,6 +8,10 @@ class TextRequest(BaseModel):
 class URLRequest(BaseModel):
     url: str = Field(..., max_length=2048, description="URL to scrape and ingest")
 
+class TextIngestRequest(BaseModel):
+    text: str = Field(..., description="Text to save as a Document")
+    title: str = Field(default="Pasted Text", description="Optional title")
+
 class SynthesisRequest(BaseModel):
     document_ids: list[int] = Field(..., min_length=2, max_length=10, description="List of at least two Document IDs to synthesize")
     prompt: str | None = Field(default=None, max_length=500, description="Optional custom prompt for synthesis")

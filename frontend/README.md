@@ -12,7 +12,7 @@ src/
 ├── index.css
 ├── services/           # API layer (like backend routers)
 │   ├── client.js       # Base URL, request(), parseErrorDetail
-│   └── api.js          # summarizeText(), getHealth(); add new endpoints here
+│   └── api.js          # summarizeText(), ingestText(), ingestUrl(), sendChatMessage(), generateAudioSummary(), generateFlashcards(), synthesizeDocuments()
 ├── hooks/              # Feature and app state (like backend services)
 │   ├── useSummarizer.js
 │   └── useTheme.js
@@ -20,10 +20,13 @@ src/
     ├── layout/         # Sidebar, etc.
     │   ├── index.js
     │   └── Sidebar.jsx
-    └── summarizer/     # Editor, OutputCard, TypingSummary
+    └── summarizer/     # Editor, OutputCard, TypingSummary, ChatView, SynthesisWorkspace
         ├── index.js
         ├── Editor.jsx
         ├── OutputCard.jsx
+        ├── ChatView.jsx
+        ├── DocumentActions.jsx
+        ├── SynthesisWorkspace.jsx
         └── TypingSummary.jsx
 ```
 
@@ -36,12 +39,12 @@ npm install
 npm run dev
 ```
 
-Uses `VITE_API_URL` (default `http://127.0.0.1:8000`) to talk to the backend.
+Uses `VITE_API_URL` (default `http://localhost:8000`) to talk to the backend.
 
 ## Env
 
 | Env | Purpose |
 |-----|--------|
-| `VITE_API_URL` | Backend base URL (default `http://127.0.0.1:8000`) |
+| `VITE_API_URL` | Backend base URL (default `http://localhost:8000`) |
 | `VITE_APP_NAME` | App name (optional) |
 | `VITE_SUMMARIZE_MIN_WORDS` | Min words for summarizer (optional, default 30) |

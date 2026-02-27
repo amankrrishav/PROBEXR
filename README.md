@@ -1,6 +1,6 @@
-# ReadPulse — Article Summarizer
+# ReadPulse — Article Summarizer & Learning Hub
 
-ReadPulse is a full-stack article summarizer: paste text, get a short, human-like summary.  
+ReadPulse is a full-stack article summarizer and learning platform: paste text or URLs, get a short, human-like summary, chat with the document, listen to it, and export flashcards.  
 *Extract signal. Ignore noise.*
 
 Designed as an **open-source app** with a path to **subscription / startup** later (see [ROADMAP.md](ROADMAP.md) and [CONTRIBUTING.md](CONTRIBUTING.md)).
@@ -12,13 +12,18 @@ Designed as an **open-source app** with a path to **subscription / startup** lat
 ## Project overview
 
 **Frontend (React + Vite)**  
-- Paste text (min 30 words).  
-- Calls backend `POST /summarize`.  
+- Paste text or URL (min 30 words).  
+- Calls backend `POST /summarize` or `POST /api/ingest/url`.  
 - Displays summary with typewriter effect and “Show full”.  
+- **Advanced Features:** 
+  - **Read Aloud (TTS):** Listen to the summarized document.
+  - **Chat:** Ask contextual questions about the analyzed text.
+  - **Flashcards:** Generate and export flashcard CSVs (Anki-compatible).
+  - **Multi-Document Synthesis (Pro):** Synthesize multiple documents into a single briefing.
 - Optional auth: sign up / log in modal, account dropdown, daily usage and plan display, and a demo Pro Mode upgrade flow.
 
 **Backend (FastAPI)**  
-- **Scalable structure:** `app/` with config, schemas, routers, services—add new features (e.g. URL fetch, auth) by adding modules and mounting routers.  
+- **Scalable structure:** `app/` with config, schemas, routers, services—contains routers for auth, chat, flashcards, ingest, summarize, synthesis, and tts.  
 - **Human-like summarization:** Two-stage (extract concepts → synthesize in natural language) via any OpenAI-compatible API.  
 - **Serverless/cloud-friendly:** Minimal deps (FastAPI, httpx, pydantic, uvicorn). No PyTorch, no local LLM. Deploy on Railway, Render, Fly, or serverless (e.g. Mangum for AWS Lambda).  
 - **$0 modes:** No API key → extractive summarization (sentence selection). Groq or OpenRouter free tier → human-like LLM summaries. No credit card or monthly spend required.
@@ -30,9 +35,11 @@ Designed as an **open-source app** with a path to **subscription / startup** lat
 ## Architecture
 
 ```
-User pastes text
+User pastes text / URL
        ↓
 React frontend (VITE_API_URL → backend)
+       ↓
+POST /api/ingest/text OR /api/ingest/url
        ↓
 POST /summarize
        ↓
@@ -40,7 +47,7 @@ FastAPI (app/main.py)
        ↓
 Summarizer service → LLM (if key set) or extractive (no key, $0)
        ↓
-{ "summary": "..." }
+{ "summary": "..." } → UI Reveals Chat, Flashcards, and TTS Buttons
 ```
 
 ---
@@ -53,11 +60,10 @@ backend/
 │   ├── main.py           # FastAPI app, CORS, router mounting
 │   ├── config.py         # Env-based config (add new keys here)
 │   ├── schemas/          # Request/response models (e.g. TextRequest)
-│   ├── routers/          # Route modules (health, summarize; add url_fetch, auth, etc.)
-│   └── services/         # Business logic (summarizer, llm; add more as needed)
-├── requirements.txt      # Minimal: fastapi, uvicorn, httpx, pydantic
+│   ├── routers/          # Route modules (summarize, auth, chat, ingest, flashcards, tts, synthesis)
+│   └── services/         # Business logic (summarizer, llm, auth, chat, etc.)
+├── requirements.txt      # Minimal dependencies
 ├── run.py                # Local: python run.py (from backend/)
-└── archive/              # Legacy/experimental scripts
 ```
 
 **Adding a feature:**  
@@ -79,7 +85,7 @@ backend/
 
 **Frontend**  
 - From `frontend/`: `npm install` then `npm run dev`.  
-- Uses `http://127.0.0.1:8000` by default; set `VITE_API_URL` for production.
+- Uses `http://localhost:8000` by default; set `VITE_API_URL` for production.
 
 ---
 
@@ -108,10 +114,11 @@ backend/
 
 ## Current capabilities
 
-- Two-stage human-like summarization (extract → synthesize)  
-- Min 30 words; target length 80–300 words  
-- Typewriter effect with “Show full”  
-- Dark/light theme, Cmd/Ctrl+Enter to summarize  
-- Optional auth (email/password) with JWT and `/auth/me`  
-- Plan + daily usage display and Lite vs Pro behavior  
+- **Two-stage human-like summarization** (extract → synthesize)  
+- **URL Ingestion** for seamless web scraping and DB content storage
+- **Contextual Article Chat** for interrogating documents
+- **Text-to-Speech (TTS)** audio generation
+- **Flashcard Export** to CSV matching Anki formats
+- **Multi-Document Synthesis** for Pro users to combine insights
+- **Auth (email/password)** with persistent session cache
 - Clear errors (validation, timeout, rate limit, API key)
