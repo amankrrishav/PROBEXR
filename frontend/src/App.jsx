@@ -2,15 +2,12 @@
  * App — thin shell: composes config, hooks, and features (like backend main.py).
  * Add new features: new hook + feature folder, then wire here.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { config } from "./config.js";
-import { useSummarizer } from "./hooks/useSummarizer.js";
-import { useTheme } from "./hooks/useTheme.js";
-import { useBackendHealth } from "./hooks/useBackendHealth.js";
-import { useAuth } from "./hooks/useAuth.js";
-import { useSubscription } from "./hooks/useSubscription.js";
+import { useAppContext } from "./contexts/AppContext.jsx";
+import { useSummarizerContext } from "./contexts/SummarizerContext.jsx";
 import { Sidebar } from "./features/layout";
-import { Editor, OutputCard } from "./features/summarizer";
+import { Editor, OutputCard, SynthesisWorkspace } from "./features/summarizer";
 import { AuthModal } from "./features/auth";
 import { ProModal } from "./features/subscription";
 
@@ -21,18 +18,15 @@ function isBrowser() {
 }
 
 export default function App() {
-  const { dark, toggleTheme } = useTheme();
-  const summarizer = useSummarizer();
-  const backendHealth = useBackendHealth();
-  const { backendMode } = backendHealth;
-  const auth = useAuth();
-  const subscription = useSubscription(backendHealth.backend, auth.user);
+  const { dark, auth, subscription } = useAppContext();
+  const summarizer = useSummarizerContext();
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState("signup");
   const [hasUsedFeatureOnce, setHasUsedFeatureOnce] = useState(false);
   const [snackbar, setSnackbar] = useState(null);
   const [proModalOpen, setProModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("summarize");
 
   useEffect(() => {
     if (!isBrowser()) return;
@@ -92,7 +86,7 @@ export default function App() {
     }
   }
 
-  function handleSummarizeWithGate() {
+  const handleSummarizeWithGate = useCallback(() => {
     if (!hasUsedFeatureOnce) {
       setHasUsedFeatureOnce(true);
       markFeatureUsedOnce();
@@ -106,23 +100,17 @@ export default function App() {
     }
 
     summarizer.onSummarize();
-  }
+  }, [hasUsedFeatureOnce, auth.isAuthenticated, summarizer.onSummarize]);
 
   return (
     <div className="h-screen flex bg-[#F8F7F4] text-[#1A1A2E] dark:bg-[#0a0a0a] dark:text-white transition-colors duration-300">
       <Sidebar
-        dark={dark}
-        toggleTheme={toggleTheme}
-        resetWorkspace={summarizer.reset}
         appName={config.appName}
-        backendMode={backendMode}
-        user={auth.user}
         onOpenAuth={handleOpenAuth}
         onLogout={handleLogout}
-        plan={subscription.plan}
-        usageToday={subscription.usageToday}
-        limit={subscription.limit}
         onOpenPro={handleOpenProModal}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
       />
       <main className="flex-1 overflow-y-auto">
         {subscription.overLimit && (
@@ -140,31 +128,28 @@ export default function App() {
           </div>
         )}
         <div
-          className={`px-12 py-16 transition-all duration-500 ${
-            summarizer.hasSummary
-              ? "grid grid-cols-2 gap-12"
-              : "max-w-3xl mx-auto"
-          }`}
+          className={`px-12 py-16 transition-all duration-500 ${activeTab === 'summarize' && summarizer.hasSummary
+            ? "grid grid-cols-2 gap-12"
+            : "max-w-3xl mx-auto"
+            }`}
         >
-          <Editor
-            text={summarizer.text}
-            setText={summarizer.setText}
-            loading={summarizer.loading}
-            loadingMessage={summarizer.loadingMessage}
-            error={summarizer.error}
-            wordCount={summarizer.wordCount}
-            charCount={summarizer.charCount}
-            hasSummary={summarizer.hasSummary}
-            onSummarize={handleSummarizeWithGate}
-            handleKeyDown={(e) => {
-              if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                e.preventDefault();
-                handleSummarizeWithGate();
-              }
-            }}
-          />
-          {summarizer.hasSummary && (
-            <OutputCard summaryText={summarizer.summaryText} />
+          {activeTab === "summarize" ? (
+            <>
+              <Editor
+                onSummarize={handleSummarizeWithGate}
+                handleKeyDown={(e) => {
+                  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                    e.preventDefault();
+                    handleSummarizeWithGate();
+                  }
+                }}
+              />
+              {summarizer.hasSummary && (
+                <OutputCard />
+              )}
+            </>
+          ) : (
+            <SynthesisWorkspace />
           )}
         </div>
       </main>

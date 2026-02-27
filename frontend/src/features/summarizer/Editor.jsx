@@ -1,15 +1,23 @@
+import { useSummarizerContext } from "../../contexts/SummarizerContext.jsx";
+
 export default function Editor({
-  text,
-  setText,
-  loading,
-  loadingMessage,
-  error,
-  wordCount,
-  charCount,
-  hasSummary,
   onSummarize,
   handleKeyDown,
 }) {
+  const {
+    text,
+    setText,
+    loading,
+    loadingMessage,
+    error,
+    wordCount,
+    charCount,
+    hasSummary,
+    isUrlMode,
+    setIsUrlMode,
+    url,
+    setUrl,
+  } = useSummarizerContext();
   return (
     <div>
 
@@ -32,15 +40,49 @@ export default function Editor({
       )}
 
       <div className="bg-white dark:bg-[#121212] border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm transition-all duration-300">
+        {!hasSummary && (
+          <div className="flex gap-4 mb-4 border-b border-gray-200 dark:border-gray-800 pb-4">
+            <button
+              onClick={() => setIsUrlMode(false)}
+              className={`text-sm font-medium px-4 py-2 rounded-lg transition-colors ${!isUrlMode
+                ? "bg-gray-100 text-black dark:bg-gray-800 dark:text-white"
+                : "text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white"
+                }`}
+            >
+              Paste Text
+            </button>
+            <button
+              onClick={() => setIsUrlMode(true)}
+              className={`text-sm font-medium px-4 py-2 rounded-lg transition-colors ${isUrlMode
+                ? "bg-gray-100 text-black dark:bg-gray-800 dark:text-white"
+                : "text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white"
+                }`}
+            >
+              Paste URL
+            </button>
+          </div>
+        )}
 
-        <textarea
-          rows={hasSummary ? 6 : 8}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Paste article, research, or blog post..."
-          className="w-full resize-none outline-none text-sm leading-relaxed bg-transparent"
-        />
+        {isUrlMode && !hasSummary ? (
+          <input
+            type="url"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="https://example.com/article"
+            className="w-full bg-gray-50 dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3 outline-none text-sm transition-colors focus:border-black dark:focus:border-white mb-4"
+          />
+        ) : (
+          <textarea
+            rows={hasSummary ? 6 : 8}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={hasSummary ? "Original Text" : "Paste article, research, or blog post..."}
+            readOnly={hasSummary && isUrlMode}
+            className="w-full resize-none outline-none text-sm leading-relaxed bg-transparent"
+          />
+        )}
 
         <div className="flex justify-between items-center mt-6">
 

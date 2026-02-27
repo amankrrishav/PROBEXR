@@ -4,7 +4,7 @@ from sqlmodel import Session
 from app.db import get_session
 from app.schemas.requests import URLRequest
 from app.models.document import Document
-from app.deps import OptionalUser
+from app.deps import OptionalUser, DbSession
 from app.services.ingest import fetch_and_clean_url
 
 router = APIRouter(prefix="/ingest", tags=["ingest"])
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/ingest", tags=["ingest"])
 async def ingest_url(
     request: URLRequest,
     user: OptionalUser,
-    session: Session = Depends(get_session)
+    session: DbSession
 ) -> Any:
     if not user or user.id is None:
         raise HTTPException(

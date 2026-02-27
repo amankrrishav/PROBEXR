@@ -4,7 +4,7 @@ from typing import Any
 from app.db import get_session
 from app.schemas.requests import ChatRequest
 from app.models.chat import ChatMessage
-from app.deps import OptionalUser
+from app.deps import OptionalUser, DbSession
 from app.services.chat import process_chat_message
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 async def chat_endpoint(
     request: ChatRequest,
     user: OptionalUser,
-    session: Session = Depends(get_session)
+    session: DbSession
 ) -> Any:
     if not user or user.id is None:
         raise HTTPException(

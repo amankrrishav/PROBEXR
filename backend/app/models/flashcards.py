@@ -1,7 +1,10 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, SQLModel, Relationship
+
+if TYPE_CHECKING:
+    from app.models.document import Document
 
 
 class FlashcardSet(SQLModel, table=True):
@@ -11,9 +14,13 @@ class FlashcardSet(SQLModel, table=True):
     content: str = Field(default="") # JSON or text representing the overview
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+    document: Optional["Document"] = Relationship(back_populates="flashcard_sets")
+    flashcards: list["Flashcard"] = Relationship(back_populates="flashcard_set", cascade_delete=True)
 
 class Flashcard(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     set_id: int = Field(foreign_key="flashcardset.id", index=True)
     front: str
     back: str
+
+    flashcard_set: Optional["FlashcardSet"] = Relationship(back_populates="flashcards")

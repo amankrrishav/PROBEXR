@@ -4,7 +4,7 @@ from sqlmodel import Session
 from app.db import get_session
 from app.schemas.requests import SynthesisRequest
 from app.models.synthesis import Synthesis
-from app.deps import OptionalUser
+from app.deps import OptionalUser, DbSession
 from app.services.synthesis import synthesize_documents
 
 router = APIRouter(prefix="/synthesis", tags=["synthesis"])
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/synthesis", tags=["synthesis"])
 async def create_synthesis(
     request: SynthesisRequest,
     user: OptionalUser,
-    session: Session = Depends(get_session)
+    session: DbSession
 ) -> Any:
     if not user or user.id is None:
         raise HTTPException(

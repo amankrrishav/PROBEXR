@@ -29,3 +29,8 @@ export async function upgradeDemoPro() {
   });
 }
 
+export async function logout() {
+  return request("/auth/logout", {
+    method: "POST",
+  });
+}

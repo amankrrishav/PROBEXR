@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { getCurrentUser, login as loginApi, register as registerApi, upgradeDemoPro } from "../services/auth.js";
-import { clearAccessToken, getAccessToken, setAccessToken } from "../services/authStorage.js";
+import { getCurrentUser, login as loginApi, register as registerApi, upgradeDemoPro, logout as logoutApi } from "../services/auth.js";
 
 export function useAuth() {
   const [user, setUser] = useState(null);
@@ -9,12 +8,6 @@ export function useAuth() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const token = getAccessToken();
-    if (!token) {
-      setInitializing(false);
-      return;
-    }
-
     let cancelled = false;
     getCurrentUser()
       .then((u) => {
@@ -25,7 +18,6 @@ export function useAuth() {
       })
       .catch(() => {
         if (!cancelled) {
-          clearAccessToken();
           setUser(null);
         }
       })
@@ -44,11 +36,7 @@ export function useAuth() {
     setError(null);
     setSubmitting(true);
     try {
-      const data = await apiFn({ email, password });
-      const token = data?.access_token;
-      if (token) {
-        setAccessToken(token);
-      }
+      await apiFn({ email, password });
       const me = await getCurrentUser();
       setUser(me);
       return me;
@@ -68,9 +56,14 @@ export function useAuth() {
     return handleAuth(registerApi, credentials);
   }
 
-  function logout() {
-    clearAccessToken();
-    setUser(null);
+  async function logout() {
+    try {
+      await logoutApi();
+    } catch (err) {
+      console.error("Logout failed", err);
+    } finally {
+      setUser(null);
+    }
   }
 
   async function upgradeToDemoPro() {

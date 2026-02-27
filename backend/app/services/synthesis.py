@@ -32,8 +32,8 @@ async def synthesize_documents(document_ids: list[int], user_id: int, session: S
 
     synthesis_record = Synthesis(
         user_id=user_id,
-        document_ids=",".join(map(str, document_ids)),
-        summary=summary
+        summary=summary,
+        documents=docs
     )
     session.add(synthesis_record)
     session.commit()

@@ -1,7 +1,10 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, SQLModel, Relationship
+
+if TYPE_CHECKING:
+    from app.models.document import Document
 
 
 class User(SQLModel, table=True):
@@ -19,3 +22,5 @@ class User(SQLModel, table=True):
     plan: str = Field(default="free", index=True)  # "free" | "pro" | future tiers
     usage_today: int = Field(default=0)
     usage_reset_at: Optional[datetime] = None
+
+    documents: list["Document"] = Relationship(back_populates="user", cascade_delete=True)

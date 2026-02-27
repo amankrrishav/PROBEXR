@@ -62,3 +62,16 @@ def generate_csv_export(flashcards: list[Flashcard]) -> str:
     for fc in flashcards:
         writer.writerow([fc.front, fc.back])
     return output.getvalue()
+
+def export_flashcards(session: Session, set_id: int, user_id: int) -> str:
+    from sqlmodel import select
+    fc_set = session.get(FlashcardSet, set_id)
+    if not fc_set or fc_set.user_id != user_id:
+        raise ValueError("Flashcard set not found or unauthorized")
+        
+    flashcards = session.exec(
+        select(Flashcard).where(Flashcard.set_id == set_id)
+    ).all()
+    
+    return generate_csv_export(list(flashcards))
+

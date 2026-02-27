@@ -6,15 +6,15 @@ class TextRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=100_000, description="Max 100k chars to prevent DoS")
 
 class URLRequest(BaseModel):
-    url: str = Field(..., description="URL to scrape and ingest")
+    url: str = Field(..., max_length=2048, description="URL to scrape and ingest")
 
 class SynthesisRequest(BaseModel):
-    document_ids: list[int] = Field(..., min_length=2, description="List of at least two Document IDs to synthesize")
-    prompt: str | None = Field(default=None, description="Optional custom prompt for synthesis")
+    document_ids: list[int] = Field(..., min_length=2, max_length=10, description="List of at least two Document IDs to synthesize")
+    prompt: str | None = Field(default=None, max_length=500, description="Optional custom prompt for synthesis")
 
 class ChatRequest(BaseModel):
     document_id: int = Field(..., description="ID of the document to chat about")
-    message: str = Field(..., description="User message to the assistant")
+    message: str = Field(..., max_length=2000, description="User message to the assistant")
     session_id: int | None = Field(default=None, description="Provide an existing session ID to continue a chat")
 
 class FlashcardRequest(BaseModel):

@@ -48,3 +48,37 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                 }
             )
         return response
+
+from app.config import get_config
+from fastapi.responses import JSONResponse
+
+_rate_limit_data: dict[str, int] = {}
+
+class RateLimitingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+        cfg = get_config()
+        client_ip = request.client.host if request.client else "unknown"
+        path = str(request.url.path)
+        
+        # Simple minute-bucketing
+        current_minute = int(time.time() // 60)
+        
+        # Distinguish LLM routes
+        is_llm_route = any(p in path for p in ["/summarize", "/api/synthesis", "/api/chat", "/api/tts"])
+        limit = cfg.rate_limit_llm_per_minute if is_llm_route else cfg.rate_limit_per_minute
+        
+        # Clean up old minute data intermittently
+        if len(_rate_limit_data) > 10000:
+            _rate_limit_data.clear()
+            
+        key = f"{client_ip}_{is_llm_route}_{current_minute}"
+        
+        current_hits = _rate_limit_data.get(key, 0)
+        if current_hits >= limit:
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Rate limit exceeded. Try again later."}
+            )
+            
+        _rate_limit_data[key] = current_hits + 1
+        return await call_next(request)
