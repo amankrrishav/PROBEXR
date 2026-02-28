@@ -5,7 +5,7 @@ ReadPulse is a full-stack article summarizer and learning platform: paste text o
 
 Designed as an **open-source app** with a path to **subscription / startup** later (see [ROADMAP.md](ROADMAP.md) and [CONTRIBUTING.md](CONTRIBUTING.md)).
 
-**Backend:** Scalable FastAPI app, serverless/cloud-ready. **$0 options:** no API key = extractive summarization; or Groq/OpenRouter free tier for human-like summaries. No need to spend $5–10/month.
+**Backend:** Scalable FastAPI app with async PostgreSQL (asyncpg), Redis rate limiting, and streaming-ready LLM layer. **$0 options:** no API key = extractive summarization; or Groq/OpenRouter free tier for human-like summaries. No need to spend $5–10/month. Runs locally with SQLite + no Redis for easy development.
 
 ---
 
@@ -24,6 +24,10 @@ Designed as an **open-source app** with a path to **subscription / startup** lat
 
 **Backend (FastAPI)**  
 - **Scalable structure:** `app/` with config, schemas, routers, services—contains routers for auth, chat, flashcards, ingest, summarize, synthesis, and tts.  
+- **Async-first:** Full async pipeline using `asyncpg` (PostgreSQL) or `aiosqlite` (SQLite dev) with `AsyncSession`. Zero blocking calls in the request path.  
+- **PostgreSQL-ready:** Connection pooling (`pool_size`, `max_overflow`, `pool_timeout`) configured for production. SQLite fallback for local development.  
+- **Redis rate limiting:** Atomic INCR+EXPIRE pattern with per-IP and per-tier limits. Graceful in-memory fallback when Redis is unavailable.  
+- **LLM streaming-ready:** `generate_full()` + `generate_stream()` in the LLM layer. SSE transport planned for Phase 2B.  
 - **Human-like summarization:** Two-stage (extract concepts → synthesize in natural language) via any OpenAI-compatible API.  
 - **Serverless/cloud-friendly:** Minimal deps (FastAPI, httpx, pydantic, uvicorn). No PyTorch, no local LLM. Deploy on Railway, Render, Fly, or serverless (e.g. Mangum for AWS Lambda).  
 - **$0 modes:** No API key → extractive summarization (sentence selection). Groq or OpenRouter free tier → human-like LLM summaries. No credit card or monthly spend required.
@@ -39,13 +43,14 @@ User pastes text / URL
        ↓
 React frontend (VITE_API_URL → backend)
        ↓
-POST /api/ingest/text OR /api/ingest/url
-       ↓
-POST /summarize
-       ↓
-FastAPI (app/main.py)
-       ↓
-Summarizer service → LLM (if key set) or extractive (no key, $0)
+┌─────────────────────────────────────────────────┐
+│  FastAPI (async)                                │
+│    ↓ RateLimitingMiddleware (Redis / in-memory)  │
+│    ↓ Routers (auth│ingest│chat│tts│flashcards)   │
+│    ↓ Services (async, AsyncSession)              │
+│    ↓ LLM Layer (generate_full / generate_stream) │
+│    ↓ Database (asyncpg / aiosqlite)              │
+└─────────────────────────────────────────────────┘
        ↓
 { "summary": "..." } → UI Reveals Chat, Flashcards, and TTS Buttons
 ```
@@ -57,13 +62,18 @@ Summarizer service → LLM (if key set) or extractive (no key, $0)
 ```
 backend/
 ├── app/
-│   ├── main.py           # FastAPI app, CORS, router mounting
-│   ├── config.py         # Env-based config (add new keys here)
+│   ├── main.py           # FastAPI app, lifespan (Redis/DB init), CORS, router mounting
+│   ├── config.py         # Env-based config (DB, Redis, LLM, pool settings)
+│   ├── db.py             # Async engine (asyncpg/aiosqlite), session factory
+│   ├── deps.py           # Auth + DB session dependencies (AsyncSession)
+│   ├── middleware.py      # Logging + rate limiting (Redis / in-memory fallback)
 │   ├── schemas/          # Request/response models (e.g. TextRequest)
 │   ├── routers/          # Route modules (summarize, auth, chat, ingest, flashcards, tts, synthesis)
 │   └── services/         # Business logic (summarizer, llm, auth, chat, etc.)
-├── requirements.txt      # Minimal dependencies
-├── run.py                # Local: python run.py (from backend/)
+├── alembic/              # Database migrations (env-driven URL)
+├── requirements.txt      # Dependencies
+├── .env.example          # Environment variables template
+└── run.py                # Local: python run.py (from backend/)
 ```
 
 **Adding a feature:**  
@@ -80,7 +90,11 @@ backend/
 - From `backend/`:  
   - Create venv: `python3 -m venv .venv` then `source .venv/bin/activate`  
   - `pip install -r requirements.txt`  
+  - Copy `.env.example` to `.env` and configure (defaults work for local dev)  
   - **Optional:** Set a free API key for human-like summaries (Groq: [console.groq.com](https://console.groq.com) → `export GROQ_API_KEY=your_key`). If you set **no key**, the backend still runs using extractive summarization ($0).  
+  - **Optional:** Install PostgreSQL and set `DATABASE_URL=postgresql://user:pass@localhost:5432/readpulse` (defaults to SQLite for dev)  
+  - **Optional:** Install Redis and set `REDIS_URL=redis://localhost:6379/0` (defaults to in-memory rate limiter for dev)  
+  - Run migrations: `python -m alembic upgrade head`  
   - `uvicorn app.main:app --reload` or `python run.py`  
 
 **Frontend**  
@@ -93,22 +107,30 @@ backend/
 
 | Env | Purpose |
 |-----|--------|
+| `DATABASE_URL` | Database connection (`sqlite:///./readpulse.db` for dev, `postgresql://...` for prod) |
+| `REDIS_URL` | Redis connection for rate limiting (optional in dev) |
+| `SECRET_KEY` | JWT secret (**must change in production**) |
 | `GROQ_API_KEY` | Groq (free tier); default model `llama-3.3-70b-versatile` |
 | `OPENAI_API_KEY` | OpenAI; default model `gpt-4o-mini` |
 | `OPENROUTER_API_KEY` | OpenRouter; default model `meta-llama/llama-3.1-8b-instruct:free` |
 | `SUMMARIZE_PROVIDER` | Force provider: `groq` \| `openai` \| `openrouter` |
 | `SUMMARIZE_MODEL` | Override model name |
 | `SUMMARIZE_TIMEOUT` | LLM request timeout (seconds, default 90) |
-| `SUMMARIZE_MIN_WORDS` | Min input words (default 30) |
 | `CORS_ORIGINS` | Comma-separated origins or `*` |
+| `DB_POOL_SIZE` | PostgreSQL connection pool size (default 5) |
+| `DB_MAX_OVERFLOW` | Pool overflow connections (default 10) |
+| `RATE_LIMIT_PER_MINUTE` | General rate limit (default 60) |
+| `RATE_LIMIT_LLM_PER_MINUTE` | LLM route rate limit (default 10) |
 
 ---
 
 ## Deploy (serverless / cloud)
 
-- **Railway / Render / Fly:** Set build command to install deps and start command to `uvicorn app.main:app --host 0.0.0.0 --port $PORT`. Add env vars (e.g. `GROQ_API_KEY`).  
+- **Railway / Render / Fly:** Set build command to install deps and start command to `uvicorn app.main:app --host 0.0.0.0 --port $PORT`. Add env vars (`DATABASE_URL` for PostgreSQL, `REDIS_URL`, `SECRET_KEY`, and optionally `GROQ_API_KEY`). Run `python -m alembic upgrade head` as a release command.  
 - **AWS Lambda:** Use [Mangum](https://mangum.io/) to wrap `app.main:app`; package with dependencies; set handler and env.  
-- **Vercel / Netlify:** Use their Python serverless support and point to a single module that exports the ASGI app (or a serverless function that forwards to your backend URL).
+- **Vercel / Netlify:** Use their Python serverless support and point to a single module that exports the ASGI app (or a serverless function that forwards to your backend URL).  
+- **Database:** Use a managed PostgreSQL (e.g. Supabase, Neon, Railway Postgres) and set `DATABASE_URL`.  
+- **Redis:** Use managed Redis (e.g. Upstash, Railway Redis) and set `REDIS_URL`. Falls back to in-memory if unavailable.
 
 ---
 

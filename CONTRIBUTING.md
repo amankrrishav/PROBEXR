@@ -8,15 +8,19 @@ ReadPulse is built to stay **scalable and feature-additive** as an open-source a
 
 ```
 readpulse/
-├── backend/          # FastAPI app (serverless/cloud-ready)
+├── backend/          # FastAPI app (async, PostgreSQL-ready)
 │   ├── app/
-│   │   ├── main.py   # Mount routers here
-│   │   ├── config.py # Env and constants; add keys for new features
-│   │   ├── deps.py   # Auth + rate-limit dependencies (CurrentUser, OptionalUser)
-│   │   ├── schemas/  # Request/response models
-│   │   ├── routers/  # Route modules (health, summarize; add url_fetch, auth)
-│   │   └── services/ # Business logic (summarizer, llm, extractive)
+│   │   ├── main.py       # Mount routers, lifespan (Redis/DB init)
+│   │   ├── config.py     # Env and constants; add keys for new features
+│   │   ├── db.py         # Async engine (asyncpg/aiosqlite), session factory
+│   │   ├── deps.py       # Auth + DB dependencies (CurrentUser, OptionalUser, DbSession)
+│   │   ├── middleware.py  # Logging + rate limiting (Redis / in-memory fallback)
+│   │   ├── schemas/      # Request/response models
+│   │   ├── routers/      # Async route modules (health, summarize, auth, chat, etc.)
+│   │   └── services/     # Async business logic (summarizer, llm, auth, chat, etc.)
+│   ├── alembic/          # Database migrations (env-driven URL)
 │   ├── requirements.txt
+│   ├── .env.example
 │   └── run.py
 ├── frontend/         # React + Vite
 │   ├── src/
@@ -26,7 +30,7 @@ readpulse/
 │   │   ├── hooks/         # useSummarizer, useTheme, useBackendHealth, useAuth, useSubscription
 │   │   └── features/      # layout, summarizer, auth, subscription; add new feature folders
 │   └── package.json
-├── ROADMAP.md        # Phases: MVP → features → auth → subscription
+├── ROADMAP.md        # Phases: MVP → features → infrastructure → subscription
 └── CONTRIBUTING.md   # This file
 ```
 
@@ -36,10 +40,11 @@ readpulse/
 
 1. **Config** — Add env keys in `backend/app/config.py` (e.g. `ENABLE_URL_FETCH`, rate limits).
 2. **Schema** — Add Pydantic models in `backend/app/schemas/` (e.g. `UrlFetchRequest`).
-3. **Service** — Add logic in `backend/app/services/` (e.g. `url_fetch.py`).
-4. **Router** — Add `backend/app/routers/url_fetch.py`; mount in `app/main.py`:  
+3. **Service** — Add async logic in `backend/app/services/` (e.g. `url_fetch.py`). Use `AsyncSession` for all DB operations (`await session.execute()`, `await session.commit()`).
+4. **Router** — Add `backend/app/routers/url_fetch.py` with `async def` handlers; mount in `app/main.py`:  
    `app.include_router(url_fetch.router, prefix="/api")`.
 5. **Auth/limits (optional)** — Use `deps.CurrentUser` / `deps.OptionalUser` and helpers in `app/services/subscription.py` when you add auth-only or plan-limited routes.
+6. **Migration (if new models)** — Run `python -m alembic revision --autogenerate -m "description"` then `python -m alembic upgrade head`.
 
 ---
 
@@ -55,11 +60,27 @@ readpulse/
 
 ## Running locally
 
-- **Backend:** `cd backend && source .venv/bin/activate && uvicorn app.main:app --reload`
+- **Backend:**
+  ```bash
+  cd backend
+  source .venv/bin/activate
+  cp .env.example .env  # first time only
+  python -m alembic upgrade head
+  uvicorn app.main:app --reload
+  ```
 - **Frontend:** `cd frontend && npm install && npm run dev`
-- **Env:** Backend uses `GROQ_API_KEY` (optional) for LLM; no key = free extractive. Frontend uses `VITE_API_URL` (default `http://127.0.0.1:8000`).
+- **Env:** Backend uses SQLite by default (no PostgreSQL needed for dev). Redis is optional (falls back to in-memory). Set `GROQ_API_KEY` for LLM summaries; no key = free extractive. Frontend uses `VITE_API_URL` (default `http://127.0.0.1:8000`).
 
 See root [README.md](README.md) and `backend/README.md`, `frontend/README.md` for details.
+
+---
+
+## Infrastructure notes
+
+- **Database:** All services use `AsyncSession` (from `sqlalchemy.ext.asyncio`). PostgreSQL (`asyncpg`) for production, SQLite (`aiosqlite`) for dev. Connection pooling is configured in `config.py`.
+- **Rate limiting:** Redis-backed (`INCR + EXPIRE`) with in-memory fallback. Configured in `middleware.py`, initialized in `main.py` lifespan.
+- **LLM layer:** `services/llm.py` provides `generate_full()` (blocking) and `generate_stream()` (async iterator). Existing callers use `chat_completion` alias.
+- **Migrations:** Alembic reads `DATABASE_URL` from environment. Run `python -m alembic upgrade head` after model changes.
 
 ---
 
@@ -74,7 +95,7 @@ See root [README.md](README.md) and `backend/README.md`, `frontend/README.md` fo
 
 ## Code style
 
-- **Backend:** Python, FastAPI conventions. Type hints where helpful.
+- **Backend:** Python, FastAPI conventions. Async functions for all DB and LLM operations. Type hints where helpful.
 - **Frontend:** React, ES modules. Config and API in one place per feature when possible.
 
 Keeping the app **modular and config-driven** makes it easier to add features and subscription later without big rewrites.
