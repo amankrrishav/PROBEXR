@@ -66,6 +66,14 @@ class AppConfig:
         self.rate_limit_per_minute = int(_env("RATE_LIMIT_PER_MINUTE", "60") or "60")
         self.rate_limit_llm_per_minute = int(_env("RATE_LIMIT_LLM_PER_MINUTE", "10") or "10")
 
+        # Redis (rate limiting, caching)
+        self.redis_url = _env("REDIS_URL", "redis://localhost:6379/0") or "redis://localhost:6379/0"
+
+        # Database connection pool (PostgreSQL only; ignored for SQLite)
+        self.db_pool_size = int(_env("DB_POOL_SIZE", "5") or "5")
+        self.db_max_overflow = int(_env("DB_MAX_OVERFLOW", "10") or "10")
+        self.db_pool_timeout = int(_env("DB_POOL_TIMEOUT", "30") or "30")
+
 
         # Resolve provider and default model if not set
         if not self.summarize_provider:
@@ -109,3 +117,20 @@ class AppConfig:
     @property
     def has_llm_provider(self) -> bool:
         return bool(self.groq_api_key or self.openai_api_key or self.openrouter_api_key)
+
+    @property
+    def is_sqlite(self) -> bool:
+        return "sqlite" in self.database_url.lower()
+
+    @property
+    def async_database_url(self) -> str:
+        """Convert DATABASE_URL to async driver variant."""
+        url = self.database_url
+        if url.startswith("sqlite:///"):
+            return url.replace("sqlite:///", "sqlite+aiosqlite:///", 1)
+        if url.startswith("postgresql://"):
+            return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        if url.startswith("postgres://"):
+            return url.replace("postgres://", "postgresql+asyncpg://", 1)
+        # Already has async driver prefix (e.g. postgresql+asyncpg://)
+        return url

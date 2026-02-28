@@ -1,11 +1,14 @@
-from sqlmodel import Session, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
+
 from app.models.document import Document
 from app.models.synthesis import Synthesis
 from app.services.llm import chat_completion
 
-async def synthesize_documents(document_ids: list[int], user_id: int, session: Session, prompt: str | None = None) -> Synthesis:
-    statement = select(Document).where(Document.id.in_(document_ids), Document.user_id == user_id) # type: ignore
-    docs = session.exec(statement).all()
+async def synthesize_documents(document_ids: list[int], user_id: int, session: AsyncSession, prompt: str | None = None) -> Synthesis:
+    statement = select(Document).where(Document.id.in_(document_ids), Document.user_id == user_id)  # type: ignore
+    result = await session.execute(statement)
+    docs = list(result.scalars().all())
     
     if len(docs) != len(document_ids):
         raise ValueError("One or more documents not found or unauthorized")
@@ -36,7 +39,7 @@ async def synthesize_documents(document_ids: list[int], user_id: int, session: S
         documents=docs
     )
     session.add(synthesis_record)
-    session.commit()
-    session.refresh(synthesis_record)
+    await session.commit()
+    await session.refresh(synthesis_record)
     
     return synthesis_record

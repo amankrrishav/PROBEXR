@@ -23,7 +23,7 @@ Because this is a stub, the TTS button in the UI will show "Audio Ready" but the
 will not resolve to a real audio file until the above is implemented.
 """
 import uuid
-from sqlmodel import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.document import Document
 from app.models.tts import AudioSummary
@@ -35,7 +35,7 @@ async def generate_audio_summary(
     document_id: int,
     user_id: int,
     provider: str,
-    session: Session,
+    session: AsyncSession,
 ) -> AudioSummary:
     # 1. Validate provider against allowed list
     if provider not in _ALLOWED_PROVIDERS:
@@ -45,7 +45,7 @@ async def generate_audio_summary(
         )
 
     # 2. Ownership check
-    doc = session.get(Document, document_id)
+    doc = await session.get(Document, document_id)
     if not doc or doc.user_id != user_id:
         raise ValueError("Document not found or unauthorized")
 
@@ -60,6 +60,6 @@ async def generate_audio_summary(
         provider=provider,
     )
     session.add(audio_record)
-    session.commit()
-    session.refresh(audio_record)
+    await session.commit()
+    await session.refresh(audio_record)
     return audio_record

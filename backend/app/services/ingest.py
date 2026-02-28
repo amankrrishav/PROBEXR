@@ -15,7 +15,8 @@ from urllib.parse import urlparse
 
 import httpx
 from bs4 import BeautifulSoup
-from sqlmodel import Session, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 
 from app.models.document import Document
 
@@ -78,7 +79,7 @@ async def _assert_safe_url(url: str) -> None:
         _check_ip_not_private(raw_ip)
 
 
-async def fetch_and_clean_url(url: str, user_id: int, session: Session) -> Document:
+async def fetch_and_clean_url(url: str, user_id: int, session: AsyncSession) -> Document:
     # 1. SSRF guard (async-safe)
     await _assert_safe_url(url)
 
@@ -87,7 +88,8 @@ async def fetch_and_clean_url(url: str, user_id: int, session: Session) -> Docum
         Document.user_id == user_id,
         Document.url == url,
     )
-    existing = session.exec(existing_stmt).first()
+    result = await session.execute(existing_stmt)
+    existing = result.scalars().first()
     if existing:
         return existing
 
@@ -142,12 +144,12 @@ async def fetch_and_clean_url(url: str, user_id: int, session: Session) -> Docum
         cleaned_content=cleaned_to_store,
     )
     session.add(doc)
-    session.commit()
-    session.refresh(doc)
+    await session.commit()
+    await session.refresh(doc)
     return doc
 
 
-def ingest_text_document(user_id: int, text: str, title: str, session: Session) -> Document:
+async def ingest_text_document(user_id: int, text: str, title: str, session: AsyncSession) -> Document:
     """Save a pasted text document. Extracted from router to maintain service layer separation."""
     doc = Document(
         user_id=user_id,
@@ -157,6 +159,6 @@ def ingest_text_document(user_id: int, text: str, title: str, session: Session) 
         cleaned_content=text[:MAX_TEXT_BYTES],
     )
     session.add(doc)
-    session.commit()
-    session.refresh(doc)
+    await session.commit()
+    await session.refresh(doc)
     return doc

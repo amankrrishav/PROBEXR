@@ -15,7 +15,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Literal, Tuple
 
-from sqlmodel import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_config
 from app.models.user import User
@@ -44,7 +44,7 @@ def reset_usage_if_needed(user: User) -> None:
         user.usage_reset_at = today
 
 
-def evaluate_summary_quality(user: User | None, session: Session) -> Tuple[Quality, int, int]:
+async def evaluate_summary_quality(user: User | None, session: AsyncSession) -> Tuple[Quality, int, int]:
     """
     Determine the quality for the next summary and update usage counters.
 
@@ -62,7 +62,7 @@ def evaluate_summary_quality(user: User | None, session: Session) -> Tuple[Quali
     # Pro users: always full quality, no local limit.
     if user.plan == "pro":
         session.add(user)
-        session.commit()
+        await session.commit()
         logger.info("user_id=%s plan=pro quality=full usage_today=%s limit=unlimited", user.id, user.usage_today)
         return "full", user.usage_today, limit
 
@@ -76,7 +76,7 @@ def evaluate_summary_quality(user: User | None, session: Session) -> Tuple[Quali
         user.usage_today += 1
 
     session.add(user)
-    session.commit()
+    await session.commit()
 
     logger.info(
         "user_id=%s plan=%s quality=%s usage_today=%s limit=%s",

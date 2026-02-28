@@ -35,7 +35,7 @@ async def create_flashcards(
         )
 
 @router.get("/{set_id}/export", response_class=PlainTextResponse)
-def export_flashcards_csv(
+async def export_flashcards_csv(
     set_id: int,
     user: OptionalUser,
     session: DbSession
@@ -47,7 +47,7 @@ def export_flashcards_csv(
         )
         
     try:
-        csv_data = export_flashcards(session, set_id, user.id)
+        csv_data = await export_flashcards(session, set_id, user.id)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 

@@ -1,13 +1,17 @@
 import json
-from sqlmodel import Session
-from app.models.document import Document
-from app.models.flashcards import FlashcardSet, Flashcard
-from app.services.llm import chat_completion
 import csv
 from io import StringIO
 
-async def generate_flashcards(document_id: int, user_id: int, session: Session, count: int = 10) -> FlashcardSet:
-    doc = session.get(Document, document_id)
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
+
+from app.models.document import Document
+from app.models.flashcards import FlashcardSet, Flashcard
+from app.services.llm import chat_completion
+
+
+async def generate_flashcards(document_id: int, user_id: int, session: AsyncSession, count: int = 10) -> FlashcardSet:
+    doc = await session.get(Document, document_id)
     if not doc or doc.user_id != user_id:
         raise ValueError("Document not found or unauthorized")
         
@@ -42,8 +46,8 @@ async def generate_flashcards(document_id: int, user_id: int, session: Session, 
     # Create Set
     fc_set = FlashcardSet(user_id=user_id, document_id=document_id)
     session.add(fc_set)
-    session.commit()
-    session.refresh(fc_set)
+    await session.commit()
+    await session.refresh(fc_set)
     
     # Create Cards
     for card in flashcards_data:
@@ -51,8 +55,8 @@ async def generate_flashcards(document_id: int, user_id: int, session: Session, 
             fc = Flashcard(set_id=fc_set.id, front=card["front"], back=card["back"])
             session.add(fc)
             
-    session.commit()
-    session.refresh(fc_set)
+    await session.commit()
+    await session.refresh(fc_set)
     return fc_set
 
 def generate_csv_export(flashcards: list[Flashcard]) -> str:
@@ -74,15 +78,14 @@ def generate_csv_export(flashcards: list[Flashcard]) -> str:
     return output.getvalue()
 
 
-def export_flashcards(session: Session, set_id: int, user_id: int) -> str:
-    from sqlmodel import select
-    fc_set = session.get(FlashcardSet, set_id)
+async def export_flashcards(session: AsyncSession, set_id: int, user_id: int) -> str:
+    fc_set = await session.get(FlashcardSet, set_id)
     if not fc_set or fc_set.user_id != user_id:
         raise ValueError("Flashcard set not found or unauthorized")
         
-    flashcards = session.exec(
+    result = await session.execute(
         select(Flashcard).where(Flashcard.set_id == set_id)
-    ).all()
+    )
+    flashcards = list(result.scalars().all())
     
-    return generate_csv_export(list(flashcards))
-
+    return generate_csv_export(flashcards)

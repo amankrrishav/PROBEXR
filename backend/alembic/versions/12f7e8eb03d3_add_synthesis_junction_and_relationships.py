@@ -29,7 +29,12 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['synthesis_id'], ['synthesis.id'], ),
     sa.PrimaryKeyConstraint('synthesis_id', 'document_id')
     )
-    op.drop_column('synthesis', 'document_ids')
+    # Conditionally drop legacy column (may not exist on fresh DBs)
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    existing_cols = [c["name"] for c in inspector.get_columns("synthesis")]
+    if "document_ids" in existing_cols:
+        op.drop_column('synthesis', 'document_ids')
     # ### end Alembic commands ###
 
 

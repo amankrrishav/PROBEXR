@@ -5,7 +5,8 @@ from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 from fastapi import Depends, HTTPException, status, Request, Response
 from jose import JWTError, jwt
-from sqlmodel import Session, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 
 from app.config import get_config
 from app.db import get_session
@@ -78,12 +79,13 @@ def set_auth_cookie(response: Response, token: str) -> None:
 # DB Utility
 # -------------------------
 
-def get_user_by_email(session: Session, email: str) -> Optional[User]:
+async def get_user_by_email(session: AsyncSession, email: str) -> Optional[User]:
     statement = select(User).where(User.email == email)
-    return session.exec(statement).first()
+    result = await session.execute(statement)
+    return result.scalars().first()
 
-def register_user(session: Session, email: str, password: str) -> User:
-    existing = get_user_by_email(session, email)
+async def register_user(session: AsyncSession, email: str, password: str) -> User:
+    existing = await get_user_by_email(session, email)
     if existing:
         raise ValueError("Email already registered")
 
@@ -93,30 +95,30 @@ def register_user(session: Session, email: str, password: str) -> User:
         signup_source="app",
     )
     session.add(user)
-    session.commit()
-    session.refresh(user)
+    await session.commit()
+    await session.refresh(user)
     return user
 
-def authenticate_user(session: Session, email: str, password: str) -> User:
-    user = get_user_by_email(session, email)
+async def authenticate_user(session: AsyncSession, email: str, password: str) -> User:
+    user = await get_user_by_email(session, email)
     if user is None or not verify_password(password, user.hashed_password):
         raise ValueError("Invalid credentials")
 
     user.last_login_at = datetime.now(timezone.utc)
     session.add(user)
-    session.commit()
+    await session.commit()
     return user
 
-def upgrade_user_to_pro(session: Session, user_id: int) -> User:
-    user = session.get(User, user_id)
+async def upgrade_user_to_pro(session: AsyncSession, user_id: int) -> User:
+    user = await session.get(User, user_id)
     if not user:
         raise ValueError("User not found")
 
     if user.plan != "pro":
         user.plan = "pro"
         session.add(user)
-        session.commit()
-        session.refresh(user)
+        await session.commit()
+        await session.refresh(user)
 
     return user
 
@@ -141,7 +143,7 @@ def _decode_token(token: str) -> dict[str, Any]:
 
 async def get_current_user(
     token: Annotated[Optional[str], Depends(get_token_from_request)],
-    session: Session = Depends(get_session),
+    session: AsyncSession = Depends(get_session),
 ) -> User:
     """
     Strict auth dependency: requires a valid Bearer token and existing active user.
@@ -154,7 +156,7 @@ async def get_current_user(
     if not email or not isinstance(email, str):
         raise _credentials_exception()
     
-    user = get_user_by_email(session, email)
+    user = await get_user_by_email(session, email)
     if not user:
         raise _credentials_exception()
     if not user.is_active:
@@ -164,7 +166,7 @@ async def get_current_user(
 
 async def get_optional_user(
     token: Annotated[Optional[str], Depends(get_token_from_request)],
-    session: Session = Depends(get_session),
+    session: AsyncSession = Depends(get_session),
 ) -> Optional[User]:
     """
     Optional auth: returns a user when token is valid, otherwise None.
@@ -183,7 +185,7 @@ async def get_optional_user(
     if not email:
         return None
 
-    user = get_user_by_email(session, email)
+    user = await get_user_by_email(session, email)
     if user and not user.is_active:
         return None
     return user

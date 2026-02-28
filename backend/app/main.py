@@ -9,8 +9,15 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_config
 from app.routers import health, summarize, auth, ingest, synthesis, chat, flashcards, tts
-from app.db import engine
-from app.middleware import LoggingMiddleware, RateLimitingMiddleware, setup_logging
+from app.db import async_engine
+from app.middleware import (
+    LoggingMiddleware,
+    RateLimitingMiddleware,
+    setup_logging,
+    set_rate_limiter,
+    InMemoryRateLimiter,
+    RedisRateLimiter,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -32,12 +39,43 @@ async def lifespan(app: FastAPI):
     if not cfg.database_url:
         raise RuntimeError("FATAL: DATABASE_URL is not configured.")
 
-    # 3. LLM provider availability (warning, not fatal — extractive fallback exists)
+    # 3. SQLite in production warning
+    if cfg.is_sqlite and cfg.environment == "production":
+        logger.warning(
+            "SQLite is not recommended for production. "
+            "Set DATABASE_URL to a PostgreSQL connection string."
+        )
+
+    # 4. LLM provider availability (warning, not fatal — extractive fallback exists)
     if not cfg.has_llm_provider:
         logger.warning(
             "No LLM provider configured (GROQ_API_KEY / OPENAI_API_KEY / OPENROUTER_API_KEY). "
             "Summarization will use extractive fallback only."
         )
+
+    # 5. Database connection info
+    db_mode = "SQLite (aiosqlite)" if cfg.is_sqlite else f"PostgreSQL (asyncpg, pool={cfg.db_pool_size}+{cfg.db_max_overflow})"
+    logger.info("Database: %s", db_mode)
+
+    # 6. Redis rate limiter initialization
+    redis_client = None
+    try:
+        import redis.asyncio as aioredis
+        redis_client = aioredis.from_url(
+            cfg.redis_url,
+            decode_responses=True,
+            socket_connect_timeout=3,
+        )
+        await redis_client.ping()
+        set_rate_limiter(RedisRateLimiter(redis_client))
+        logger.info("Redis connected: %s", cfg.redis_url.split("@")[-1] if "@" in cfg.redis_url else cfg.redis_url)
+    except Exception as e:
+        if cfg.environment == "production":
+            logger.warning("Redis unavailable in production: %s. Falling back to in-memory rate limiter.", str(e))
+        else:
+            logger.info("Redis not available (%s). Using in-memory rate limiter (OK for development).", type(e).__name__)
+        set_rate_limiter(InMemoryRateLimiter())
+        redis_client = None
 
     logger.info(
         "ReadPulse starting: env=%s, provider=%s, db=%s",
@@ -47,7 +85,12 @@ async def lifespan(app: FastAPI):
     )
 
     yield
-    engine.dispose()
+
+    # --- Shutdown ---
+    await async_engine.dispose()
+    if redis_client:
+        await redis_client.aclose()
+        logger.info("Redis connection closed.")
 
 app = FastAPI(
     title="ReadPulse",

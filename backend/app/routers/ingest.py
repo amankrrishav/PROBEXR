@@ -44,7 +44,7 @@ async def ingest_text(
             detail="Authentication required to save documents"
         )
     try:
-        doc = ingest_text_document(user.id, request.text, request.title, session)
+        doc = await ingest_text_document(user.id, request.text, request.title, session)
         return doc
     except Exception as e:
         logger.exception("Text ingestion failed for user_id=%s", user.id)

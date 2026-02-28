@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Callable, Awaitable, Protocol
+from typing import Callable, Awaitable, Protocol, Optional
 
 from pythonjsonlogger import jsonlogger
 from fastapi import Request
@@ -63,39 +63,65 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
 class RateLimiterBackend(Protocol):
     """Protocol for rate limiter backends. Implementations can use Redis, in-memory, etc."""
-    def check_and_increment(self, key: str, limit: int) -> bool:
+    async def check_and_increment(self, key: str, limit: int) -> bool:
         """Return True if the request should be allowed, False if rate-limited."""
-        ...
-
-    def cleanup(self, current_minute: int) -> None:
-        """Evict stale entries."""
         ...
 
 
 class InMemoryRateLimiter:
-    """In-memory rate limiter. Suitable for single-process deployments."""
+    """In-memory rate limiter. Suitable for single-process deployments and dev fallback."""
     def __init__(self) -> None:
         self._data: dict[str, int] = {}
+        self._current_minute: int = 0
 
-    def check_and_increment(self, key: str, limit: int) -> bool:
+    async def check_and_increment(self, key: str, limit: int) -> bool:
+        current_minute = int(time.time() // 60)
+        # Cleanup stale keys when minute changes
+        if current_minute != self._current_minute:
+            self._data.clear()
+            self._current_minute = current_minute
+
         current_hits = self._data.get(key, 0)
         if current_hits >= limit:
             return False
         self._data[key] = current_hits + 1
         return True
 
-    def cleanup(self, current_minute: int) -> None:
-        """Evict keys from previous minutes to prevent unbounded growth."""
-        stale_keys = [
-            k for k in self._data
-            if not k.endswith(f"_{current_minute}")
-        ]
-        for sk in stale_keys:
-            self._data.pop(sk, None)
+
+class RedisRateLimiter:
+    """Redis-backed rate limiter using atomic INCR + EXPIRE."""
+    def __init__(self, redis_client: "redis.asyncio.Redis") -> None:  # type: ignore
+        self._redis = redis_client
+
+    async def check_and_increment(self, key: str, limit: int) -> bool:
+        try:
+            current = await self._redis.incr(key)
+            if current == 1:
+                # First request in this window — set TTL to 60s
+                await self._redis.expire(key, 60)
+            return current <= limit
+        except Exception:
+            # Redis error → allow the request (fail-open)
+            logger.warning("Redis rate limiter error, allowing request", exc_info=True)
+            return True
 
 
-# Singleton — swap with RedisRateLimiter when Redis is available
-_rate_limiter = InMemoryRateLimiter()
+# Global rate limiter — set during startup
+_rate_limiter: Optional[RateLimiterBackend] = None  # type: ignore
+
+
+def get_rate_limiter() -> RateLimiterBackend:  # type: ignore
+    """Return the active rate limiter (Redis or in-memory fallback)."""
+    global _rate_limiter
+    if _rate_limiter is None:
+        _rate_limiter = InMemoryRateLimiter()
+    return _rate_limiter
+
+
+def set_rate_limiter(limiter: RateLimiterBackend) -> None:  # type: ignore
+    """Set the active rate limiter (called during app startup)."""
+    global _rate_limiter
+    _rate_limiter = limiter
 
 
 class RateLimitingMiddleware(BaseHTTPMiddleware):
@@ -108,14 +134,16 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
 
         # Routes that hit LLM / scraping — given a tighter budget
         is_llm_route = any(p in path for p in ["/summarize", "/api/synthesis", "/api/chat", "/api/tts", "/api/ingest"])
+        tier = "llm" if is_llm_route else "general"
         limit = cfg.rate_limit_llm_per_minute if is_llm_route else cfg.rate_limit_per_minute
 
-        key = f"{client_ip}_{is_llm_route}_{current_minute}"
+        key = f"rl:{client_ip}:{tier}:{current_minute}"
 
-        # Proactive cleanup every cycle
-        _rate_limiter.cleanup(current_minute)
+        limiter = get_rate_limiter()
+        allowed = await limiter.check_and_increment(key, limit)
 
-        if not _rate_limiter.check_and_increment(key, limit):
+        if not allowed:
+            logger.info("Rate limit hit", extra={"client_ip": client_ip, "tier": tier, "limit": limit})
             return JSONResponse(
                 status_code=429,
                 content={"detail": "Rate limit exceeded. Try again later."}
