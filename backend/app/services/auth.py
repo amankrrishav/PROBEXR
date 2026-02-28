@@ -1,5 +1,5 @@
-from typing import Annotated, Optional
-from datetime import datetime, timedelta
+from typing import Annotated, Any, Optional
+from datetime import datetime, timedelta, timezone
 
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
@@ -55,19 +55,14 @@ def verify_password(plain: str, hashed: str) -> bool:
 # JWT Token Creation
 # -------------------------
 
-from typing import Any
-
 def create_access_token(data: dict[str, Any]) -> str:
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 def set_auth_cookie(response: Response, token: str) -> None:
-    # Use secure=False for local dev, True for production.
-    # Assuming cfg has something like debug or env. We will refine if needed.
-    # For now, default to secure=False just so local dev doesn't break.
-    is_secure = getattr(cfg, "ENVIRONMENT", "dev") == "prod"
+    is_secure = cfg.environment == "production"
     response.set_cookie(
         key="access_token",
         value=f"Bearer {token}",
@@ -107,7 +102,7 @@ def authenticate_user(session: Session, email: str, password: str) -> User:
     if user is None or not verify_password(password, user.hashed_password):
         raise ValueError("Invalid credentials")
 
-    user.last_login_at = datetime.utcnow()
+    user.last_login_at = datetime.now(timezone.utc)
     session.add(user)
     session.commit()
     return user
@@ -149,7 +144,7 @@ async def get_current_user(
     session: Session = Depends(get_session),
 ) -> User:
     """
-    Strict auth dependency: requires a valid Bearer token and existing user.
+    Strict auth dependency: requires a valid Bearer token and existing active user.
     """
     if not token:
         raise _credentials_exception()
@@ -161,6 +156,8 @@ async def get_current_user(
     
     user = get_user_by_email(session, email)
     if not user:
+        raise _credentials_exception()
+    if not user.is_active:
         raise _credentials_exception()
     return user
 
@@ -186,4 +183,7 @@ async def get_optional_user(
     if not email:
         return None
 
-    return get_user_by_email(session, email)
+    user = get_user_by_email(session, email)
+    if user and not user.is_active:
+        return None
+    return user

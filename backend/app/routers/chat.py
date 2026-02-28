@@ -1,29 +1,22 @@
+import logging
+
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel
-from typing import Any
-from datetime import datetime
+
 from app.schemas.requests import ChatRequest
 from app.deps import OptionalUser, DbSession
-from app.services.chat import process_chat_message
+from app.services.chat import process_chat_message, ChatReply
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
 
-class ChatReplyResponse(BaseModel):
-    """Response schema that includes session_id for frontend session continuity."""
-    id: int | None = None
-    session_id: int
-    role: str
-    content: str
-    created_at: datetime | None = None
-
-
-@router.post("/", response_model=ChatReplyResponse)
+@router.post("/")
 async def chat_endpoint(
     request: ChatRequest,
     user: OptionalUser,
     session: DbSession,
-) -> Any:
+) -> ChatReply:
     if not user or user.id is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -42,4 +35,5 @@ async def chat_endpoint(
     except ValueError as ve:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(ve))
     except Exception as e:
+        logger.exception("Chat failed for user_id=%s", user.id)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Chat failed: {str(e)}")

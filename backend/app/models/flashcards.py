@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, TYPE_CHECKING
 
 from sqlmodel import Field, SQLModel, Relationship
@@ -11,8 +11,7 @@ class FlashcardSet(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True)
     document_id: Optional[int] = Field(default=None, foreign_key="document.id", index=True)
-    content: str = Field(default="") # JSON or text representing the overview
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     document: Optional["Document"] = Relationship(back_populates="flashcard_sets")
     flashcards: list["Flashcard"] = Relationship(back_populates="flashcard_set", cascade_delete=True)

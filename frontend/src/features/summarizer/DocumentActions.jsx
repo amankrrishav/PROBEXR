@@ -88,7 +88,15 @@ export default function DocumentActions({ documentId }) {
                 ) : (
                     <div className="flex items-center gap-3">
                         <span className="text-sm text-green-600 dark:text-green-400">Audio Ready:</span>
-                        <a href={audioUrl} target="_blank" rel="noreferrer" className="text-sm underline hover:text-gray-500">Listen</a>
+                        {(() => {
+                            try {
+                                const parsed = new URL(audioUrl);
+                                if (parsed.protocol === "https:") {
+                                    return <a href={audioUrl} target="_blank" rel="noreferrer" className="text-sm underline hover:text-gray-500">Listen</a>;
+                                }
+                            } catch { /* invalid URL */ }
+                            return <span className="text-sm text-gray-400">(Audio link unavailable)</span>;
+                        })()}
                     </div>
                 )}
 

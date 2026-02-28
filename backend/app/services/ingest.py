@@ -1,12 +1,14 @@
 """
-Ingest service: fetch + clean web pages.
+Ingest service: fetch + clean web pages and save text documents.
 
 Security hardening:
   - SSRF: resolved host IP is validated against private/loopback ranges before request.
   - Size: Content-Length header enforced; streaming body capped at MAX_HTML_BYTES.
   - Timeout: 15 s hard limit.
   - Duplicate prevention: one record per (user_id, url).
+  - DNS: resolution is non-blocking via run_in_executor.
 """
+import asyncio
 import ipaddress
 import socket
 from urllib.parse import urlparse
@@ -21,6 +23,8 @@ from app.models.document import Document
 MAX_HTML_BYTES = 5 * 1024 * 1024  # 5 MB
 # Hard cap on cleaned text stored in DB (500 KB)
 MAX_CLEANED_BYTES = 500 * 1024  # 500 KB
+# Hard cap on text ingest (500 KB)
+MAX_TEXT_BYTES = 500 * 1024  # 500 KB
 
 _PRIVATE_NETWORKS = [
     ipaddress.ip_network("10.0.0.0/8"),
@@ -34,8 +38,21 @@ _PRIVATE_NETWORKS = [
 ]
 
 
-def _assert_safe_url(url: str) -> None:
-    """Raise ValueError if the URL resolves to a private/internal IP (SSRF guard)."""
+def _check_ip_not_private(addr_str: str) -> None:
+    """Raise ValueError if an IP address is in a private/internal range."""
+    try:
+        addr = ipaddress.ip_address(addr_str)
+    except ValueError:
+        return
+    for net in _PRIVATE_NETWORKS:
+        if addr in net:
+            raise ValueError("Requests to private/internal addresses are not allowed.")
+
+
+async def _assert_safe_url(url: str) -> None:
+    """Raise ValueError if the URL resolves to a private/internal IP (SSRF guard).
+    DNS resolution is offloaded to a thread pool to avoid blocking the event loop.
+    """
     parsed = urlparse(url)
     hostname = parsed.hostname
     if not hostname:
@@ -44,34 +61,26 @@ def _assert_safe_url(url: str) -> None:
     # Block raw IP literals that look private before DNS resolution
     try:
         addr = ipaddress.ip_address(hostname)
-        for net in _PRIVATE_NETWORKS:
-            if addr in net:
-                raise ValueError(f"Requests to private/internal addresses are not allowed.")
+        _check_ip_not_private(str(addr))
     except ValueError as e:
-        # ip_address() raises ValueError for hostnames — only re-raise if it's our rejection
         if "not allowed" in str(e):
             raise
 
-    # DNS resolution + check
+    # DNS resolution in executor (non-blocking)
+    loop = asyncio.get_event_loop()
     try:
-        infos = socket.getaddrinfo(hostname, None)
+        infos = await loop.run_in_executor(None, socket.getaddrinfo, hostname, None)
     except socket.gaierror:
         raise ValueError(f"Could not resolve hostname: {hostname}")
 
     for info in infos:
         raw_ip = info[4][0]
-        try:
-            addr = ipaddress.ip_address(raw_ip)
-        except ValueError:
-            continue
-        for net in _PRIVATE_NETWORKS:
-            if addr in net:
-                raise ValueError("Requests to private/internal addresses are not allowed.")
+        _check_ip_not_private(raw_ip)
 
 
 async def fetch_and_clean_url(url: str, user_id: int, session: Session) -> Document:
-    # 1. SSRF guard
-    _assert_safe_url(url)
+    # 1. SSRF guard (async-safe)
+    await _assert_safe_url(url)
 
     # 2. Duplicate prevention — return existing record if already ingested for this user
     existing_stmt = select(Document).where(
@@ -131,6 +140,21 @@ async def fetch_and_clean_url(url: str, user_id: int, session: Session) -> Docum
         title=title.strip()[:200],
         raw_content=raw_to_store,
         cleaned_content=cleaned_to_store,
+    )
+    session.add(doc)
+    session.commit()
+    session.refresh(doc)
+    return doc
+
+
+def ingest_text_document(user_id: int, text: str, title: str, session: Session) -> Document:
+    """Save a pasted text document. Extracted from router to maintain service layer separation."""
+    doc = Document(
+        user_id=user_id,
+        url="pasted_text",
+        title=title[:200],
+        raw_content=text[:MAX_TEXT_BYTES],
+        cleaned_content=text[:MAX_TEXT_BYTES],
     )
     session.add(doc)
     session.commit()

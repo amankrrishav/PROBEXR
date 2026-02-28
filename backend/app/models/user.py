@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, TYPE_CHECKING
 
 from sqlmodel import Field, SQLModel, Relationship
@@ -14,7 +14,7 @@ class User(SQLModel, table=True):
 
     # Auth / lifecycle
     is_active: bool = True
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     last_login_at: Optional[datetime] = None
     signup_source: Optional[str] = Field(default=None, index=True)
 
