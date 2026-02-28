@@ -1,13 +1,68 @@
-from sqlmodel import SQLModel, create_engine, Session
+"""
+Database engine and session factory.
+
+Supports two modes driven by DATABASE_URL:
+  - SQLite  (async via aiosqlite)  — development
+  - PostgreSQL (async via asyncpg) — production
+
+Connection pooling is configured for PostgreSQL only.
+"""
+import logging
+from typing import AsyncGenerator
+
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from app.config import get_config
 
-DATABASE_URL = get_config().database_url
+logger = logging.getLogger(__name__)
 
-engine = create_engine(DATABASE_URL, echo=False)
+cfg = get_config()
 
-from typing import Generator
+_engine_kwargs: dict = {}
 
-def get_session() -> Generator[Session, None, None]:
-    with Session(engine) as session:
+if cfg.is_sqlite:
+    # SQLite + aiosqlite: use StaticPool (single connection, no pooling)
+    _engine_kwargs = {
+        "connect_args": {"check_same_thread": False},
+        "poolclass": StaticPool,
+        "echo": False,
+    }
+else:
+    # PostgreSQL + asyncpg: real connection pooling
+    _engine_kwargs = {
+        "pool_size": cfg.db_pool_size,
+        "max_overflow": cfg.db_max_overflow,
+        "pool_timeout": cfg.db_pool_timeout,
+        "pool_pre_ping": True,
+        "echo": False,
+    }
+
+async_engine = create_async_engine(cfg.async_database_url, **_engine_kwargs)
+
+async_session_factory = sessionmaker(
+    async_engine, class_=AsyncSession, expire_on_commit=False
+)
+
+
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
+    async with async_session_factory() as session:
         yield session
+
+
+# --- Sync engine for Alembic migrations only ---
+from sqlalchemy import create_engine as _sa_create_engine  # noqa: E402
+
+_sync_url = cfg.database_url
+# Ensure Alembic uses the raw (sync) URL
+if "+asyncpg" in _sync_url:
+    _sync_url = _sync_url.replace("+asyncpg", "")
+if "+aiosqlite" in _sync_url:
+    _sync_url = _sync_url.replace("+aiosqlite", "")
+
+_sync_engine_kwargs: dict = {}
+if cfg.is_sqlite:
+    _sync_engine_kwargs = {"connect_args": {"check_same_thread": False}}
+
+sync_engine = _sa_create_engine(_sync_url, **_sync_engine_kwargs)

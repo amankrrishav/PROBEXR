@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status, Response
-from sqlmodel import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
 from app.deps import CurrentUser, DbSession
@@ -26,13 +26,13 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
-def register(
+async def register(
     payload: RegisterRequest, 
     response: Response,
     session: DbSession
 ) -> Token:
     try:
-        user = register_user(session, payload.email, payload.password)
+        user = await register_user(session, payload.email, payload.password)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -42,13 +42,13 @@ def register(
 
 
 @router.post("/login", response_model=Token)
-def login(
+async def login(
     payload: LoginRequest, 
     response: Response,
     session: DbSession
 ) -> Token:
     try:
-        user = authenticate_user(session, payload.email, payload.password)
+        user = await authenticate_user(session, payload.email, payload.password)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
 
@@ -64,12 +64,12 @@ def logout(response: Response) -> dict:
 
 
 @router.get("/me", response_model=UserRead)
-def read_me(current_user: CurrentUser) -> UserRead:
+async def read_me(current_user: CurrentUser) -> UserRead:
     return UserRead.model_validate(current_user)
 
 
 @router.post("/upgrade/demo-pro", response_model=UserRead)
-def upgrade_demo_pro(
+async def upgrade_demo_pro(
     current_user: CurrentUser, 
     session: DbSession
 ) -> UserRead:
@@ -79,8 +79,7 @@ def upgrade_demo_pro(
     """
     try:
         assert current_user.id is not None
-        user = upgrade_user_to_pro(session, current_user.id)
+        user = await upgrade_user_to_pro(session, current_user.id)
         return UserRead.model_validate(user)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-

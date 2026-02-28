@@ -5,7 +5,7 @@ Reduced quality uses the simpler extractive summarizer even when an LLM is confi
 import re
 from typing import Literal, Any, Tuple
 import httpx
-from sqlmodel import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_config, AppConfig
 from app.services.extractive import summarize_extractive
@@ -104,7 +104,7 @@ Write a cohesive summary of approximately {target_words} words. One or two short
 
     return final_summary.strip() or "Summary could not be generated."
 
-async def process_summarize(text: str, user: User | None, session: Session) -> dict[str, Any]:
+async def process_summarize(text: str, user: User | None, session: AsyncSession) -> dict[str, Any]:
     text = text.strip()
     cfg = get_config()
     if not text:
@@ -114,7 +114,7 @@ async def process_summarize(text: str, user: User | None, session: Session) -> d
         raise ValueError(f"Text too short. Minimum {cfg.min_words} words.")
 
     try:
-        quality, usage_today, limit = evaluate_summary_quality(user, session)
+        quality, usage_today, limit = await evaluate_summary_quality(user, session)
         summary_text = await summarize(text, quality=quality)
         return {
             "summary": summary_text,

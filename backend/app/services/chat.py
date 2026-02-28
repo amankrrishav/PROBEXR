@@ -10,7 +10,8 @@ Key invariants:
 """
 from dataclasses import dataclass
 
-from sqlmodel import Session, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 
 from app.models.chat import ChatMessage, ChatSession
 from app.models.document import Document
@@ -36,17 +37,17 @@ async def process_chat_message(
     document_id: int,
     user_id: int,
     message: str,
-    session: Session,
+    session: AsyncSession,
     session_id: int | None = None,
 ) -> ChatReply:
     # 1. Ownership check
-    doc = session.get(Document, document_id)
+    doc = await session.get(Document, document_id)
     if not doc or doc.user_id != user_id:
         raise ValueError("Document not found or unauthorized")
 
     # 2. Get or create chat session
     if session_id:
-        chat_session = session.get(ChatSession, session_id)
+        chat_session = await session.get(ChatSession, session_id)
         if (
             not chat_session
             or chat_session.user_id != user_id
@@ -56,14 +57,14 @@ async def process_chat_message(
     else:
         chat_session = ChatSession(user_id=user_id, document_id=document_id)
         session.add(chat_session)
-        session.commit()
-        session.refresh(chat_session)
+        await session.commit()
+        await session.refresh(chat_session)
         session_id = chat_session.id
 
     # 3. Persist user message
     user_msg = ChatMessage(session_id=session_id, role="user", content=message)
     session.add(user_msg)
-    session.commit()
+    await session.commit()
 
     # 4. Fetch bounded history (most recent first, then reverse)
     history_stmt = (
@@ -72,7 +73,8 @@ async def process_chat_message(
         .order_by(ChatMessage.created_at.desc())  # type: ignore[arg-type]
         .limit(HISTORY_LIMIT)
     )
-    recent_msgs = list(session.exec(history_stmt).all())
+    result = await session.execute(history_stmt)
+    recent_msgs = list(result.scalars().all())
     recent_msgs.reverse()
 
     # 5. Build LLM payload
@@ -95,8 +97,8 @@ async def process_chat_message(
     # 7. Persist and return assistant message — include session_id for client continuity
     assistant_msg = ChatMessage(session_id=session_id, role="assistant", content=reply_content)
     session.add(assistant_msg)
-    session.commit()
-    session.refresh(assistant_msg)
+    await session.commit()
+    await session.refresh(assistant_msg)
 
     return ChatReply(
         id=assistant_msg.id,
