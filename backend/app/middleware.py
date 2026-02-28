@@ -1,32 +1,41 @@
 import logging
 import time
+from typing import Callable, Awaitable, Protocol
+
 from pythonjsonlogger import jsonlogger
 from fastapi import Request
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.config import get_config
+
+logger = logging.getLogger(__name__)
+
+
 def setup_logging() -> None:
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
     
-    for handler in logger.handlers[:]:
-        logger.removeHandler(handler)
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
         
     logHandler = logging.StreamHandler()
-    formatter = jsonlogger.JsonFormatter(  # type: ignore
+    formatter = jsonlogger.JsonFormatter(
         '%(asctime)s %(levelname)s %(name)s %(message)s'
     )
     logHandler.setFormatter(formatter)
-    logger.addHandler(logHandler)
+    root_logger.addHandler(logHandler)
     
     # Disable uvicorn access logs to avoid double logging
     logging.getLogger("uvicorn.access").disabled = True
 
-from typing import Callable, Awaitable
+
 from fastapi import Response
+
 
 class LoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
-        logger = logging.getLogger("api")
+        api_logger = logging.getLogger("api")
         start_time = time.time()
         
         try:
@@ -34,11 +43,11 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             status_code = response.status_code
         except Exception as e:
             status_code = 500
-            logger.error("Request failed with exception", extra={"error": str(e)})
+            api_logger.exception("Request failed with exception")
             raise
         finally:
             process_time = time.time() - start_time
-            logger.info(
+            api_logger.info(
                 "Request handled",
                 extra={
                     "method": request.method,
@@ -49,10 +58,45 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             )
         return response
 
-from app.config import get_config
-from fastapi.responses import JSONResponse
 
-_rate_limit_data: dict[str, int] = {}
+# --- Rate Limiter Abstraction ---
+
+class RateLimiterBackend(Protocol):
+    """Protocol for rate limiter backends. Implementations can use Redis, in-memory, etc."""
+    def check_and_increment(self, key: str, limit: int) -> bool:
+        """Return True if the request should be allowed, False if rate-limited."""
+        ...
+
+    def cleanup(self, current_minute: int) -> None:
+        """Evict stale entries."""
+        ...
+
+
+class InMemoryRateLimiter:
+    """In-memory rate limiter. Suitable for single-process deployments."""
+    def __init__(self) -> None:
+        self._data: dict[str, int] = {}
+
+    def check_and_increment(self, key: str, limit: int) -> bool:
+        current_hits = self._data.get(key, 0)
+        if current_hits >= limit:
+            return False
+        self._data[key] = current_hits + 1
+        return True
+
+    def cleanup(self, current_minute: int) -> None:
+        """Evict keys from previous minutes to prevent unbounded growth."""
+        stale_keys = [
+            k for k in self._data
+            if not k.endswith(f"_{current_minute}")
+        ]
+        for sk in stale_keys:
+            self._data.pop(sk, None)
+
+
+# Singleton — swap with RedisRateLimiter when Redis is available
+_rate_limiter = InMemoryRateLimiter()
+
 
 class RateLimitingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
@@ -68,23 +112,13 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
 
         key = f"{client_ip}_{is_llm_route}_{current_minute}"
 
-        # Evict only stale minute buckets (not the whole dict)
-        # A stale key encodes a minute number lower than current_minute
-        if len(_rate_limit_data) > 5000:
-            stale_keys = [
-                k for k in list(_rate_limit_data.keys())
-                if not k.endswith(f"_{current_minute}")
-            ]
-            for sk in stale_keys:
-                _rate_limit_data.pop(sk, None)
+        # Proactive cleanup every cycle
+        _rate_limiter.cleanup(current_minute)
 
-        current_hits = _rate_limit_data.get(key, 0)
-        if current_hits >= limit:
+        if not _rate_limiter.check_and_increment(key, limit):
             return JSONResponse(
                 status_code=429,
                 content={"detail": "Rate limit exceeded. Try again later."}
             )
 
-        _rate_limit_data[key] = current_hits + 1
         return await call_next(request)
-

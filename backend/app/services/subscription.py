@@ -12,8 +12,7 @@ can be plugged in later without touching routers.
 from __future__ import annotations
 
 import logging
-import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Literal, Tuple
 
 from sqlmodel import Session
@@ -23,50 +22,16 @@ from app.models.user import User
 
 Quality = Literal["full", "reduced"]
 
-
-def _get_logger() -> logging.Logger:
-    logger = logging.getLogger("subscription")
-    if logger.handlers:
-        return logger
-
-    logger.setLevel(logging.INFO)
-
-    # Console handler
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.INFO)
-    ch_formatter = logging.Formatter(
-        "[%(asctime)s] [subscription] %(levelname)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-    ch.setFormatter(ch_formatter)
-    logger.addHandler(ch)
-
-    # File handler (best-effort; fine if it fails on some platforms)
-    try:
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        logs_dir = os.path.join(base_dir, "logs")
-        os.makedirs(logs_dir, exist_ok=True)
-        fh = logging.FileHandler(os.path.join(logs_dir, "subscription.log"))
-        fh.setLevel(logging.INFO)
-        fh.setFormatter(ch_formatter)
-        logger.addHandler(fh)
-    except Exception:
-        # Logging to file is best-effort; console logs are enough for most deployments.
-        pass
-
-    return logger
-
-
-logger = _get_logger()
+logger = logging.getLogger("subscription")
 
 
 def _today_utc() -> datetime:
     """
-    Normalize to midnight UTC for daily limits, stored as naive datetimes.
-    Using naive UTC avoids offset-naive vs offset-aware comparison issues.
+    Normalize to midnight UTC for daily limits.
+    Uses timezone-aware UTC datetimes.
     """
-    now = datetime.utcnow()
-    return datetime(year=now.year, month=now.month, day=now.day)
+    now = datetime.now(timezone.utc)
+    return datetime(year=now.year, month=now.month, day=now.day, tzinfo=timezone.utc)
 
 
 def reset_usage_if_needed(user: User) -> None:
@@ -74,7 +39,7 @@ def reset_usage_if_needed(user: User) -> None:
     Reset usage_today if usage_reset_at is before today (UTC).
     """
     today = _today_utc()
-    if user.usage_reset_at is None or user.usage_reset_at < today:
+    if user.usage_reset_at is None or user.usage_reset_at.replace(tzinfo=timezone.utc) < today:
         user.usage_today = 0
         user.usage_reset_at = today
 
@@ -127,4 +92,3 @@ def evaluate_summary_quality(user: User | None, session: Session) -> Tuple[Quali
 
 def is_pro(user: User | None) -> bool:
     return bool(user and user.plan == "pro")
-

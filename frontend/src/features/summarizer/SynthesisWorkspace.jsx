@@ -1,7 +1,12 @@
 import { useState } from "react";
+import { useAppContext } from "../../contexts/AppContext.jsx";
 import { synthesizeDocuments } from "../../services/api";
 
 export default function SynthesisWorkspace() {
+    const { auth } = useAppContext();
+    const user = auth?.user;
+    const isPro = user?.plan === "pro";
+
     const [documentIds, setDocumentIds] = useState("");
     const [prompt, setPrompt] = useState("");
     const [loading, setLoading] = useState(false);
@@ -35,6 +40,28 @@ export default function SynthesisWorkspace() {
         } finally {
             setLoading(false);
         }
+    }
+
+    // Pro-gate: show upgrade message if user is not Pro
+    if (!isPro) {
+        return (
+            <div className="max-w-3xl mx-auto space-y-8">
+                <div>
+                    <h1 className="text-3xl font-semibold tracking-tight mb-3">
+                        Multi-Document Synthesis (Pro)
+                    </h1>
+                    <p className="text-gray-500 dark:text-gray-400 mb-6">
+                        Compare sources and distil insights across multiple ingested documents.
+                    </p>
+                </div>
+                <div className="bg-white dark:bg-[#121212] border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm text-center">
+                    <p className="text-lg font-medium mb-2">Pro Feature</p>
+                    <p className="text-gray-500 dark:text-gray-400 mb-4">
+                        Multi-Document Synthesis is available on the Pro plan. Upgrade to unlock cross-document analysis.
+                    </p>
+                </div>
+            </div>
+        );
     }
 
     return (

@@ -37,7 +37,8 @@ async def chat_completion(
         "stream": False,
     }
 
-    async with httpx.AsyncClient(timeout=cfg.summarize_timeout_seconds) as client:
+    timeout = httpx.Timeout(cfg.summarize_timeout_seconds, connect=10.0)
+    async with httpx.AsyncClient(timeout=timeout) as client:
         response = await client.post(url, json=payload, headers=headers)
 
     if response.status_code == 504:

@@ -1,7 +1,6 @@
 import httpx
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException
 
-from app.config import get_config
 from app.deps import OptionalUser, DbSession
 from app.schemas import TextRequest
 from app.services.summarizer import process_summarize

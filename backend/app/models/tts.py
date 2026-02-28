@@ -1,7 +1,10 @@
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, timezone
+from typing import Optional, TYPE_CHECKING
 
-from sqlmodel import Field, SQLModel
+from sqlmodel import Field, SQLModel, Relationship
+
+if TYPE_CHECKING:
+    from app.models.document import Document
 
 
 class AudioSummary(SQLModel, table=True):
@@ -10,4 +13,6 @@ class AudioSummary(SQLModel, table=True):
     document_id: Optional[int] = Field(default=None, foreign_key="document.id", index=True)
     audio_url: str
     provider: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    document: Optional["Document"] = Relationship(back_populates="audio_summaries")

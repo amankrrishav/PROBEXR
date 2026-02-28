@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class TextRequest(BaseModel):
@@ -7,6 +7,13 @@ class TextRequest(BaseModel):
 
 class URLRequest(BaseModel):
     url: str = Field(..., max_length=2048, description="URL to scrape and ingest")
+
+    @field_validator("url")
+    @classmethod
+    def validate_url_scheme(cls, v: str) -> str:
+        if not v.startswith(("http://", "https://")):
+            raise ValueError("URL must start with http:// or https://")
+        return v
 
 class TextIngestRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=500_000, description="Text to save as a Document (max 500k chars)")
@@ -23,7 +30,7 @@ class ChatRequest(BaseModel):
 
 class FlashcardRequest(BaseModel):
     document_id: int = Field(..., description="ID of the document to generate flashcards from")
-    count: int = Field(default=10, le=50, description="Desired number of flashcards")
+    count: int = Field(default=10, ge=1, le=50, description="Desired number of flashcards (1-50)")
 
 class TTSRequest(BaseModel):
     document_id: int = Field(..., description="ID of the document to narrate")

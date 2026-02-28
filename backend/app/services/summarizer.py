@@ -7,7 +7,7 @@ from typing import Literal, Any, Tuple
 import httpx
 from sqlmodel import Session
 
-from app.config import get_config
+from app.config import get_config, AppConfig
 from app.services.extractive import summarize_extractive
 from app.services.subscription import evaluate_summary_quality
 from app.models.user import User
@@ -18,8 +18,6 @@ _llm = None
 
 Quality = Literal["full", "reduced"]
 
-
-from typing import Any
 
 def _get_llm() -> Any:
     global _llm
@@ -35,8 +33,6 @@ def _clean_text(text: str) -> str:
     text = re.sub(r"\s+", " ", text)
     return text.strip()
 
-
-from app.config import AppConfig
 
 def _target_words(original_word_count: int, cfg: AppConfig) -> int:
     """

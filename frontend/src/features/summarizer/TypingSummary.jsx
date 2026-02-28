@@ -17,17 +17,18 @@ const TypingSummary = memo(function TypingSummary({ text, instant = false }) {
     setDisplayedText("");
     setShowFull(false);
 
+    const words = text.split(/(\s+)/); // split but keep whitespace
     let index = 0;
 
     intervalRef.current = setInterval(() => {
-      if (index >= text.length) {
+      if (index >= words.length) {
         if (intervalRef.current) clearInterval(intervalRef.current);
         return;
       }
 
-      setDisplayedText((prev) => prev + text.charAt(index));
+      setDisplayedText((prev) => prev + words[index]);
       index++;
-    }, 6);
+    }, 50);
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
