@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { generateFlashcards, generateAudioSummary } from "../../services/api";
+import { getBaseUrl } from "../../services/client";
 
 export default function DocumentActions({ documentId }) {
     const [loadingAudio, setLoadingAudio] = useState(false);
     const [loadingCards, setLoadingCards] = useState(false);
+    const [loadingExport, setLoadingExport] = useState(false);
     const [audioUrl, setAudioUrl] = useState(null);
     const [flashcardSetId, setFlashcardSetId] = useState(null);
     const [error, setError] = useState(null);
@@ -33,6 +35,36 @@ export default function DocumentActions({ documentId }) {
             setError("Failed to generate flashcards");
         } finally {
             setLoadingCards(false);
+        }
+    }
+
+    /**
+     * Download the flashcard CSV with credentials included.
+     * A bare <a href> does NOT send cookies — this fetch approach does.
+     */
+    async function handleExportCSV() {
+        if (!flashcardSetId) return;
+        setLoadingExport(true);
+        setError(null);
+        try {
+            const url = `${getBaseUrl()}/api/flashcards/${flashcardSetId}/export`;
+            const res = await fetch(url, { credentials: "include" });
+            if (!res.ok) {
+                throw new Error(`Export failed: ${res.status} ${res.statusText}`);
+            }
+            const blob = await res.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = blobUrl;
+            a.download = `flashcards_${flashcardSetId}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(blobUrl);
+        } catch (err) {
+            setError("Failed to download CSV. Please try again.");
+        } finally {
+            setLoadingExport(false);
         }
     }
 
@@ -71,10 +103,17 @@ export default function DocumentActions({ documentId }) {
                 ) : (
                     <div className="flex items-center gap-3">
                         <span className="text-sm text-green-600 dark:text-green-400">Flashcards Ready:</span>
-                        <a href={`/api/flashcards/${flashcardSetId}/export`} target="_blank" rel="noreferrer" className="text-sm underline hover:text-gray-500">Download CSV</a>
+                        <button
+                            onClick={handleExportCSV}
+                            disabled={loadingExport}
+                            className="text-sm underline hover:text-gray-500 disabled:opacity-50 bg-transparent border-none cursor-pointer"
+                        >
+                            {loadingExport ? "Downloading..." : "Download CSV"}
+                        </button>
                     </div>
                 )}
             </div>
         </div>
     );
 }
+

@@ -56,12 +56,23 @@ async def generate_flashcards(document_id: int, user_id: int, session: Session, 
     return fc_set
 
 def generate_csv_export(flashcards: list[Flashcard]) -> str:
+    """
+    Produce an Anki-compatible CSV.
+
+    Anki CSV format rules:
+      - No header row (Anki expects data-only).
+      - Two columns: Front, Back.
+      - Fields must not contain raw newlines or tabs (they break the TSV-style parser).
+        We replace them with a space before writing.
+    """
     output = StringIO()
-    writer = csv.writer(output)
-    writer.writerow(["Front", "Back"])
+    writer = csv.writer(output, quoting=csv.QUOTE_ALL)
     for fc in flashcards:
-        writer.writerow([fc.front, fc.back])
+        front = fc.front.replace("\n", " ").replace("\t", " ").strip()
+        back = fc.back.replace("\n", " ").replace("\t", " ").strip()
+        writer.writerow([front, back])
     return output.getvalue()
+
 
 def export_flashcards(session: Session, set_id: int, user_id: int) -> str:
     from sqlmodel import select
