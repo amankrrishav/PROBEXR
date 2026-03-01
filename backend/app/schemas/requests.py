@@ -1,9 +1,12 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field, field_validator
 
 
 class TextRequest(BaseModel):
-    """Request body for POST /summarize. Add more fields here for future features (e.g. style, length)."""
+    """Request body for POST /summarize."""
     text: str = Field(..., min_length=1, max_length=100_000, description="Max 100k chars to prevent DoS")
+    length: Literal["brief", "standard", "detailed"] = Field(default="standard", description="Summary length: brief, standard, or detailed")
 
 class URLRequest(BaseModel):
     url: str = Field(..., max_length=2048, description="URL to scrape and ingest")

@@ -26,7 +26,7 @@ from app.deps import OptionalUser, DbSession
 from app.schemas import TextRequest
 from app.schemas.requests import ChatRequest
 from app.models.chat import ChatMessage
-from app.services.summarizer import prepare_summarize_messages
+from app.services.summarizer import prepare_summarize_messages, _compute_metadata, _extract_takeaways_from_extractive, _extract_takeaways_llm, LENGTH_PRESETS
 from app.services.chat import prepare_chat_context
 from app.services.llm import generate_stream
 
@@ -117,7 +117,7 @@ async def summarize_stream(
     This router only handles SSE transport for the Stage 2 synthesis stream.
     """
     try:
-        prep = await prepare_summarize_messages(body.text)
+        prep = await prepare_summarize_messages(body.text, length=body.length)
     except ValueError as exc:
         return StreamingResponse(
             iter([_sse_error(str(exc)), _sse_done(0, 0)]),
@@ -130,21 +130,58 @@ async def summarize_stream(
             media_type="text/event-stream",
         )
 
-    # Extractive fallback — emit as a single token
+    # Extractive fallback — emit as a single token + metadata
     if prep.is_extractive:
+        meta = _compute_metadata(prep.original_text, prep.extractive_result)
+        preset = LENGTH_PRESETS.get(prep.length, LENGTH_PRESETS["standard"])
+        takeaways = _extract_takeaways_from_extractive(prep.extractive_result, count=preset["takeaway_count"])
+
         async def _extractive_gen():
             yield _sse_token(prep.extractive_result)
-            yield _sse_done(0.0, 1)
+            yield f"data: {json.dumps({'takeaways': takeaways})}\n\n"
+            yield _sse_done(0.0, 1, **meta, quality="extractive", length=prep.length)
         return StreamingResponse(_extractive_gen(), media_type="text/event-stream")
 
-    # LLM path: stream the Stage 2 synthesis
-    return StreamingResponse(
-        _stream_llm(
+    # LLM path: stream the Stage 2 synthesis, then send metadata
+    collected_summary: list[str] = []
+
+    async def _summarize_stream_with_meta():
+        async for chunk in _stream_llm(
             prep.messages,
             max_tokens=prep.max_tokens,
             temperature=prep.temperature,
             request=request,
-        ),
+        ):
+            # Intercept tokens to collect them
+            if chunk.startswith('data: {"token"'):
+                try:
+                    token_data = json.loads(chunk[6:])
+                    if "token" in token_data:
+                        collected_summary.append(token_data["token"])
+                except Exception:
+                    pass
+            # Don't yield the _stream_llm's DONE event; we replace it with our own
+            if chunk.startswith('data: {"done"'):
+                continue
+            yield chunk
+
+        # After streaming completes, compute and emit metadata
+        summary_text = "".join(collected_summary)
+        meta = _compute_metadata(prep.original_text, summary_text)
+        preset = LENGTH_PRESETS.get(prep.length, LENGTH_PRESETS["standard"])
+
+        from app.config import get_config as _gc
+        cfg = _gc()
+        if cfg.has_llm_provider:
+            takeaways = await _extract_takeaways_llm(prep.original_text, count=preset["takeaway_count"])
+        else:
+            takeaways = _extract_takeaways_from_extractive(summary_text, count=preset["takeaway_count"])
+
+        yield f"data: {json.dumps({'takeaways': takeaways})}\n\n"
+        yield _sse_done(0.0, len(collected_summary), **meta, quality="full", length=prep.length)
+
+    return StreamingResponse(
+        _summarize_stream_with_meta(),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

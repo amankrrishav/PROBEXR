@@ -1,5 +1,11 @@
 import { useSummarizerContext } from "../../contexts/SummarizerContext.jsx";
 
+const LENGTH_OPTIONS = [
+  { value: "brief", label: "Brief", desc: "~1 paragraph" },
+  { value: "standard", label: "Standard", desc: "~2 paragraphs" },
+  { value: "detailed", label: "Detailed", desc: "~4 paragraphs" },
+];
+
 export default function Editor({
   onSummarize,
   handleKeyDown,
@@ -19,6 +25,8 @@ export default function Editor({
     setUrl,
     streaming,
     cancelStreaming,
+    summaryLength,
+    setSummaryLength,
   } = useSummarizerContext();
 
   const isBusy = loading || streaming;
@@ -95,7 +103,26 @@ export default function Editor({
             {wordCount} words · {charCount} characters
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex items-center gap-3">
+            {/* Length selector — only show when no summary yet */}
+            {!hasSummary && (
+              <div className="flex rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                {LENGTH_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setSummaryLength(opt.value)}
+                    title={opt.desc}
+                    className={`text-[11px] font-medium px-3 py-1.5 transition-colors ${summaryLength === opt.value
+                        ? "bg-black text-white dark:bg-white dark:text-black"
+                        : "text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white bg-transparent"
+                      }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {streaming && (
               <button
                 onClick={cancelStreaming}

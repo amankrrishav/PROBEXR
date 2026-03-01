@@ -83,7 +83,7 @@ export async function request(path, options = {}) {
  * @param {AbortController} [abortController] - optional controller for cancellation
  * @returns {Promise<void>}
  */
-export async function streamRequest(path, options, onToken, onDone, onError, abortController) {
+export async function streamRequest(path, options, onToken, onDone, onTakeaways, onError, abortController) {
   const controller = abortController || new AbortController();
   const url = `${getBaseUrl()}${path.startsWith("/") ? path : `/${path}`}`;
 
@@ -122,7 +122,6 @@ export async function streamRequest(path, options, onToken, onDone, onError, abo
 
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split("\n");
-      // Keep last partial line in buffer
       buffer = lines.pop() || "";
 
       for (const line of lines) {
@@ -131,12 +130,15 @@ export async function streamRequest(path, options, onToken, onDone, onError, abo
 
         const dataStr = trimmed.slice(6);
 
-        // Try to parse as JSON
         try {
           const parsed = JSON.parse(dataStr);
           if (parsed.error) {
             onError(parsed.error);
             return;
+          }
+          if (parsed.takeaways && onTakeaways) {
+            onTakeaways(parsed.takeaways);
+            continue;
           }
           if (parsed.done) {
             onDone(parsed);
