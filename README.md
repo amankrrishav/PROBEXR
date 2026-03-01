@@ -1,9 +1,9 @@
 # ReadPulse — Article Summarizer & Learning Hub
 
-ReadPulse is a full-stack article summarizer and learning platform: paste text or URLs, get a short, human-like summary, chat with the document, listen to it, and export flashcards.  
+ReadPulse is a full-stack article summarizer and learning platform: paste text or URLs, get a short, human-like summary, chat with the document, and export flashcards.  
 *Extract signal. Ignore noise.*
 
-Designed as an **open-source app** with a path to **subscription / startup** later (see [ROADMAP.md](ROADMAP.md) and [CONTRIBUTING.md](CONTRIBUTING.md)).
+**100% free and open-source.** No plans, no paywalls, no limits.
 
 **Backend:** Scalable FastAPI app with async PostgreSQL (asyncpg), Redis rate limiting, and streaming-ready LLM layer. **$0 options:** no API key = extractive summarization; or Groq/OpenRouter free tier for human-like summaries. No need to spend $5–10/month. Runs locally with SQLite + no Redis for easy development.
 
@@ -14,25 +14,25 @@ Designed as an **open-source app** with a path to **subscription / startup** lat
 **Frontend (React + Vite)**  
 - Paste text or URL (min 30 words).  
 - Calls backend `POST /summarize` or `POST /api/ingest/url`.  
-- Displays summary with typewriter effect and “Show full”.  
+- Displays summary with typewriter effect and "Show full".  
 - **Advanced Features:** 
-  - **Read Aloud (TTS):** Listen to the summarized document.
   - **Chat:** Ask contextual questions about the analyzed text.
   - **Flashcards:** Generate and export flashcard CSVs (Anki-compatible).
-  - **Multi-Document Synthesis (Pro):** Synthesize multiple documents into a single briefing.
-- Optional auth: sign up / log in modal, account dropdown, daily usage and plan display, and a demo Pro Mode upgrade flow.
+  - **Multi-Document Synthesis:** Synthesize multiple documents into a single briefing.
+  - **Read Aloud (TTS):** Coming soon — listen to summaries.
+- Auth: sign up / log in modal, account dropdown.
 
 **Backend (FastAPI)**  
 - **Scalable structure:** `app/` with config, schemas, routers, services—contains routers for auth, chat, flashcards, ingest, summarize, synthesis, and tts.  
 - **Async-first:** Full async pipeline using `asyncpg` (PostgreSQL) or `aiosqlite` (SQLite dev) with `AsyncSession`. Zero blocking calls in the request path.  
 - **PostgreSQL-ready:** Connection pooling (`pool_size`, `max_overflow`, `pool_timeout`) configured for production. SQLite fallback for local development.  
-- **Redis rate limiting:** Atomic INCR+EXPIRE pattern with per-IP and per-tier limits. Graceful in-memory fallback when Redis is unavailable.  
-- **LLM streaming-ready:** `generate_full()` + `generate_stream()` in the LLM layer. SSE transport planned for Phase 2B.  
+- **Redis rate limiting:** Atomic INCR+EXPIRE pattern with per-IP limits. Graceful in-memory fallback when Redis is unavailable.  
+- **LLM streaming-ready:** `generate_full()` + `generate_stream()` in the LLM layer. SSE transport for real-time token streaming.  
 - **Human-like summarization:** Two-stage (extract concepts → synthesize in natural language) via any OpenAI-compatible API.  
 - **Serverless/cloud-friendly:** Minimal deps (FastAPI, httpx, pydantic, uvicorn). No PyTorch, no local LLM. Deploy on Railway, Render, Fly, or serverless (e.g. Mangum for AWS Lambda).  
 - **$0 modes:** No API key → extractive summarization (sentence selection). Groq or OpenRouter free tier → human-like LLM summaries. No credit card or monthly spend required.
 - **Provider-agnostic:** Set one of `GROQ_API_KEY`, `OPENAI_API_KEY`, or `OPENROUTER_API_KEY`; provider and default model are auto-detected.  
-- **Auth + subscription-ready:** Email/password accounts with JWT, per-user plan + daily usage fields, and a fake Pro Mode upgrade endpoint (`POST /auth/upgrade/demo-pro`) for testing subscription UX before real billing.
+- **Auth:** Email/password accounts with JWT (HttpOnly cookies), Argon2 password hashing, required and optional auth dependencies.
 
 ---
 
@@ -68,7 +68,7 @@ backend/
 │   ├── deps.py           # Auth + DB session dependencies (AsyncSession)
 │   ├── middleware.py      # Logging + rate limiting (Redis / in-memory fallback)
 │   ├── schemas/          # Request/response models (e.g. TextRequest)
-│   ├── routers/          # Route modules (summarize, auth, chat, ingest, flashcards, tts, synthesis)
+│   ├── routers/          # Route modules (summarize, auth, chat, ingest, flashcards, tts, synthesis, streaming)
 │   └── services/         # Business logic (summarizer, llm, auth, chat, etc.)
 ├── alembic/              # Database migrations (env-driven URL)
 ├── requirements.txt      # Dependencies
@@ -139,8 +139,8 @@ backend/
 - **Two-stage human-like summarization** (extract → synthesize)  
 - **URL Ingestion** for seamless web scraping and DB content storage
 - **Contextual Article Chat** for interrogating documents
-- **Text-to-Speech (TTS)** audio generation
 - **Flashcard Export** to CSV matching Anki formats
-- **Multi-Document Synthesis** for Pro users to combine insights
-- **Auth (email/password)** with persistent session cache
+- **Multi-Document Synthesis** for combining insights across documents
+- **SSE Streaming** for real-time token delivery
+- **Auth (email/password)** with HttpOnly JWT cookies
 - Clear errors (validation, timeout, rate limit, API key)

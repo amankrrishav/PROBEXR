@@ -17,7 +17,6 @@ from app.services.auth import (
     get_user_by_email,
     register_user,
     authenticate_user,
-    upgrade_user_to_pro,
     set_auth_cookie,
 )
 
@@ -68,18 +67,3 @@ async def read_me(current_user: CurrentUser) -> UserRead:
     return UserRead.model_validate(current_user)
 
 
-@router.post("/upgrade/demo-pro", response_model=UserRead)
-async def upgrade_demo_pro(
-    current_user: CurrentUser, 
-    session: DbSession
-) -> UserRead:
-    """
-    Demo-only endpoint to flip the current user to Pro plan.
-    No real billing, safe for testing subscription flows.
-    """
-    try:
-        assert current_user.id is not None
-        user = await upgrade_user_to_pro(session, current_user.id)
-        return UserRead.model_validate(user)
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

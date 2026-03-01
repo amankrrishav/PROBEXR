@@ -1,6 +1,5 @@
 /**
  * Backend health — call GET / on load. Use for status, mode (extractive vs groq), version.
- * Later: use for "limit reached", "upgrade" CTA when subscription is enabled.
  */
 import { useEffect, useState } from "react";
 import { getHealth } from "../services/api.js";

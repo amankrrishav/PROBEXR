@@ -54,12 +54,9 @@ class AppConfig:
         self.target_max_words = int(_env("SUMMARIZE_TARGET_MAX_WORDS", "300") or "300")
         self.database_url = _env("DATABASE_URL", "sqlite:///./readpulse.db") or "sqlite:///./readpulse.db"
 
-        # ----- Future: subscription / plans (add keys here when you add billing) -----
         self.app_version = _env("APP_VERSION", "1.0.0") or "1.0.0"
-        self.subscription_enabled = (_env("SUBSCRIPTION_ENABLED", "0") or "0").lower() in ("1", "true", "yes")
-        self.free_daily_limit = int(_env("FREE_DAILY_LIMIT", "50") or "50")  # per IP or per user when auth exists
 
-        # When auth exists: API_KEY_HEADER, JWT_SECRET, STRIPE_WEBHOOK_SECRET, etc. #new
+
         self.SECRET_KEY = _env("SECRET_KEY", "dev-secret-change-this") or "dev-secret-change-this"
         self.ALGORITHM = _env("JWT_ALGORITHM", "HS256") or "HS256"
 

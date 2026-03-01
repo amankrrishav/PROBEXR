@@ -5,7 +5,6 @@ import { synthesizeDocuments } from "../../services/api";
 export default function SynthesisWorkspace() {
     const { auth } = useAppContext();
     const user = auth?.user;
-    const isPro = user?.plan === "pro";
 
     const [documentIds, setDocumentIds] = useState("");
     const [prompt, setPrompt] = useState("");
@@ -42,22 +41,22 @@ export default function SynthesisWorkspace() {
         }
     }
 
-    // Pro-gate: show upgrade message if user is not Pro
-    if (!isPro) {
+    // Auth gate: require login
+    if (!user) {
         return (
             <div className="max-w-3xl mx-auto space-y-8">
                 <div>
                     <h1 className="text-3xl font-semibold tracking-tight mb-3">
-                        Multi-Document Synthesis (Pro)
+                        Multi-Document Synthesis
                     </h1>
                     <p className="text-gray-500 dark:text-gray-400 mb-6">
                         Compare sources and distil insights across multiple ingested documents.
                     </p>
                 </div>
                 <div className="bg-white dark:bg-[#121212] border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm text-center">
-                    <p className="text-lg font-medium mb-2">Pro Feature</p>
+                    <p className="text-lg font-medium mb-2">Sign in Required</p>
                     <p className="text-gray-500 dark:text-gray-400 mb-4">
-                        Multi-Document Synthesis is available on the Pro plan. Upgrade to unlock cross-document analysis.
+                        Please sign in to use Multi-Document Synthesis.
                     </p>
                 </div>
             </div>
@@ -68,7 +67,7 @@ export default function SynthesisWorkspace() {
         <div className="max-w-3xl mx-auto space-y-8">
             <div>
                 <h1 className="text-3xl font-semibold tracking-tight mb-3">
-                    Multi-Document Synthesis (Pro)
+                    Multi-Document Synthesis
                 </h1>
                 <p className="text-gray-500 dark:text-gray-400 mb-6">
                     Compare sources and distil insights across multiple ingested documents.

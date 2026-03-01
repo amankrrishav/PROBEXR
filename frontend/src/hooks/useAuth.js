@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getCurrentUser, login as loginApi, register as registerApi, upgradeDemoPro, logout as logoutApi } from "../services/auth.js";
+import { getCurrentUser, login as loginApi, register as registerApi, logout as logoutApi } from "../services/auth.js";
 
 export function useAuth() {
   const [user, setUser] = useState(null);
@@ -66,21 +66,6 @@ export function useAuth() {
     }
   }
 
-  async function upgradeToDemoPro() {
-    setError(null);
-    setSubmitting(true);
-    try {
-      const updated = await upgradeDemoPro();
-      setUser(updated);
-      return updated;
-    } catch (err) {
-      setError(err.message || "Upgrade failed. Please try again later.");
-      throw err;
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
   return {
     user,
     initializing,
@@ -91,7 +76,5 @@ export function useAuth() {
     login,
     register,
     logout,
-    upgradeToDemoPro,
   };
 }
-

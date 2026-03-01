@@ -23,10 +23,4 @@ export const config = {
     "Removing redundancy…",
     "Finalizing summary…",
   ],
-
-  // Future: subscription / plans — show upgrade CTA, limit reached, etc.
-  subscription: {
-    enabled: import.meta.env.VITE_SUBSCRIPTION_ENABLED === "true",
-    showUpgradeCta: false, // Set true when you add pricing page / paywall
-  },
 };

@@ -1,22 +1,17 @@
 """
 Summarization: LLM (human-like) when an API key is set, or free extractive fallback ($0, no key).
-Reduced quality uses the simpler extractive summarizer even when an LLM is configured.
 """
 import re
-from typing import Literal, Any, Tuple
+from typing import Any
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_config, AppConfig
 from app.services.extractive import summarize_extractive
-from app.services.subscription import evaluate_summary_quality
 from app.models.user import User
 
 # Lazy import so extractive path works without httpx when no key
 _llm = None
-
-
-Quality = Literal["full", "reduced"]
 
 
 def _get_llm() -> Any:
@@ -36,16 +31,16 @@ def _clean_text(text: str) -> str:
 
 def _target_words(original_word_count: int, cfg: AppConfig) -> int:
     """
-    Compute target word count for full-quality LLM summaries.
+    Compute target word count for LLM summaries.
     """
     base = max(cfg.target_min_words, int(original_word_count * 0.25))
     return min(base, cfg.target_max_words)
 
 
-async def summarize(text: str, quality: Quality = "full") -> str:
+async def summarize(text: str) -> str:
     """
-    If an API key is set and quality=='full': use LLM (human-like, two-stage).
-    If quality=='reduced' or no key: use extractive fallback ($0, no API, lower quality).
+    If an API key is set: use LLM (human-like, two-stage).
+    Otherwise: use extractive fallback ($0, no API).
     """
     cfg = get_config()
     text = _clean_text(text)
@@ -53,8 +48,8 @@ async def summarize(text: str, quality: Quality = "full") -> str:
     if len(words) < cfg.min_words:
         raise ValueError(f"Text too short. Minimum {cfg.min_words} words.")
 
-    # Extractive path: always used when quality is reduced, or when no LLM provider exists.
-    if quality == "reduced" or not cfg.has_llm_provider:
+    # Extractive path: when no LLM provider exists.
+    if not cfg.has_llm_provider:
         return summarize_extractive(
             text,
             min_words=cfg.min_words,
@@ -62,7 +57,7 @@ async def summarize(text: str, quality: Quality = "full") -> str:
             target_max=cfg.target_max_words,
         )
 
-    # Paid path (or free-tier API): use LLM for full-quality summaries.
+    # LLM path: two-stage (extract → synthesize)
     llm = _get_llm()
     original_word_count = len(words)
     target_words = _target_words(original_word_count, cfg)
@@ -114,13 +109,9 @@ async def process_summarize(text: str, user: User | None, session: AsyncSession)
         raise ValueError(f"Text too short. Minimum {cfg.min_words} words.")
 
     try:
-        quality, usage_today, limit = await evaluate_summary_quality(user, session)
-        summary_text = await summarize(text, quality=quality)
+        summary_text = await summarize(text)
         return {
             "summary": summary_text,
-            "quality": quality,
-            "usage_today": usage_today,
-            "limit": limit,
         }
     except httpx.HTTPStatusError as e:
         msg = str(e)

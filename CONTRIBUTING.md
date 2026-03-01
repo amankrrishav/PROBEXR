@@ -1,6 +1,6 @@
 # Contributing to ReadPulse
 
-ReadPulse is built to stay **scalable and feature-additive** as an open-source app with a future subscription path. This doc explains structure and how to add features.
+ReadPulse is **100% free and open-source**. This doc explains the project structure and how to add features.
 
 ---
 
@@ -16,7 +16,7 @@ readpulse/
 │   │   ├── deps.py       # Auth + DB dependencies (CurrentUser, OptionalUser, DbSession)
 │   │   ├── middleware.py  # Logging + rate limiting (Redis / in-memory fallback)
 │   │   ├── schemas/      # Request/response models
-│   │   ├── routers/      # Async route modules (health, summarize, auth, chat, etc.)
+│   │   ├── routers/      # Async route modules (health, summarize, auth, chat, ingest, flashcards, tts, synthesis, streaming)
 │   │   └── services/     # Async business logic (summarizer, llm, auth, chat, etc.)
 │   ├── alembic/          # Database migrations (env-driven URL)
 │   ├── requirements.txt
@@ -24,13 +24,14 @@ readpulse/
 │   └── run.py
 ├── frontend/         # React + Vite
 │   ├── src/
-│   │   ├── config.js      # Env and constants; add keys for new features
+│   │   ├── config.js      # Env and constants
 │   │   ├── App.jsx        # Compose hooks + features
 │   │   ├── services/      # API client + endpoints (auth, summarize, etc.)
-│   │   ├── hooks/         # useSummarizer, useTheme, useBackendHealth, useAuth, useSubscription
-│   │   └── features/      # layout, summarizer, auth, subscription; add new feature folders
+│   │   ├── hooks/         # useSummarizer, useTheme, useBackendHealth, useAuth
+│   │   ├── contexts/      # AppContext, SummarizerContext
+│   │   └── features/      # layout, summarizer, auth; add new feature folders
 │   └── package.json
-├── ROADMAP.md        # Phases: MVP → features → infrastructure → subscription
+├── ROADMAP.md        # Phases and upcoming features
 └── CONTRIBUTING.md   # This file
 ```
 
@@ -43,7 +44,7 @@ readpulse/
 3. **Service** — Add async logic in `backend/app/services/` (e.g. `url_fetch.py`). Use `AsyncSession` for all DB operations (`await session.execute()`, `await session.commit()`).
 4. **Router** — Add `backend/app/routers/url_fetch.py` with `async def` handlers; mount in `app/main.py`:  
    `app.include_router(url_fetch.router, prefix="/api")`.
-5. **Auth/limits (optional)** — Use `deps.CurrentUser` / `deps.OptionalUser` and helpers in `app/services/subscription.py` when you add auth-only or plan-limited routes.
+5. **Auth (optional)** — Use `deps.CurrentUser` (required) or `deps.OptionalUser` (optional) for auth-gated routes.
 6. **Migration (if new models)** — Run `python -m alembic revision --autogenerate -m "description"` then `python -m alembic upgrade head`.
 
 ---
@@ -84,18 +85,9 @@ See root [README.md](README.md) and `backend/README.md`, `frontend/README.md` fo
 
 ---
 
-## Subscription path (for maintainers)
-
-- **Config:** `SUBSCRIPTION_ENABLED`, `FREE_DAILY_LIMIT`, `APP_VERSION` already exist. Add Stripe (or other) env when you integrate.
-- **Backend:** Per-user fields (`plan`, `usage_today`, `usage_reset_at`) and `app/services/subscription.py` are in place. Connect real billing to flip `plan` values instead of using the demo `POST /auth/upgrade/demo-pro` endpoint.
-- **Frontend:** Auth + Pro Mode demo UI exist (account dropdown, Pro modal, limit-reached banner). Later, wire these to real billing, a full pricing page, and feature gating by plan.
-- **Roadmap:** See [ROADMAP.md](ROADMAP.md) for phases.
-
----
-
 ## Code style
 
 - **Backend:** Python, FastAPI conventions. Async functions for all DB and LLM operations. Type hints where helpful.
 - **Frontend:** React, ES modules. Config and API in one place per feature when possible.
 
-Keeping the app **modular and config-driven** makes it easier to add features and subscription later without big rewrites.
+Keeping the app **modular and config-driven** makes it easy to add features without big rewrites.
