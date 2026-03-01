@@ -1,6 +1,5 @@
 import { createContext, useContext } from "react";
 import { useAuth } from "../hooks/useAuth.js";
-import { useSubscription } from "../hooks/useSubscription.js";
 import { useTheme } from "../hooks/useTheme.js";
 import { useBackendHealth } from "../hooks/useBackendHealth.js";
 
@@ -10,7 +9,6 @@ export function AppProvider({ children }) {
     const { dark, toggleTheme } = useTheme();
     const backendHealth = useBackendHealth();
     const auth = useAuth();
-    const subscription = useSubscription(backendHealth.backend, auth.user);
 
     return (
         <AppContext.Provider
@@ -19,7 +17,6 @@ export function AppProvider({ children }) {
                 toggleTheme,
                 backendMode: backendHealth.backendMode,
                 auth,
-                subscription,
             }}
         >
             {children}

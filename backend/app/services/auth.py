@@ -109,18 +109,7 @@ async def authenticate_user(session: AsyncSession, email: str, password: str) ->
     await session.commit()
     return user
 
-async def upgrade_user_to_pro(session: AsyncSession, user_id: int) -> User:
-    user = await session.get(User, user_id)
-    if not user:
-        raise ValueError("User not found")
 
-    if user.plan != "pro":
-        user.plan = "pro"
-        session.add(user)
-        await session.commit()
-        await session.refresh(user)
-
-    return user
 
 def _credentials_exception() -> HTTPException:
     return HTTPException(

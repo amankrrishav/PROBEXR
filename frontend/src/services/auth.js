@@ -23,12 +23,6 @@ export async function getCurrentUser() {
   });
 }
 
-export async function upgradeDemoPro() {
-  return request("/auth/upgrade/demo-pro", {
-    method: "POST",
-  });
-}
-
 export async function logout() {
   return request("/auth/logout", {
     method: "POST",

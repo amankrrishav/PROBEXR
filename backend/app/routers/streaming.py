@@ -23,7 +23,6 @@ from app.deps import OptionalUser, DbSession
 from app.schemas import TextRequest
 from app.schemas.requests import ChatRequest
 from app.config import get_config
-from app.services.subscription import evaluate_summary_quality
 from app.services.extractive import summarize_extractive
 from app.models.document import Document
 from app.models.chat import ChatMessage, ChatSession
@@ -133,18 +132,8 @@ async def summarize_stream(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    # Evaluate quality tier
-    try:
-        quality, usage_today, limit = await evaluate_summary_quality(user, session)
-    except Exception as exc:
-        return StreamingResponse(
-            iter([_sse_error(str(exc)), _sse_done(0, 0)]),
-            media_type="text/event-stream",
-            status_code=status.HTTP_400_BAD_REQUEST,
-        )
-
-    # Reduced quality → extractive (no streaming needed, send as single token)
-    if quality == "reduced" or not cfg.has_llm_provider:
+    # Extractive fallback when no LLM provider
+    if not cfg.has_llm_provider:
         summary = summarize_extractive(
             text,
             min_words=cfg.min_words,

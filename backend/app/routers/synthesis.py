@@ -22,11 +22,6 @@ async def create_synthesis(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required for synthesis"
         )
-    if user.plan != "pro":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Multi-Document Synthesis is a Pro feature"
-        )
         
     try:
         synthesis = await synthesize_documents(request.document_ids, user.id, session, request.prompt)

@@ -7,13 +7,11 @@ export default function Sidebar({
   appName,
   onOpenAuth,
   onLogout,
-  onOpenPro,
   activeTab,
   setActiveTab,
 }) {
-  const { dark, toggleTheme, backendMode, auth, subscription } = useAppContext();
+  const { dark, toggleTheme, backendMode, auth } = useAppContext();
   const { user } = auth;
-  const { plan, usageToday, limit } = subscription;
   const { reset } = useSummarizerContext();
   const [accountOpen, setAccountOpen] = useState(false);
 
@@ -56,20 +54,10 @@ export default function Sidebar({
                         {user.email}
                       </p>
                       <p className="text-[10px] text-gray-400">
-                        {plan === "pro" ? "Pro Mode · ReadPulse" : "Account · ReadPulse"}
+                        Account · ReadPulse
                       </p>
                     </div>
                   </div>
-
-                  {plan !== "pro" && (
-                    <button
-                      type="button"
-                      onClick={onOpenPro}
-                      className="mb-1 w-full rounded-full border border-gray-200 px-3 py-1.5 text-[11px] font-medium text-gray-800 transition hover:bg-gray-50 dark:border-gray-700 dark:text-gray-100 dark:hover:bg-gray-900"
-                    >
-                      Upgrade to Pro
-                    </button>
-                  )}
 
                   <button
                     type="button"
@@ -119,7 +107,7 @@ export default function Sidebar({
             onClick={() => setActiveTab("synthesize")}
             className={`text-left px-4 py-2 rounded-lg text-sm font-medium transition ${activeTab === 'synthesize' ? 'bg-gray-100 dark:bg-gray-800 text-black dark:text-white' : 'text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white'}`}
           >
-            Multi-Doc Synthesis <span className="text-[10px] bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded ml-2">PRO</span>
+            Multi-Doc Synthesis
           </button>
         </nav>
       </div>
@@ -129,23 +117,6 @@ export default function Sidebar({
           <p className="mb-1">
             Backend: {backendMode}
           </p>
-        )}
-        {limit != null && (
-          <div className="flex items-center justify-between gap-2">
-            <p>
-              Plan: <span className="font-medium capitalize">{plan || "free"}</span>{" "}
-              · Today: {usageToday ?? 0}/{limit}
-            </p>
-            {plan !== "pro" && (
-              <button
-                type="button"
-                onClick={onOpenPro}
-                className="rounded-full border border-gray-300 px-2 py-0.5 text-[10px] font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-100 dark:hover:bg-gray-900"
-              >
-                Pro
-              </button>
-            )}
-          </div>
         )}
       </div>
 

@@ -5,7 +5,7 @@
 import { request, streamRequest } from "./client.js";
 
 /**
- * POST /summarize — { text } → { summary, quality, usage_today, limit }
+ * POST /summarize — { text } → { summary }
  */
 export async function summarizeText(text) {
   const data = await request("/summarize", {
@@ -14,9 +14,6 @@ export async function summarizeText(text) {
   });
   return {
     summary: data.summary,
-    quality: data.quality ?? "full",
-    usageToday: data.usage_today ?? null,
-    limit: data.limit ?? null,
   };
 }
 
