@@ -1,6 +1,6 @@
 /**
  * Frontend config — single place for env and constants (like backend app/config.py).
- * Add new keys here as you add features. Subscription-ready: add showUpgradeCta, plan, etc. when you add billing.
+ * Add new keys here as you add features.
  */
 
 export const config = {
