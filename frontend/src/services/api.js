@@ -5,39 +5,39 @@
 import { request, streamRequest } from "./client.js";
 
 /**
- * POST /summarize — { text } → { summary }
+ * POST /summarize — { text, length } → { summary, key_takeaways, compression_ratio, ... }
  */
-export async function summarizeText(text) {
-  const data = await request("/summarize", {
+export async function summarizeText(text, length = "standard") {
+  return request("/summarize", {
     method: "POST",
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ text, length }),
   });
-  return {
-    summary: data.summary,
-  };
 }
 
 /**
- * POST /summarize/stream — SSE streaming summarization.
+ * POST /summarize/stream — SSE streaming summarization with metadata.
  * @param {string} text
+ * @param {string} length - "brief" | "standard" | "detailed"
  * @param {Function} onToken - called with each content delta
  * @param {Function} onDone - called with metadata on completion
+ * @param {Function} onTakeaways - called with takeaways array
  * @param {Function} onError - called with error string
  * @param {AbortController} [abortController]
  */
-export function summarizeTextStream(text, onToken, onDone, onError, abortController) {
+export function summarizeTextStream(text, length, onToken, onDone, onTakeaways, onError, abortController) {
   return streamRequest(
     "/summarize/stream",
-    { method: "POST", body: JSON.stringify({ text }) },
+    { method: "POST", body: JSON.stringify({ text, length }) },
     onToken,
     onDone,
+    onTakeaways,
     onError,
     abortController,
   );
 }
 
 /**
- * GET / — health check. Use for future: ping backend, show mode (extractive vs groq).
+ * GET / — health check.
  */
 export async function getHealth() {
   return request("/");
@@ -107,6 +107,7 @@ export function sendChatMessageStream(documentId, message, sessionId, onToken, o
     { method: "POST", body: JSON.stringify(body) },
     onToken,
     onDone,
+    null, // no onTakeaways for chat
     onError,
     abortController,
   );

@@ -47,3 +47,38 @@ async def test_summarize_empty(client: AsyncClient):
 async def test_summarize_missing_text(client: AsyncClient):
     res = await client.post("/summarize", json={})
     assert res.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_summarize_metadata_fields(client: AsyncClient):
+    """Verify that the response includes rich metadata (word counts, compression, takeaways)."""
+    res = await client.post("/summarize", json={"text": SAMPLE_TEXT})
+    assert res.status_code == 200
+    data = res.json()
+    assert "original_word_count" in data
+    assert "summary_word_count" in data
+    assert "compression_ratio" in data
+    assert "reading_time_seconds" in data
+    assert "key_takeaways" in data
+    assert "quality" in data
+    assert isinstance(data["key_takeaways"], list)
+    assert data["original_word_count"] > data["summary_word_count"]
+    assert data["compression_ratio"] > 0
+
+
+@pytest.mark.asyncio
+async def test_summarize_with_length_param(client: AsyncClient):
+    """Verify the length parameter is accepted (testing 'brief' to avoid rate limits)."""
+    res = await client.post("/summarize", json={"text": SAMPLE_TEXT, "length": "brief"})
+    assert res.status_code == 200
+    data = res.json()
+    assert "summary" in data
+    assert len(data["summary"]) > 0
+    assert data.get("length") == "brief"
+
+
+@pytest.mark.asyncio
+async def test_summarize_invalid_length(client: AsyncClient):
+    """Invalid length value should be rejected by Pydantic validation."""
+    res = await client.post("/summarize", json={"text": SAMPLE_TEXT, "length": "invalid"})
+    assert res.status_code == 422

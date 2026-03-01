@@ -1,6 +1,7 @@
 /**
- * Summarizer feature state and logic — keeps App thin. Add new feature hooks the same way.
- * Phase 2B: Added streaming support with automatic fallback to non-streaming.
+ * Summarizer feature state and logic — keeps App thin.
+ * Phase 2B: Streaming support with automatic fallback.
+ * Phase 3: Length selector, rich metadata, key takeaways.
  */
 import { useEffect, useState, useCallback, useRef } from "react";
 import { config } from "../config.js";
@@ -30,6 +31,15 @@ export function useSummarizer() {
   const [streamingText, setStreamingText] = useState("");
   const abortControllerRef = useRef(null);
 
+  // Upgrade: Length selector
+  const [summaryLength, setSummaryLength] = useState("standard");
+
+  // Upgrade: Rich metadata (word counts, compression, reading time)
+  const [summaryMeta, setSummaryMeta] = useState(null);
+
+  // Upgrade: Key takeaways
+  const [keyTakeaways, setKeyTakeaways] = useState(null);
+
   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
   const charCount = text.length;
 
@@ -40,7 +50,6 @@ export function useSummarizer() {
     }
     setStreaming(false);
     setLoading(false);
-    // Keep whatever text we have so far
     if (streamingText) {
       setSummaryText(streamingText);
       setHasSummary(true);
@@ -65,6 +74,8 @@ export function useSummarizer() {
       setDocumentId(null);
       setSummaryText("");
       setStreamingText("");
+      setSummaryMeta(null);
+      setKeyTakeaways(null);
 
       let textToSummarize = text;
 
@@ -86,8 +97,8 @@ export function useSummarizer() {
       const controller = new AbortController();
       abortControllerRef.current = controller;
       setStreaming(true);
-      setHasSummary(true); // Show output card immediately for streaming content
-      setLoading(false); // No longer "loading": streaming shows content incrementally
+      setHasSummary(true);
+      setLoading(false);
 
       let streamSucceeded = false;
       let streamedContent = "";
@@ -95,6 +106,7 @@ export function useSummarizer() {
       try {
         await summarizeTextStream(
           textToSummarize,
+          summaryLength,
           // onToken
           (token) => {
             streamedContent += token;
@@ -108,19 +120,32 @@ export function useSummarizer() {
             setStreaming(false);
             setIsRestored(false);
             abortControllerRef.current = null;
+
+            // Parse rich metadata from done event
+            if (metadata) {
+              setSummaryMeta({
+                original_word_count: metadata.original_word_count,
+                summary_word_count: metadata.summary_word_count,
+                compression_ratio: metadata.compression_ratio,
+                reading_time_seconds: metadata.reading_time_seconds,
+              });
+              setQuality(metadata.quality || "full");
+            }
+          },
+          // onTakeaways
+          (takeaways) => {
+            if (Array.isArray(takeaways)) {
+              setKeyTakeaways(takeaways);
+            }
           },
           // onError
           (errMsg) => {
-            // Will fall through to fallback below
             console.warn("Streaming failed, falling back:", errMsg);
           },
           controller,
         );
 
-        // If streaming completed successfully, we're done
         if (streamSucceeded) return;
-
-        // If stream didn't succeed (error callback was hit), fall through to non-streaming
       } catch {
         // Stream fetch itself failed — fall through to non-streaming
       }
@@ -132,11 +157,20 @@ export function useSummarizer() {
       setLoading(true);
       abortControllerRef.current = null;
 
-      const result = await summarizeText(textToSummarize);
+      const result = await summarizeText(textToSummarize, summaryLength);
       setSummaryText(result.summary);
       setQuality(result.quality || "full");
       setHasSummary(true);
       setIsRestored(false);
+
+      // Rich metadata from non-streaming response
+      setSummaryMeta({
+        original_word_count: result.original_word_count,
+        summary_word_count: result.summary_word_count,
+        compression_ratio: result.compression_ratio,
+        reading_time_seconds: result.reading_time_seconds,
+      });
+      setKeyTakeaways(result.key_takeaways || []);
 
     } catch (err) {
       setError(err.message || "Failed to connect to backend.");
@@ -146,9 +180,9 @@ export function useSummarizer() {
       setLoading(false);
       abortControllerRef.current = null;
     }
-  }, [loading, streaming, isUrlMode, wordCount, text, url]);
+  }, [loading, streaming, isUrlMode, wordCount, text, url, summaryLength]);
 
-  // Sync state to localStorage to survive page refreshes
+  // Sync state to localStorage
   useEffect(() => {
     localStorage.setItem("rp_text", text);
     localStorage.setItem("rp_hasSummary", hasSummary ? "true" : "false");
@@ -170,9 +204,11 @@ export function useSummarizer() {
     setDocumentId(null);
     setError(null);
     setStreaming(false);
+    setSummaryMeta(null);
+    setKeyTakeaways(null);
   }, [cancelStreaming]);
 
-  // Rotate loading message while loading
+  // Rotate loading message
   useEffect(() => {
     if (!loading) return;
     setLoadingStep(0);
@@ -205,6 +241,12 @@ export function useSummarizer() {
     streaming,
     streamingText,
     cancelStreaming,
+    // Upgrade: length
+    summaryLength,
+    setSummaryLength,
+    // Upgrade: metadata
+    summaryMeta,
+    keyTakeaways,
     onSummarize: handleSummarize,
     reset,
   };
