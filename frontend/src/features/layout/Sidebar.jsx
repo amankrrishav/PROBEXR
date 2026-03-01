@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { useAppContext } from "../../contexts/AppContext.jsx";
 import { useSummarizerContext } from "../../contexts/SummarizerContext.jsx";
+import DocumentBrowser from "./DocumentBrowser.jsx";
 
 export default function Sidebar({
   appName,
@@ -110,6 +111,11 @@ export default function Sidebar({
             Multi-Doc Synthesis
           </button>
         </nav>
+      </div>
+
+      {/* Document library */}
+      <div className="flex-1 overflow-y-auto border-b border-gray-100 dark:border-gray-800 px-4 py-4">
+        <DocumentBrowser />
       </div>
 
       <div className="mt-auto border-t border-gray-100 px-6 py-3 text-xs text-gray-400 dark:border-gray-800">
