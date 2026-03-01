@@ -9,6 +9,9 @@ Protocol: text/event-stream
   data: {"token": "..."}   (incremental content delta)
   data: [DONE]             (stream complete)
   data: {"error": "..."}   (on failure)
+
+Refactored: all business logic lives in the service layer.
+This router only handles SSE transport formatting and client-disconnect detection.
 """
 import asyncio
 import json
@@ -22,18 +25,17 @@ from starlette.responses import StreamingResponse
 from app.deps import OptionalUser, DbSession
 from app.schemas import TextRequest
 from app.schemas.requests import ChatRequest
-from app.config import get_config
-from app.services.extractive import summarize_extractive
-from app.models.document import Document
-from app.models.chat import ChatMessage, ChatSession
-from sqlmodel import select
+from app.models.chat import ChatMessage
+from app.services.summarizer import prepare_summarize_messages
+from app.services.chat import prepare_chat_context
+from app.services.llm import generate_stream
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["streaming"])
 
 # ---------------------------------------------------------------------------
-# Helpers
+# SSE helpers
 # ---------------------------------------------------------------------------
 
 def _sse_token(token: str) -> str:
@@ -41,9 +43,11 @@ def _sse_token(token: str) -> str:
     return f"data: {json.dumps({'token': token})}\n\n"
 
 
-def _sse_done(duration_s: float, token_count: int) -> str:
+def _sse_done(duration_s: float, token_count: int, **extra: object) -> str:
     """Format the final DONE event with metadata."""
-    return f"data: {json.dumps({'done': True, 'duration_s': round(duration_s, 2), 'token_count': token_count})}\n\n"
+    payload = {"done": True, "duration_s": round(duration_s, 2), "token_count": token_count}
+    payload.update(extra)  # type: ignore[arg-type]
+    return f"data: {json.dumps(payload)}\n\n"
 
 
 def _sse_error(message: str) -> str:
@@ -62,8 +66,6 @@ async def _stream_llm(
     Core streaming generator. Yields SSE-formatted lines from LLM stream.
     Handles cancellation if the client disconnects.
     """
-    from app.services.llm import generate_stream
-
     t0 = time.monotonic()
     token_count = 0
 
@@ -73,7 +75,6 @@ async def _stream_llm(
             max_tokens=max_tokens,
             temperature=temperature,
         ):
-            # Check if client disconnected
             if await request.is_disconnected():
                 logger.info("Client disconnected during stream after %d tokens", token_count)
                 return
@@ -111,62 +112,17 @@ async def summarize_stream(
     """
     Streaming summarization endpoint.
 
-    Two-stage pipeline (same logic as /summarize):
-      1. Extraction (non-streaming) — produces structured notes.
-      2. Synthesis (streamed) — turns notes into prose, streamed to client.
-
-    Falls back to extractive summary (non-streaming) for reduced quality.
+    Delegates to services/summarizer.prepare_summarize_messages() for all
+    business logic (validation, extractive fallback, Stage 1 extraction).
+    This router only handles SSE transport for the Stage 2 synthesis stream.
     """
-    import re
-    from app.services.llm import chat_completion
-
-    cfg = get_config()
-    text = re.sub(r"\[\d+\]", "", body.text)
-    text = re.sub(r"\s+", " ", text).strip()
-    words = text.split()
-
-    if len(words) < cfg.min_words:
+    try:
+        prep = await prepare_summarize_messages(body.text)
+    except ValueError as exc:
         return StreamingResponse(
-            iter([_sse_error(f"Text too short. Minimum {cfg.min_words} words."), _sse_done(0, 0)]),
+            iter([_sse_error(str(exc)), _sse_done(0, 0)]),
             media_type="text/event-stream",
             status_code=status.HTTP_400_BAD_REQUEST,
-        )
-
-    # Extractive fallback when no LLM provider
-    if not cfg.has_llm_provider:
-        summary = summarize_extractive(
-            text,
-            min_words=cfg.min_words,
-            target_min=cfg.target_min_words,
-            target_max=cfg.target_max_words,
-        )
-
-        async def _extractive_gen():
-            yield _sse_token(summary)
-            yield _sse_done(0.0, 1)
-
-        return StreamingResponse(_extractive_gen(), media_type="text/event-stream")
-
-    # Full quality: Stage 1 — extraction (non-streaming)
-    original_word_count = len(words)
-    target_words = max(cfg.target_min_words, int(original_word_count * 0.25))
-    target_words = min(target_words, cfg.target_max_words)
-
-    extraction_system = (
-        "You are an expert reader. Your job is to extract the core ideas from an article—not to rewrite it.\n"
-        "Output clear, concise notes: thesis, main arguments, key evidence or examples, any counterpoints, and implications or takeaways.\n"
-        "Be structured (bullets or short lines). Do not paraphrase into full sentences yet."
-    )
-    extraction_user = f"Article:\n\n{text}"
-
-    try:
-        structured_notes = await chat_completion(
-            [
-                {"role": "system", "content": extraction_system},
-                {"role": "user", "content": extraction_user},
-            ],
-            max_tokens=1024,
-            temperature=0.2,
         )
     except Exception as exc:
         return StreamingResponse(
@@ -174,31 +130,21 @@ async def summarize_stream(
             media_type="text/event-stream",
         )
 
-    if not structured_notes.strip():
-        return StreamingResponse(
-            iter([_sse_error("Could not extract ideas from the text."), _sse_done(0, 0)]),
-            media_type="text/event-stream",
-        )
+    # Extractive fallback — emit as a single token
+    if prep.is_extractive:
+        async def _extractive_gen():
+            yield _sse_token(prep.extractive_result)
+            yield _sse_done(0.0, 1)
+        return StreamingResponse(_extractive_gen(), media_type="text/event-stream")
 
-    # Stage 2 — synthesis (STREAMED)
-    synthesis_system = (
-        "You are a skilled explainer. Using only the notes provided, write a short summary as if you understood "
-        "the topic and are explaining it to a colleague.\n"
-        "Write in clear, natural prose. Preserve important facts and nuance. Do not copy phrases from the notes "
-        "verbatim—use your own words. Keep a formal but readable tone."
-    )
-    synthesis_user = (
-        f"Notes:\n{structured_notes}\n\n"
-        f"Write a cohesive summary of approximately {target_words} words. One or two short paragraphs. No bullet points."
-    )
-
-    messages = [
-        {"role": "system", "content": synthesis_system},
-        {"role": "user", "content": synthesis_user},
-    ]
-
+    # LLM path: stream the Stage 2 synthesis
     return StreamingResponse(
-        _stream_llm(messages, max_tokens=600, temperature=0.4, request=request),
+        _stream_llm(
+            prep.messages,
+            max_tokens=prep.max_tokens,
+            temperature=prep.temperature,
+            request=request,
+        ),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -208,12 +154,8 @@ async def summarize_stream(
 
 
 # ---------------------------------------------------------------------------
-# POST /api/chat/stream
+# POST /chat/stream
 # ---------------------------------------------------------------------------
-
-HISTORY_LIMIT = 10
-DOC_CONTEXT_CHARS = 5_000
-
 
 @router.post("/chat/stream")
 async def chat_stream(
@@ -223,8 +165,11 @@ async def chat_stream(
     request: Request,
 ):
     """
-    Streaming chat endpoint. Same logic as /api/chat/ but streams the LLM response.
-    The full response is persisted to the DB after the stream completes.
+    Streaming chat endpoint.
+
+    Delegates to services/chat.prepare_chat_context() for all business logic
+    (ownership check, session management, history, payload assembly).
+    This router only handles SSE transport and post-stream DB persistence.
     """
     if not user or user.id is None:
         return StreamingResponse(
@@ -233,69 +178,29 @@ async def chat_stream(
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
-    # 1. Ownership check
-    doc = await session.get(Document, body.document_id)
-    if not doc or doc.user_id != user.id:
+    # Prepare context via service layer
+    try:
+        ctx = await prepare_chat_context(
+            document_id=body.document_id,
+            user_id=user.id,
+            message=body.message,
+            session=session,
+            session_id=body.session_id,
+        )
+    except ValueError as exc:
+        error_msg = str(exc)
+        http_status = (
+            status.HTTP_404_NOT_FOUND
+            if "not found" in error_msg.lower()
+            else status.HTTP_400_BAD_REQUEST
+        )
         return StreamingResponse(
-            iter([_sse_error("Document not found or unauthorized"), _sse_done(0, 0)]),
+            iter([_sse_error(error_msg), _sse_done(0, 0)]),
             media_type="text/event-stream",
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status,
         )
 
-    # 2. Get or create chat session
-    session_id = body.session_id
-    if session_id:
-        chat_session = await session.get(ChatSession, session_id)
-        if (
-            not chat_session
-            or chat_session.user_id != user.id
-            or chat_session.document_id != body.document_id
-        ):
-            return StreamingResponse(
-                iter([_sse_error("Chat session not found or mismatched"), _sse_done(0, 0)]),
-                media_type="text/event-stream",
-                status_code=status.HTTP_404_NOT_FOUND,
-            )
-    else:
-        chat_session = ChatSession(user_id=user.id, document_id=body.document_id)
-        session.add(chat_session)
-        await session.commit()
-        await session.refresh(chat_session)
-        session_id = chat_session.id
-
-    # 3. Persist user message
-    user_msg = ChatMessage(session_id=session_id, role="user", content=body.message)
-    session.add(user_msg)
-    await session.commit()
-
-    # 4. Fetch bounded history
-    history_stmt = (
-        select(ChatMessage)
-        .where(ChatMessage.session_id == session_id)
-        .order_by(ChatMessage.created_at.desc())  # type: ignore[arg-type]
-        .limit(HISTORY_LIMIT)
-    )
-    result = await session.execute(history_stmt)
-    recent_msgs = list(result.scalars().all())
-    recent_msgs.reverse()
-
-    # 5. Build LLM payload
-    messages_payload: list[dict[str, str]] = [
-        {
-            "role": "system",
-            "content": (
-                f"You are a helpful assistant answering questions about the following document:\n\n"
-                f"Title: {doc.title}\n\n"
-                f"Content:\n{doc.cleaned_content[:DOC_CONTEXT_CHARS]}"
-            ),
-        }
-    ]
-    for m in recent_msgs:
-        messages_payload.append({"role": m.role, "content": m.content})
-
-    # 6. Stream LLM response, collect full text, persist on completion
-    from app.services.llm import generate_stream
-
+    # Stream LLM response, collect tokens, persist on completion
     t0 = time.monotonic()
     token_count = 0
     collected_tokens: list[str] = []
@@ -304,7 +209,7 @@ async def chat_stream(
         nonlocal token_count
         try:
             async for delta in generate_stream(
-                messages_payload, max_tokens=1000, temperature=0.5
+                ctx.messages_payload, max_tokens=1000, temperature=0.5
             ):
                 if await request.is_disconnected():
                     logger.info("Chat client disconnected after %d tokens", token_count)
@@ -315,22 +220,26 @@ async def chat_stream(
 
             # Persist the full assistant message
             full_content = "".join(collected_tokens)
-            assistant_msg = ChatMessage(session_id=session_id, role="assistant", content=full_content)
+            assistant_msg = ChatMessage(session_id=ctx.session_id, role="assistant", content=full_content)
             session.add(assistant_msg)
             await session.commit()
             await session.refresh(assistant_msg)
 
             duration = time.monotonic() - t0
-            yield f"data: {json.dumps({'done': True, 'session_id': session_id, 'message_id': assistant_msg.id, 'duration_s': round(duration, 2), 'token_count': token_count})}\n\n"
+            yield _sse_done(
+                duration, token_count,
+                session_id=ctx.session_id,
+                message_id=assistant_msg.id,
+            )
             logger.info(
                 "Chat stream completed",
-                extra={"duration_s": round(duration, 2), "token_count": token_count, "session_id": session_id},
+                extra={"duration_s": round(duration, 2), "token_count": token_count, "session_id": ctx.session_id},
             )
         except asyncio.CancelledError:
             # Try to persist partial response
             if collected_tokens:
                 partial = "".join(collected_tokens)
-                partial_msg = ChatMessage(session_id=session_id, role="assistant", content=partial + " [interrupted]")
+                partial_msg = ChatMessage(session_id=ctx.session_id, role="assistant", content=partial + " [interrupted]")
                 session.add(partial_msg)
                 try:
                     await session.commit()
