@@ -68,3 +68,104 @@ export async function request(path, options = {}) {
     throw err;
   }
 }
+
+/**
+ * SSE streaming request helper. Consumes text/event-stream from the backend.
+ *
+ * @param {string} path - API path (e.g. "/summarize/stream")
+ * @param {Object} options - fetch options (method, body, etc.)
+ * @param {Function} onToken - called with each content delta string
+ * @param {Function} onDone - called with metadata object when stream completes
+ * @param {Function} onError - called with error message string
+ * @param {AbortController} [abortController] - optional controller for cancellation
+ * @returns {Promise<void>}
+ */
+export async function streamRequest(path, options, onToken, onDone, onError, abortController) {
+  const controller = abortController || new AbortController();
+  const url = `${getBaseUrl()}${path.startsWith("/") ? path : `/${path}`}`;
+
+  const headers = {
+    "Content-Type": "application/json",
+    ...options.headers,
+  };
+
+  try {
+    const res = await fetch(url, {
+      ...options,
+      credentials: options.credentials ?? "include",
+      signal: controller.signal,
+      headers,
+    });
+
+    if (!res.ok) {
+      let message = res.statusText || "Stream request failed";
+      try {
+        const data = await res.json();
+        message = parseErrorDetail(data.detail) || data.error || message;
+      } catch {
+        // body may not be JSON
+      }
+      onError(message);
+      return;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      // Keep last partial line in buffer
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data: ")) continue;
+
+        const dataStr = trimmed.slice(6);
+
+        // Try to parse as JSON
+        try {
+          const parsed = JSON.parse(dataStr);
+          if (parsed.error) {
+            onError(parsed.error);
+            return;
+          }
+          if (parsed.done) {
+            onDone(parsed);
+            return;
+          }
+          if (parsed.token != null) {
+            onToken(parsed.token);
+          }
+        } catch {
+          // Non-JSON data line — skip
+        }
+      }
+    }
+
+    // Process any remaining buffer
+    if (buffer.trim().startsWith("data: ")) {
+      try {
+        const parsed = JSON.parse(buffer.trim().slice(6));
+        if (parsed.done) {
+          onDone(parsed);
+        } else if (parsed.token != null) {
+          onToken(parsed.token);
+        }
+      } catch {
+        // ignore
+      }
+    }
+  } catch (err) {
+    if (err.name === "AbortError") {
+      // User cancelled — not an error
+      return;
+    }
+    onError(err.message || "Stream connection failed");
+  }
+}

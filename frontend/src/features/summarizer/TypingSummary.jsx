@@ -1,39 +1,66 @@
 import { useEffect, useRef, useState, memo } from "react";
 
-const TypingSummary = memo(function TypingSummary({ text, instant = false }) {
+/**
+ * TypingSummary — renders summary text with three modes:
+ *   1. streaming=true  → render streamingText directly (real-time SSE tokens)
+ *   2. instant=true    → show full text immediately (restored from localStorage)
+ *   3. fallback        → 50ms word-chunk animation (non-streaming path)
+ *
+ * All hooks run unconditionally to satisfy React Rules of Hooks.
+ */
+const TypingSummary = memo(function TypingSummary({
+  text = "",
+  instant = false,
+  streaming = false,
+  streamingText = "",
+}) {
   const [displayedText, setDisplayedText] = useState("");
-  const [showFull, setShowFull] = useState(false);
   const intervalRef = useRef(null);
 
+  // Word-chunk animation — runs only when NOT streaming and NOT instant
   useEffect(() => {
-    if (!text) return;
+    // Clean up any running animation
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
 
-    if (instant) {
-      setDisplayedText(text);
-      setShowFull(true);
+    // Skip animation during streaming or when there's no text
+    if (streaming || !text) {
+      setDisplayedText("");
       return;
     }
 
-    setDisplayedText("");
-    setShowFull(false);
+    if (instant) {
+      setDisplayedText(text);
+      return;
+    }
 
+    // Animate word-by-word (fallback for non-streaming)
+    setDisplayedText("");
     const words = text.split(/(\s+)/); // split but keep whitespace
     let index = 0;
+    let accumulated = "";
 
     intervalRef.current = setInterval(() => {
       if (index >= words.length) {
         if (intervalRef.current) clearInterval(intervalRef.current);
+        intervalRef.current = null;
         return;
       }
 
-      setDisplayedText((prev) => prev + words[index]);
+      accumulated += words[index];
       index++;
+      setDisplayedText(accumulated);
     }, 50);
 
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
     };
-  }, [text]);
+  }, [text, streaming, instant]);
 
   function handleShowFull() {
     if (intervalRef.current) {
@@ -41,10 +68,23 @@ const TypingSummary = memo(function TypingSummary({ text, instant = false }) {
       intervalRef.current = null;
     }
     setDisplayedText(text);
-    setShowFull(true);
   }
 
-  const isTyping = text && displayedText.length < text.length;
+  // Mode 1: Real-time streaming — render streamingText directly with cursor
+  if (streaming) {
+    return (
+      <div>
+        <p className="text-[15px] leading-7 text-gray-700 dark:text-gray-300 whitespace-pre-line">
+          {streamingText || ""}
+          <span className="inline-block w-1.5 h-4 bg-gray-400 dark:bg-gray-500 animate-pulse ml-0.5 align-text-bottom" />
+        </p>
+      </div>
+    );
+  }
+
+  // Mode 2 & 3: instant or animated (word-chunk fallback)
+  const hasText = text && text.length > 0;
+  const isTyping = hasText && displayedText.length < text.length;
 
   return (
     <div>

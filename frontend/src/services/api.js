@@ -2,7 +2,7 @@
  * API — backend endpoints. Add new feature endpoints here (or in separate modules).
  * Uses client.js for base URL and request helper. Matches backend contract.
  */
-import { request } from "./client.js";
+import { request, streamRequest } from "./client.js";
 
 /**
  * POST /summarize — { text } → { summary, quality, usage_today, limit }
@@ -18,6 +18,25 @@ export async function summarizeText(text) {
     usageToday: data.usage_today ?? null,
     limit: data.limit ?? null,
   };
+}
+
+/**
+ * POST /summarize/stream — SSE streaming summarization.
+ * @param {string} text
+ * @param {Function} onToken - called with each content delta
+ * @param {Function} onDone - called with metadata on completion
+ * @param {Function} onError - called with error string
+ * @param {AbortController} [abortController]
+ */
+export function summarizeTextStream(text, onToken, onDone, onError, abortController) {
+  return streamRequest(
+    "/summarize/stream",
+    { method: "POST", body: JSON.stringify({ text }) },
+    onToken,
+    onDone,
+    onError,
+    abortController,
+  );
 }
 
 /**
@@ -72,6 +91,31 @@ export async function sendChatMessage(documentId, message, sessionId = null) {
 }
 
 /**
+ * POST /chat/stream — SSE streaming chat.
+ * @param {number} documentId
+ * @param {string} message
+ * @param {number|null} sessionId
+ * @param {Function} onToken
+ * @param {Function} onDone
+ * @param {Function} onError
+ * @param {AbortController} [abortController]
+ */
+export function sendChatMessageStream(documentId, message, sessionId, onToken, onDone, onError, abortController) {
+  const body = { document_id: documentId, message };
+  if (sessionId) {
+    body.session_id = sessionId;
+  }
+  return streamRequest(
+    "/chat/stream",
+    { method: "POST", body: JSON.stringify(body) },
+    onToken,
+    onDone,
+    onError,
+    abortController,
+  );
+}
+
+/**
  * POST /api/flashcards/ — { document_id, count } -> FlashcardSet
  */
 export async function generateFlashcards(documentId, count = 10) {
@@ -90,3 +134,11 @@ export async function generateAudioSummary(documentId, provider = "openai") {
     body: JSON.stringify({ document_id: documentId, provider }),
   });
 }
+
+/**
+ * GET /api/tts/status — Check if TTS is available
+ */
+export async function getTTSStatus() {
+  return request("/api/tts/status");
+}
+

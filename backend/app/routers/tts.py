@@ -31,3 +31,12 @@ async def create_tts(
     except Exception as e:
         logger.exception("TTS generation failed for user_id=%s", user.id)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.get("/status")
+async def tts_status():
+    """Check if TTS is available. Currently a stub — returns unavailable."""
+    return {
+        "available": False,
+        "message": "Text-to-Speech is coming soon. Stay tuned!",
+    }

@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_config
-from app.routers import health, summarize, auth, ingest, synthesis, chat, flashcards, tts
+from app.routers import health, summarize, auth, ingest, synthesis, chat, flashcards, tts, streaming
 from app.db import async_engine
 from app.middleware import (
     LoggingMiddleware,
@@ -122,3 +122,4 @@ app.include_router(synthesis.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")
 app.include_router(flashcards.router, prefix="/api")
 app.include_router(tts.router, prefix="/api")
+app.include_router(streaming.router)
