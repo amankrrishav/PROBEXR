@@ -59,6 +59,9 @@ export async function request(path, options = {}) {
       throw new Error(message);
     }
 
+    // 204 No Content (e.g. DELETE) — no body to parse
+    if (res.status === 204) return null;
+
     return res.json();
   } catch (err) {
     clearTimeout(timeoutId);

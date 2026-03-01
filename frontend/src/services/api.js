@@ -139,3 +139,21 @@ export async function getTTSStatus() {
   return request("/api/tts/status");
 }
 
+/**
+ * GET /api/documents/ — List authenticated user's documents (paginated)
+ * @param {number} page
+ * @param {number} perPage
+ */
+export async function getDocuments(page = 1, perPage = 20) {
+  return request(`/api/documents/?page=${page}&per_page=${perPage}`);
+}
+
+/**
+ * DELETE /api/documents/:id — Delete a document
+ * @param {number} documentId
+ */
+export async function deleteDocument(documentId) {
+  return request(`/api/documents/${documentId}`, {
+    method: "DELETE",
+  });
+}
