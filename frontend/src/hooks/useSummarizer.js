@@ -1,9 +1,10 @@
 /**
  * Summarizer feature state and logic — keeps App thin. Add new feature hooks the same way.
+ * Phase 2B: Added streaming support with automatic fallback to non-streaming.
  */
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { config } from "../config.js";
-import { summarizeText, ingestUrl, ingestText } from "../services/api.js";
+import { summarizeText, summarizeTextStream, ingestUrl, ingestText } from "../services/api.js";
 
 const MIN_WORDS = config.summarizer.minWords;
 const LOADING_MESSAGES = config.loadingMessages;
@@ -24,11 +25,30 @@ export function useSummarizer() {
   });
   const [isRestored, setIsRestored] = useState(() => localStorage.getItem("rp_hasSummary") === "true");
 
+  // Streaming state
+  const [streaming, setStreaming] = useState(false);
+  const [streamingText, setStreamingText] = useState("");
+  const abortControllerRef = useRef(null);
+
   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
   const charCount = text.length;
 
+  const cancelStreaming = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setStreaming(false);
+    setLoading(false);
+    // Keep whatever text we have so far
+    if (streamingText) {
+      setSummaryText(streamingText);
+      setHasSummary(true);
+    }
+  }, [streamingText]);
+
   const handleSummarize = useCallback(async () => {
-    if (loading) return;
+    if (loading || streaming) return;
     if (!isUrlMode && wordCount < MIN_WORDS) {
       setError(`Minimum ${MIN_WORDS} words required.`);
       return;
@@ -43,35 +63,90 @@ export function useSummarizer() {
       setLoading(true);
       setHasSummary(false);
       setDocumentId(null);
+      setSummaryText("");
+      setStreamingText("");
 
       let textToSummarize = text;
 
       if (isUrlMode) {
         const doc = await ingestUrl(url.trim());
         textToSummarize = doc.cleaned_content;
-        setText(textToSummarize); // Auto-fill the text area so they can read what was ingested
+        setText(textToSummarize);
         setDocumentId(doc.id);
       } else {
         try {
           const doc = await ingestText(textToSummarize);
           setDocumentId(doc.id);
         } catch (err) {
-          // It's okay if this fails (e.g. unauthenticated). We just won't show advanced features.
           console.warn("Could not save document, advanced features disabled:", err.message);
         }
       }
+
+      // Attempt streaming first
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+      setStreaming(true);
+      setHasSummary(true); // Show output card immediately for streaming content
+      setLoading(false); // No longer "loading": streaming shows content incrementally
+
+      let streamSucceeded = false;
+      let streamedContent = "";
+
+      try {
+        await summarizeTextStream(
+          textToSummarize,
+          // onToken
+          (token) => {
+            streamedContent += token;
+            setStreamingText(streamedContent);
+          },
+          // onDone
+          (metadata) => {
+            streamSucceeded = true;
+            setSummaryText(streamedContent);
+            setStreamingText("");
+            setStreaming(false);
+            setIsRestored(false);
+            abortControllerRef.current = null;
+          },
+          // onError
+          (errMsg) => {
+            // Will fall through to fallback below
+            console.warn("Streaming failed, falling back:", errMsg);
+          },
+          controller,
+        );
+
+        // If streaming completed successfully, we're done
+        if (streamSucceeded) return;
+
+        // If stream didn't succeed (error callback was hit), fall through to non-streaming
+      } catch {
+        // Stream fetch itself failed — fall through to non-streaming
+      }
+
+      // Fallback: non-streaming
+      setStreaming(false);
+      setStreamingText("");
+      setHasSummary(false);
+      setLoading(true);
+      abortControllerRef.current = null;
 
       const result = await summarizeText(textToSummarize);
       setSummaryText(result.summary);
       setQuality(result.quality || "full");
       setHasSummary(true);
       setIsRestored(false);
+
     } catch (err) {
       setError(err.message || "Failed to connect to backend.");
+      setStreaming(false);
+      setStreamingText("");
     } finally {
       setLoading(false);
+      abortControllerRef.current = null;
     }
-  }, [loading, isUrlMode, wordCount, text, url]);
+  }, [loading, streaming, isUrlMode, wordCount, text, url]);
 
   // Sync state to localStorage to survive page refreshes
   useEffect(() => {
@@ -86,13 +161,16 @@ export function useSummarizer() {
   }, [text, hasSummary, summaryText, documentId]);
 
   const reset = useCallback(() => {
+    cancelStreaming();
     setHasSummary(false);
     setSummaryText("");
+    setStreamingText("");
     setText("");
     setUrl("");
     setDocumentId(null);
     setError(null);
-  }, []);
+    setStreaming(false);
+  }, [cancelStreaming]);
 
   // Rotate loading message while loading
   useEffect(() => {
@@ -123,6 +201,10 @@ export function useSummarizer() {
     setUrl,
     documentId,
     isRestored,
+    // Streaming
+    streaming,
+    streamingText,
+    cancelStreaming,
     onSummarize: handleSummarize,
     reset,
   };

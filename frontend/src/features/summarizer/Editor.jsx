@@ -17,7 +17,12 @@ export default function Editor({
     setIsUrlMode,
     url,
     setUrl,
+    streaming,
+    cancelStreaming,
   } = useSummarizerContext();
+
+  const isBusy = loading || streaming;
+
   return (
     <div>
 
@@ -90,13 +95,23 @@ export default function Editor({
             {wordCount} words · {charCount} characters
           </div>
 
-          <button
-            onClick={onSummarize}
-            disabled={loading}
-            className="px-6 py-2.5 rounded-full text-sm font-medium bg-black text-white dark:bg-white dark:text-black hover:opacity-90 transition disabled:opacity-50"
-          >
-            {loading ? loadingMessage : "Summarize"}
-          </button>
+          <div className="flex gap-3">
+            {streaming && (
+              <button
+                onClick={cancelStreaming}
+                className="px-5 py-2.5 rounded-full text-sm font-medium border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+              >
+                Cancel
+              </button>
+            )}
+            <button
+              onClick={onSummarize}
+              disabled={isBusy}
+              className="px-6 py-2.5 rounded-full text-sm font-medium bg-black text-white dark:bg-white dark:text-black hover:opacity-90 transition disabled:opacity-50"
+            >
+              {loading ? loadingMessage : streaming ? "Streaming…" : "Summarize"}
+            </button>
+          </div>
 
         </div>
       </div>

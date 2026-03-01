@@ -1,28 +1,12 @@
 import { useState } from "react";
-import { generateFlashcards, generateAudioSummary } from "../../services/api";
+import { generateFlashcards } from "../../services/api";
 import { getBaseUrl } from "../../services/client";
 
 export default function DocumentActions({ documentId }) {
-    const [loadingAudio, setLoadingAudio] = useState(false);
     const [loadingCards, setLoadingCards] = useState(false);
     const [loadingExport, setLoadingExport] = useState(false);
-    const [audioUrl, setAudioUrl] = useState(null);
     const [flashcardSetId, setFlashcardSetId] = useState(null);
     const [error, setError] = useState(null);
-
-    async function handleTTS() {
-        if (!documentId) return;
-        setLoadingAudio(true);
-        setError(null);
-        try {
-            const summary = await generateAudioSummary(documentId);
-            setAudioUrl(summary.audio_url);
-        } catch (err) {
-            setError("Failed to generate audio summary");
-        } finally {
-            setLoadingAudio(false);
-        }
-    }
 
     async function handleFlashcards() {
         if (!documentId) return;
@@ -76,29 +60,14 @@ export default function DocumentActions({ documentId }) {
 
             {error && <p className="text-xs text-red-500">{error}</p>}
 
-            <div className="flex gap-4">
-                {!audioUrl ? (
-                    <button
-                        onClick={handleTTS}
-                        disabled={loadingAudio || !documentId}
-                        className="text-sm font-medium px-4 py-2 bg-gray-100 dark:bg-[#1A1A1A] text-black dark:text-white rounded-lg hover:opacity-80 transition-opacity disabled:opacity-50"
-                    >
-                        {loadingAudio ? "Generating Audio..." : "Read Aloud"}
-                    </button>
-                ) : (
-                    <div className="flex items-center gap-3">
-                        <span className="text-sm text-green-600 dark:text-green-400">Audio Ready:</span>
-                        {(() => {
-                            try {
-                                const parsed = new URL(audioUrl);
-                                if (parsed.protocol === "https:") {
-                                    return <a href={audioUrl} target="_blank" rel="noreferrer" className="text-sm underline hover:text-gray-500">Listen</a>;
-                                }
-                            } catch { /* invalid URL */ }
-                            return <span className="text-sm text-gray-400">(Audio link unavailable)</span>;
-                        })()}
-                    </div>
-                )}
+            <div className="flex gap-4 flex-wrap">
+                {/* TTS: Coming Soon */}
+                <span
+                    className="text-sm font-medium px-4 py-2 bg-gray-50 dark:bg-[#1A1A1A] text-gray-400 dark:text-gray-500 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 cursor-default select-none"
+                    title="Text-to-Speech is coming soon"
+                >
+                    🔊 Read Aloud — Coming Soon
+                </span>
 
                 {!flashcardSetId ? (
                     <button
@@ -124,4 +93,3 @@ export default function DocumentActions({ documentId }) {
         </div>
     );
 }
-

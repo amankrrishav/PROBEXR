@@ -4,7 +4,7 @@ import DocumentActions from "./DocumentActions";
 import { useSummarizerContext } from "../../contexts/SummarizerContext.jsx";
 
 export default function OutputCard() {
-  const { summaryText, documentId, isRestored } = useSummarizerContext();
+  const { summaryText, documentId, isRestored, streaming, streamingText } = useSummarizerContext();
   return (
     <div className="bg-white dark:bg-[#121212] border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm">
 
@@ -12,9 +12,14 @@ export default function OutputCard() {
         Summary
       </h3>
 
-      <TypingSummary text={summaryText} instant={isRestored} />
+      <TypingSummary
+        text={summaryText}
+        instant={isRestored}
+        streaming={streaming}
+        streamingText={streamingText}
+      />
 
-      {documentId && (
+      {documentId && !streaming && (
         <>
           <DocumentActions documentId={documentId} />
           <ChatView documentId={documentId} />
