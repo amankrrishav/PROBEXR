@@ -1,4 +1,3 @@
-import httpx
 from fastapi import APIRouter, HTTPException
 
 from app.deps import OptionalUser, DbSession

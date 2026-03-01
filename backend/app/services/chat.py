@@ -33,13 +33,31 @@ class ChatReply:
     created_at: object  # datetime — kept as-is for JSON serialisation
 
 
-async def process_chat_message(
+@dataclass
+class ChatContext:
+    """Prepared context for chat LLM call — shared by streaming and non-streaming paths."""
+    messages_payload: list[dict[str, str]]
+    session_id: int
+
+
+async def prepare_chat_context(
     document_id: int,
     user_id: int,
     message: str,
     session: AsyncSession,
     session_id: int | None = None,
-) -> ChatReply:
+) -> ChatContext:
+    """
+    Run steps 1–5 of the chat pipeline (shared by streaming & non-streaming):
+      1. Ownership check
+      2. Get or create chat session
+      3. Persist user message
+      4. Fetch bounded history
+      5. Build LLM messages payload
+
+    Returns ChatContext with messages_payload and session_id.
+    Raises ValueError on ownership/session mismatch.
+    """
     # 1. Ownership check
     doc = await session.get(Document, document_id)
     if not doc or doc.user_id != user_id:
@@ -66,7 +84,7 @@ async def process_chat_message(
     session.add(user_msg)
     await session.commit()
 
-    # 4. Fetch bounded history (most recent first, then reverse)
+    # 4. Fetch bounded history
     history_stmt = (
         select(ChatMessage)
         .where(ChatMessage.session_id == session_id)
@@ -91,18 +109,31 @@ async def process_chat_message(
     for m in recent_msgs:
         messages_payload.append({"role": m.role, "content": m.content})
 
-    # 6. LLM call
-    reply_content = await chat_completion(messages_payload, max_tokens=1000, temperature=0.5)
+    return ChatContext(messages_payload=messages_payload, session_id=session_id)
 
-    # 7. Persist and return assistant message — include session_id for client continuity
-    assistant_msg = ChatMessage(session_id=session_id, role="assistant", content=reply_content)
+
+async def process_chat_message(
+    document_id: int,
+    user_id: int,
+    message: str,
+    session: AsyncSession,
+    session_id: int | None = None,
+) -> ChatReply:
+    """Non-streaming chat: prepare context, call LLM, persist reply."""
+    ctx = await prepare_chat_context(document_id, user_id, message, session, session_id)
+
+    # LLM call
+    reply_content = await chat_completion(ctx.messages_payload, max_tokens=1000, temperature=0.5)
+
+    # Persist and return assistant message
+    assistant_msg = ChatMessage(session_id=ctx.session_id, role="assistant", content=reply_content)
     session.add(assistant_msg)
     await session.commit()
     await session.refresh(assistant_msg)
 
     return ChatReply(
         id=assistant_msg.id,
-        session_id=session_id,  # ← critical: frontend needs this to continue the session
+        session_id=ctx.session_id,
         role=assistant_msg.role,
         content=assistant_msg.content,
         created_at=assistant_msg.created_at,
