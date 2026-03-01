@@ -27,6 +27,8 @@ dist-ssr/
 # ===============================
 backend/venv/
 backend/.venv/
+venv/
+.venv/
 ml_env/
 __pycache__/
 *.pyc
@@ -34,7 +36,7 @@ __pycache__/
 # ===============================
 # Database Files (local dev)
 # ===============================
-*.db
+readpulse.db
 
 # ===============================
 # Backend Logs Directory
