@@ -69,7 +69,7 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
 
 @pytest_asyncio.fixture
 async def registered_user(client: AsyncClient) -> dict:
-    """Register a user and return {"email", "password", "token", "cookies"}."""
+    """Register a user and return {"email", "password", "token", "refresh_token", "cookies"}."""
     email = "test@example.com"
     password = "TestPass123!"
     res = await client.post(
@@ -82,5 +82,6 @@ async def registered_user(client: AsyncClient) -> dict:
         "email": email,
         "password": password,
         "token": data["access_token"],
+        "refresh_token": data.get("refresh_token"),
         "cookies": res.cookies,
     }

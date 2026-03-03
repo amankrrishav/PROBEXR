@@ -1,8 +1,28 @@
 /**
  * API client — base URL and request helper. Add new endpoints in api.js (or separate modules).
  * Matches backend: same base URL, JSON request/response, parse errors.
+ * Includes automatic 401 retry with refresh token rotation.
  */
 import { config } from "../config.js";
+
+// In-flight refresh promise — prevents concurrent refresh calls
+let _refreshPromise = null;
+
+async function _attemptTokenRefresh() {
+  if (_refreshPromise) return _refreshPromise;
+  _refreshPromise = fetch(`${getBaseUrl()}/auth/refresh`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+  }).then((res) => {
+    _refreshPromise = null;
+    return res.ok;
+  }).catch(() => {
+    _refreshPromise = null;
+    return false;
+  });
+  return _refreshPromise;
+}
 
 
 export function getBaseUrl() {
@@ -28,6 +48,7 @@ export function parseErrorDetail(detail) {
  */
 export async function request(path, options = {}) {
   const { requestTimeoutMs } = config;
+  const skipRefresh = options._skipAutoRefresh;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), requestTimeoutMs);
 
@@ -37,16 +58,37 @@ export async function request(path, options = {}) {
     "Content-Type": "application/json",
     ...options.headers,
   };
+  // Remove internal flag before passing to fetch
+  const { _skipAutoRefresh, ...fetchOptions } = options;
   const init = {
-    ...options,
-    credentials: options.credentials ?? "include",
-    signal: options.signal ?? controller.signal,
+    ...fetchOptions,
+    credentials: fetchOptions.credentials ?? "include",
+    signal: fetchOptions.signal ?? controller.signal,
     headers,
   };
 
   try {
-    const res = await fetch(url, init);
+    let res = await fetch(url, init);
     clearTimeout(timeoutId);
+
+    // Auto-retry on 401: attempt token refresh, then retry once
+    if (res.status === 401 && !skipRefresh) {
+      const refreshed = await _attemptTokenRefresh();
+      if (refreshed) {
+        const retryController = new AbortController();
+        const retryTimeout = setTimeout(() => retryController.abort(), requestTimeoutMs);
+        try {
+          res = await fetch(url, {
+            ...init,
+            signal: retryController.signal,
+          });
+          clearTimeout(retryTimeout);
+        } catch (retryErr) {
+          clearTimeout(retryTimeout);
+          throw retryErr;
+        }
+      }
+    }
 
     if (!res.ok) {
       let message = res.statusText || "Request failed";
@@ -93,12 +135,25 @@ export async function streamRequest(path, options, onToken, onDone, onTakeaways,
   };
 
   try {
-    const res = await fetch(url, {
+    let res = await fetch(url, {
       ...options,
       credentials: options.credentials ?? "include",
       signal: controller.signal,
       headers,
     });
+
+    // Auto-retry on 401: attempt token refresh, then retry once
+    if (res.status === 401) {
+      const refreshed = await _attemptTokenRefresh();
+      if (refreshed) {
+        res = await fetch(url, {
+          ...options,
+          credentials: options.credentials ?? "include",
+          signal: controller.signal,
+          headers,
+        });
+      }
+    }
 
     if (!res.ok) {
       let message = res.statusText || "Stream request failed";

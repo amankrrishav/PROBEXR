@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getCurrentUser, login as loginApi, register as registerApi, logout as logoutApi } from "../services/auth.js";
+import { getCurrentUser, login as loginApi, register as registerApi, logout as logoutApi, logoutAll as logoutAllApi, refreshToken } from "../services/auth.js";
 
 export function useAuth() {
   const [user, setUser] = useState(null);
@@ -9,23 +9,34 @@ export function useAuth() {
 
   useEffect(() => {
     let cancelled = false;
-    getCurrentUser()
-      .then((u) => {
+
+    async function init() {
+      try {
+        const u = await getCurrentUser();
         if (!cancelled) {
           setUser(u);
           setError(null);
         }
-      })
-      .catch(() => {
+      } catch {
+        // Access token may be expired — try refreshing
         if (!cancelled) {
-          setUser(null);
+          try {
+            await refreshToken();
+            const u = await getCurrentUser();
+            if (!cancelled) {
+              setUser(u);
+              setError(null);
+            }
+          } catch {
+            if (!cancelled) setUser(null);
+          }
         }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setInitializing(false);
-        }
-      });
+      } finally {
+        if (!cancelled) setInitializing(false);
+      }
+    }
+
+    init();
 
     return () => {
       cancelled = true;
@@ -66,6 +77,16 @@ export function useAuth() {
     }
   }
 
+  async function logoutAll() {
+    try {
+      await logoutAllApi();
+    } catch (err) {
+      console.error("Logout all failed", err);
+    } finally {
+      setUser(null);
+    }
+  }
+
   return {
     user,
     initializing,
@@ -76,5 +97,6 @@ export function useAuth() {
     login,
     register,
     logout,
+    logoutAll,
   };
 }
