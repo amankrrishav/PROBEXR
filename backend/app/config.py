@@ -63,6 +63,10 @@ class AppConfig:
         self.rate_limit_per_minute = int(_env("RATE_LIMIT_PER_MINUTE", "60") or "60")
         self.rate_limit_llm_per_minute = int(_env("RATE_LIMIT_LLM_PER_MINUTE", "10") or "10")
 
+        # Token lifetimes
+        self.access_token_expire_minutes = int(_env("ACCESS_TOKEN_EXPIRE_MINUTES", "15") or "15")
+        self.refresh_token_expire_days = int(_env("REFRESH_TOKEN_EXPIRE_DAYS", "7") or "7")
+
         # Redis (rate limiting, caching)
         self.redis_url = _env("REDIS_URL", "redis://localhost:6379/0") or "redis://localhost:6379/0"
 

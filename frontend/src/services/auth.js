@@ -23,8 +23,22 @@ export async function getCurrentUser() {
   });
 }
 
+export async function refreshToken() {
+  return request("/auth/refresh", {
+    method: "POST",
+    _skipAutoRefresh: true, // Prevent infinite loop — this IS the refresh call
+  });
+}
+
 export async function logout() {
   return request("/auth/logout", {
+    method: "POST",
+    _skipAutoRefresh: true,
+  });
+}
+
+export async function logoutAll() {
+  return request("/auth/logout-all", {
     method: "POST",
   });
 }
