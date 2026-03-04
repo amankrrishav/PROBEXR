@@ -20,6 +20,17 @@ from sqlmodel import SQLModel
 import app.models  # noqa: F401 — register all models on metadata
 from app.db import get_session
 from app.main import app
+from app.middleware import set_rate_limiter
+
+
+# ---- Disable rate limiting in tests ----
+
+class _NoOpRateLimiter:
+    """Rate limiter that always allows — prevents 429s in tests."""
+    async def check_and_increment(self, key: str, limit: int) -> bool:
+        return True
+
+set_rate_limiter(_NoOpRateLimiter())
 
 
 # ---- In-memory async engine for testing ----
@@ -85,3 +96,31 @@ async def registered_user(client: AsyncClient) -> dict:
         "refresh_token": data.get("refresh_token"),
         "cookies": res.cookies,
     }
+
+
+@pytest_asyncio.fixture
+async def authed_client(client: AsyncClient, registered_user: dict) -> AsyncClient:
+    """Client with access_token cookie pre-set — ready for authenticated requests."""
+    client.cookies.set("access_token", f"Bearer {registered_user['token']}")
+    return client
+
+
+@pytest_asyncio.fixture
+async def document_id(authed_client: AsyncClient) -> int:
+    """Ingest a test document and return its ID."""
+    sample_text = (
+        "Artificial intelligence has transformed the technology landscape dramatically. "
+        "Machine learning algorithms now power recommendation systems, natural language processing, "
+        "and computer vision applications across industries. Researchers continue to push "
+        "the boundaries of what is possible with deep learning architectures. Companies invest "
+        "billions of dollars annually in AI research and development. The impact of these "
+        "technologies extends beyond the tech sector into healthcare, finance, education, and "
+        "manufacturing. Despite rapid progress, significant challenges remain in areas such as "
+        "model interpretability, data privacy, and ethical deployment."
+    )
+    res = await authed_client.post(
+        "/api/ingest/text",
+        json={"text": sample_text, "title": "Test AI Article"},
+    )
+    assert res.status_code == 200
+    return res.json()["id"]
