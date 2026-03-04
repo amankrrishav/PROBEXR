@@ -26,7 +26,7 @@ from app.deps import OptionalUser, DbSession
 from app.schemas import TextRequest
 from app.schemas.requests import ChatRequest
 from app.models.chat import ChatMessage
-from app.services.summarizer import prepare_summarize_messages, _compute_metadata, _extract_takeaways_from_extractive, _extract_takeaways_llm, LENGTH_PRESETS
+from app.services.summarizer import prepare_summarize_messages, _compute_metadata, _extract_takeaways_from_extractive, _parse_llm_json, LENGTH_PRESETS
 from app.services.chat import prepare_chat_context
 from app.services.llm import generate_stream
 
@@ -59,7 +59,7 @@ async def _stream_llm(
     messages: list[dict[str, str]],
     *,
     max_tokens: int = 1024,
-    temperature: float = 0.4,
+    temperature: float = 0.3,
     request: Request,
 ) -> AsyncIterator[str]:
     """
@@ -113,8 +113,10 @@ async def summarize_stream(
     Streaming summarization endpoint.
 
     Delegates to services/summarizer.prepare_summarize_messages() for all
-    business logic (validation, extractive fallback, Stage 1 extraction).
-    This router only handles SSE transport for the Stage 2 synthesis stream.
+    business logic (validation, extractive fallback, prompt building).
+    This router streams the unified LLM response (JSON with summary + takeaways).
+
+    NO blocking pre-step — prepare_summarize_messages() returns instantly.
     """
     try:
         prep = await prepare_summarize_messages(body.text, length=body.length)
@@ -126,15 +128,14 @@ async def summarize_stream(
         )
     except Exception as exc:
         return StreamingResponse(
-            iter([_sse_error(f"Extraction failed: {exc}"), _sse_done(0, 0)]),
+            iter([_sse_error(f"Preparation failed: {exc}"), _sse_done(0, 0)]),
             media_type="text/event-stream",
         )
 
     # Extractive fallback — emit as a single token + metadata
     if prep.is_extractive:
         meta = _compute_metadata(prep.original_text, prep.extractive_result)
-        preset = LENGTH_PRESETS.get(prep.length, LENGTH_PRESETS["standard"])
-        takeaways = _extract_takeaways_from_extractive(prep.extractive_result, count=preset["takeaway_count"])
+        takeaways = prep.extractive_takeaways or []
 
         async def _extractive_gen():
             yield _sse_token(prep.extractive_result)
@@ -142,8 +143,8 @@ async def summarize_stream(
             yield _sse_done(0.0, 1, **meta, quality="extractive", length=prep.length)
         return StreamingResponse(_extractive_gen(), media_type="text/event-stream")
 
-    # LLM path: stream the Stage 2 synthesis, then send metadata
-    collected_summary: list[str] = []
+    # LLM path: stream the unified prompt, then parse JSON for summary + takeaways
+    collected_tokens: list[str] = []
 
     async def _summarize_stream_with_meta():
         async for chunk in _stream_llm(
@@ -157,7 +158,7 @@ async def summarize_stream(
                 try:
                     token_data = json.loads(chunk[6:])
                     if "token" in token_data:
-                        collected_summary.append(token_data["token"])
+                        collected_tokens.append(token_data["token"])
                 except Exception:
                     pass
             # Don't yield the _stream_llm's DONE event; we replace it with our own
@@ -165,20 +166,19 @@ async def summarize_stream(
                 continue
             yield chunk
 
-        # After streaming completes, compute and emit metadata
-        summary_text = "".join(collected_summary)
-        meta = _compute_metadata(prep.original_text, summary_text)
-        preset = LENGTH_PRESETS.get(prep.length, LENGTH_PRESETS["standard"])
+        # After streaming completes, parse the collected JSON to extract
+        # summary text and takeaways from the unified response
+        raw_response = "".join(collected_tokens)
+        parsed = _parse_llm_json(raw_response)
 
-        from app.config import get_config as _gc
-        cfg = _gc()
-        if cfg.has_llm_provider:
-            takeaways = await _extract_takeaways_llm(prep.original_text, count=preset["takeaway_count"])
-        else:
-            takeaways = _extract_takeaways_from_extractive(summary_text, count=preset["takeaway_count"])
+        summary_text = parsed.get("summary", raw_response)
+        takeaways = parsed.get("key_takeaways", [])
+        takeaways = [str(t).strip() for t in takeaways if str(t).strip()][:prep.takeaway_count]
+
+        meta = _compute_metadata(prep.original_text, summary_text)
 
         yield f"data: {json.dumps({'takeaways': takeaways})}\n\n"
-        yield _sse_done(0.0, len(collected_summary), **meta, quality="full", length=prep.length)
+        yield _sse_done(0.0, len(collected_tokens), **meta, quality="full", length=prep.length)
 
     return StreamingResponse(
         _summarize_stream_with_meta(),
