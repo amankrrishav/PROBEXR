@@ -133,14 +133,12 @@ async def fetch_and_clean_url(url: str, user_id: int, session: AsyncSession) -> 
     cleaned_content = soup.get_text(separator="\n", strip=True)
 
     # Trim stored content to avoid unbounded DB growth
-    raw_to_store = raw_html[:MAX_HTML_BYTES]
     cleaned_to_store = cleaned_content[:MAX_CLEANED_BYTES]
 
     doc = Document(
         user_id=user_id,
         url=url,
         title=title.strip()[:200],
-        raw_content=raw_to_store,
         cleaned_content=cleaned_to_store,
     )
     session.add(doc)
@@ -155,7 +153,6 @@ async def ingest_text_document(user_id: int, text: str, title: str, session: Asy
         user_id=user_id,
         url="pasted_text",
         title=title[:200],
-        raw_content=text[:MAX_TEXT_BYTES],
         cleaned_content=text[:MAX_TEXT_BYTES],
     )
     session.add(doc)
