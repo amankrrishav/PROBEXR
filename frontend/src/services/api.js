@@ -158,3 +158,10 @@ export async function deleteDocument(documentId) {
     method: "DELETE",
   });
 }
+
+/**
+ * GET /api/analytics/dashboard — Reading analytics for the authenticated user
+ */
+export async function getAnalytics() {
+  return request("/api/analytics/dashboard");
+}
