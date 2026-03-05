@@ -9,6 +9,7 @@ import { useSummarizerContext } from "./contexts/SummarizerContext.jsx";
 import { Sidebar } from "./features/layout";
 import { Editor, OutputCard, SynthesisWorkspace } from "./features/summarizer";
 import { AuthModal } from "./features/auth";
+import { AnalyticsDashboard } from "./features/analytics";
 
 const USAGE_KEY = "readpulse.hasUsedFeatureOnce";
 
@@ -95,7 +96,9 @@ export default function App() {
         <div
           className={`px-12 py-16 transition-all duration-500 ${activeTab === 'summarize' && summarizer.hasSummary
             ? "grid grid-cols-2 gap-12"
-            : "max-w-3xl mx-auto"
+            : activeTab === "analytics"
+              ? "max-w-5xl mx-auto"
+              : "max-w-3xl mx-auto"
             }`}
         >
           {activeTab === "summarize" ? (
@@ -113,6 +116,8 @@ export default function App() {
                 <OutputCard />
               )}
             </>
+          ) : activeTab === "analytics" ? (
+            <AnalyticsDashboard />
           ) : (
             <SynthesisWorkspace />
           )}

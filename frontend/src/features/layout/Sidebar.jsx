@@ -110,6 +110,12 @@ export default function Sidebar({
           >
             Multi-Doc Synthesis
           </button>
+          <button
+            onClick={() => setActiveTab("analytics")}
+            className={`text-left px-4 py-2 rounded-lg text-sm font-medium transition ${activeTab === 'analytics' ? 'bg-gray-100 dark:bg-gray-800 text-black dark:text-white' : 'text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white'}`}
+          >
+            📊 Analytics
+          </button>
         </nav>
       </div>
 

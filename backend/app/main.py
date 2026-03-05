@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_config
-from app.routers import health, summarize, auth, ingest, synthesis, chat, flashcards, tts, streaming, documents
+from app.routers import health, summarize, auth, ingest, synthesis, chat, flashcards, tts, streaming, documents, analytics
 from app.db import async_engine
 from sqlmodel import SQLModel
 from app.middleware import (
@@ -131,4 +131,5 @@ app.include_router(chat.router, prefix="/api")
 app.include_router(flashcards.router, prefix="/api")
 app.include_router(tts.router, prefix="/api")
 app.include_router(documents.router, prefix="/api")
+app.include_router(analytics.router, prefix="/api")
 app.include_router(streaming.router)
