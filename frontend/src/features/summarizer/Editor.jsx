@@ -1,120 +1,121 @@
 import { useSummarizerContext } from "../../contexts/SummarizerContext.jsx";
 
 const LENGTH_OPTIONS = [
-  { value: "brief", label: "Brief", desc: "~1 paragraph" },
-  { value: "standard", label: "Standard", desc: "~2 paragraphs" },
-  { value: "detailed", label: "Detailed", desc: "~4 paragraphs" },
+  { value: "brief", label: "Brief" },
+  { value: "standard", label: "Standard" },
+  { value: "detailed", label: "Detailed" },
 ];
 
-export default function Editor({
-  onSummarize,
-  handleKeyDown,
-}) {
+export default function Editor({ onSummarize, handleKeyDown }) {
   const {
-    text,
-    setText,
-    loading,
-    loadingMessage,
-    error,
-    wordCount,
-    charCount,
-    hasSummary,
-    isUrlMode,
-    setIsUrlMode,
-    url,
-    setUrl,
-    streaming,
-    cancelStreaming,
-    summaryLength,
-    setSummaryLength,
+    text, setText, loading, loadingMessage, error, wordCount, charCount,
+    hasSummary, isUrlMode, setIsUrlMode, url, setUrl,
+    streaming, cancelStreaming, summaryLength, setSummaryLength,
   } = useSummarizerContext();
 
   const isBusy = loading || streaming;
+  const isMac = typeof navigator !== "undefined" && /Mac/i.test(navigator.userAgent);
 
   return (
     <div>
-
+      {/* ── Hero header (only before summary) ── */}
       {!hasSummary && (
-        <>
-          <h1 className="text-3xl font-semibold tracking-tight mb-3">
-            Extract signal. Ignore noise.
+        <div className="mb-8">
+          <h1 className="text-[32px] font-semibold tracking-tight leading-tight mb-2">
+            Distill what matters.
           </h1>
-
-          <p className="text-gray-500 dark:text-gray-400 mb-10">
-            Paste text. Get the point instantly.
+          <p className="text-[15px] text-gray-400 dark:text-gray-500">
+            Drop in an article, paper, or blog post — get the essence in seconds.
           </p>
-        </>
+        </div>
       )}
 
+      {/* ── Error ── */}
       {error && (
-        <div className="mb-6 text-sm text-red-500">
+        <div className="mb-5 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-50 dark:bg-red-950/15 border border-red-200/60 dark:border-red-900/30 text-sm text-red-600 dark:text-red-400">
+          <span className="shrink-0">⚠</span>
           {error}
         </div>
       )}
 
-      <div className="bg-white dark:bg-[#121212] border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm transition-all duration-300">
+      {/* ── Input Card ── */}
+      <div className="rounded-2xl border border-gray-200/80 dark:border-gray-800/80 bg-white dark:bg-[#111] overflow-hidden transition-all duration-300">
+
+        {/* Mode switcher — only before summary */}
         {!hasSummary && (
-          <div className="flex gap-4 mb-4 border-b border-gray-200 dark:border-gray-800 pb-4">
+          <div className="flex items-center gap-1 px-5 pt-4 pb-0">
             <button
               onClick={() => setIsUrlMode(false)}
-              className={`text-sm font-medium px-4 py-2 rounded-lg transition-colors ${!isUrlMode
-                ? "bg-gray-100 text-black dark:bg-gray-800 dark:text-white"
-                : "text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white"
+              className={`text-[12px] font-medium px-3 py-1.5 rounded-md transition-all ${!isUrlMode
+                ? "bg-gray-900 text-white dark:bg-white dark:text-black"
+                : "text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
                 }`}
             >
-              Paste Text
+              Text
             </button>
             <button
               onClick={() => setIsUrlMode(true)}
-              className={`text-sm font-medium px-4 py-2 rounded-lg transition-colors ${isUrlMode
-                ? "bg-gray-100 text-black dark:bg-gray-800 dark:text-white"
-                : "text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white"
+              className={`text-[12px] font-medium px-3 py-1.5 rounded-md transition-all ${isUrlMode
+                ? "bg-gray-900 text-white dark:bg-white dark:text-black"
+                : "text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
                 }`}
             >
-              Paste URL
+              URL
             </button>
           </div>
         )}
 
-        {isUrlMode && !hasSummary ? (
-          <input
-            type="url"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="https://example.com/article"
-            className="w-full bg-gray-50 dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3 outline-none text-sm transition-colors focus:border-black dark:focus:border-white mb-4"
-          />
-        ) : (
-          <textarea
-            rows={hasSummary ? 6 : 8}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={hasSummary ? "Original Text" : "Paste article, research, or blog post..."}
-            readOnly={hasSummary && isUrlMode}
-            className="w-full resize-none outline-none text-sm leading-relaxed bg-transparent"
-          />
-        )}
+        {/* Input area */}
+        <div className="px-5 pt-4 pb-3">
+          {isUrlMode && !hasSummary ? (
+            <input
+              type="url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="https://example.com/article"
+              className="w-full bg-transparent text-[15px] outline-none placeholder:text-gray-300 dark:placeholder:text-gray-600"
+              autoFocus
+            />
+          ) : (
+            <textarea
+              rows={hasSummary ? 5 : 7}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={hasSummary ? "" : "Paste your text here…"}
+              readOnly={hasSummary && isUrlMode}
+              className="w-full resize-none outline-none text-[14px] leading-[1.7] bg-transparent placeholder:text-gray-300 dark:placeholder:text-gray-600"
+            />
+          )}
+        </div>
 
-        <div className="flex justify-between items-center mt-6">
-
-          <div className="text-xs text-gray-400">
-            {wordCount} words · {charCount} characters
+        {/* Footer bar */}
+        <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 dark:border-gray-800/60">
+          {/* Left: word count */}
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] tabular-nums text-gray-400 dark:text-gray-500">
+              {wordCount.toLocaleString()} words
+            </span>
+            {!hasSummary && (
+              <span className="text-[11px] text-gray-300 dark:text-gray-700">
+                {isMac ? "⌘" : "Ctrl"}+Enter to summarize
+              </span>
+            )}
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* Length selector — only show when no summary yet */}
+          {/* Right: controls */}
+          <div className="flex items-center gap-2">
+            {/* Length selector */}
             {!hasSummary && (
-              <div className="flex rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center rounded-lg border border-gray-200/80 dark:border-gray-800/80 overflow-hidden">
                 {LENGTH_OPTIONS.map((opt) => (
                   <button
                     key={opt.value}
                     onClick={() => setSummaryLength(opt.value)}
-                    title={opt.desc}
-                    className={`text-[11px] font-medium px-3 py-1.5 transition-colors ${summaryLength === opt.value
-                        ? "bg-black text-white dark:bg-white dark:text-black"
-                        : "text-gray-500 hover:text-black dark:text-gray-400 dark:hover:text-white bg-transparent"
+                    className={`text-[11px] font-medium px-2.5 py-1 transition-all ${summaryLength === opt.value
+                      ? "bg-gray-900 text-white dark:bg-white dark:text-black"
+                      : "text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
                       }`}
                   >
                     {opt.label}
@@ -123,23 +124,25 @@ export default function Editor({
               </div>
             )}
 
+            {/* Cancel */}
             {streaming && (
               <button
                 onClick={cancelStreaming}
-                className="px-5 py-2.5 rounded-full text-sm font-medium border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+                className="text-[12px] font-medium px-3 py-1.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
               >
-                Cancel
+                Stop
               </button>
             )}
+
+            {/* Summarize */}
             <button
               onClick={onSummarize}
               disabled={isBusy}
-              className="px-6 py-2.5 rounded-full text-sm font-medium bg-black text-white dark:bg-white dark:text-black hover:opacity-90 transition disabled:opacity-50"
+              className="text-[12px] font-medium px-4 py-1.5 rounded-lg bg-gray-900 text-white dark:bg-white dark:text-black hover:opacity-90 transition disabled:opacity-40"
             >
               {loading ? loadingMessage : streaming ? "Streaming…" : "Summarize"}
             </button>
           </div>
-
         </div>
       </div>
     </div>

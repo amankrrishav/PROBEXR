@@ -94,11 +94,11 @@ export default function App() {
       />
       <main className="flex-1 overflow-y-auto">
         <div
-          className={`px-12 py-16 transition-all duration-500 ${activeTab === 'summarize' && summarizer.hasSummary
-            ? "grid grid-cols-2 gap-12"
+          className={`transition-all duration-500 ${activeTab === 'summarize' && summarizer.hasSummary
+            ? "grid grid-cols-2 gap-10 px-14 py-14"
             : activeTab === "analytics"
-              ? "max-w-5xl mx-auto"
-              : "max-w-3xl mx-auto"
+              ? "max-w-5xl mx-auto px-12 py-12"
+              : "max-w-2xl mx-auto px-8 py-16"
             }`}
         >
           {activeTab === "summarize" ? (

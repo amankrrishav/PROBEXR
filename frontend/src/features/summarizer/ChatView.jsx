@@ -15,18 +15,12 @@ export default function ChatView({ documentId }) {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
-    useEffect(() => {
-        scrollToBottom();
-    }, [messages, streamingContent]);
+    useEffect(() => { scrollToBottom(); }, [messages, streamingContent]);
 
     function cancelChatStream() {
-        if (abortRef.current) {
-            abortRef.current.abort();
-            abortRef.current = null;
-        }
-        // Keep partial response if any
+        if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
         if (streamingContent) {
-            setMessages((prev) => [...prev, { role: "assistant", content: streamingContent + " [cancelled]" }]);
+            setMessages((prev) => [...prev, { role: "assistant", content: streamingContent + " [stopped]" }]);
         }
         setStreaming(false);
         setStreamingContent("");
@@ -42,7 +36,7 @@ export default function ChatView({ documentId }) {
         setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
         setLoading(true);
 
-        // Attempt streaming first
+        // Streaming first
         const controller = new AbortController();
         abortRef.current = controller;
         setStreaming(true);
@@ -52,50 +46,28 @@ export default function ChatView({ documentId }) {
 
         try {
             await sendChatMessageStream(
-                documentId,
-                userMessage,
-                sessionId,
-                // onToken
-                (token) => {
-                    streamedContent += token;
-                    setStreamingContent(streamedContent);
-                },
-                // onDone
+                documentId, userMessage, sessionId,
+                (token) => { streamedContent += token; setStreamingContent(streamedContent); },
                 (metadata) => {
                     streamSucceeded = true;
                     if (metadata.session_id) setSessionId(metadata.session_id);
                     setMessages((prev) => [...prev, { role: "assistant", content: streamedContent }]);
-                    setStreamingContent("");
-                    setStreaming(false);
-                    abortRef.current = null;
+                    setStreamingContent(""); setStreaming(false); abortRef.current = null;
                 },
-                // onError
-                (errMsg) => {
-                    console.warn("Chat streaming failed, falling back:", errMsg);
-                },
+                (errMsg) => { console.warn("Chat streaming failed:", errMsg); },
                 controller,
             );
-
             if (streamSucceeded) return;
-        } catch {
-            // Fall through to non-streaming
-        }
+        } catch { /* fall through */ }
 
-        // Fallback: non-streaming
-        setStreaming(false);
-        setStreamingContent("");
-        setLoading(true);
-        abortRef.current = null;
-
+        // Fallback
+        setStreaming(false); setStreamingContent(""); setLoading(true); abortRef.current = null;
         try {
             const response = await sendChatMessage(documentId, userMessage, sessionId);
             setSessionId(response.session_id);
             setMessages((prev) => [...prev, { role: "assistant", content: response.content }]);
         } catch (err) {
-            setMessages((prev) => [
-                ...prev,
-                { role: "assistant", content: `Error: ${err.message}` },
-            ]);
+            setMessages((prev) => [...prev, { role: "assistant", content: `Error: ${err.message}` }]);
         } finally {
             setLoading(false);
         }
@@ -104,31 +76,34 @@ export default function ChatView({ documentId }) {
     const isBusy = loading || streaming;
 
     return (
-        <div className="mt-8 border-t border-gray-200 dark:border-gray-800 pt-6">
-            <h3 className="text-xs uppercase tracking-wider text-gray-400 mb-4">
-                Ask questions about this text
+        <div className="border-t border-gray-100 dark:border-gray-800/60 pt-4 mt-4">
+            <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">
+                Ask about this text
             </h3>
 
-            <div className="flex flex-col space-y-4 max-h-64 overflow-y-auto mb-4 pr-2">
+            {/* Messages */}
+            <div className="flex flex-col gap-2.5 max-h-[280px] overflow-y-auto mb-3 pr-1">
                 {messages.length === 0 && !streaming ? (
-                    <p className="text-sm text-gray-500 italic">No messages yet. Send a question below!</p>
+                    <p className="text-[12px] text-gray-400 dark:text-gray-500 italic py-2">
+                        Ask a question about the document…
+                    </p>
                 ) : (
                     <>
                         {messages.map((msg, idx) => (
                             <div
                                 key={idx}
-                                className={`p-3 rounded-xl text-sm max-w-[85%] ${msg.role === "user"
-                                    ? "bg-gray-100 dark:bg-[#1A1A1A] text-black dark:text-white self-end ml-auto"
-                                    : "bg-black dark:bg-white text-white dark:text-black self-start"
+                                className={`px-3.5 py-2.5 rounded-xl text-[13px] leading-relaxed max-w-[85%] ${msg.role === "user"
+                                    ? "bg-gray-100 dark:bg-gray-800/60 text-gray-800 dark:text-gray-200 self-end ml-auto"
+                                    : "bg-gray-900 dark:bg-white text-white dark:text-gray-900 self-start"
                                     }`}
                             >
                                 {msg.content}
                             </div>
                         ))}
                         {streaming && streamingContent && (
-                            <div className="p-3 rounded-xl text-sm max-w-[85%] bg-black dark:bg-white text-white dark:text-black self-start">
+                            <div className="px-3.5 py-2.5 rounded-xl text-[13px] leading-relaxed max-w-[85%] bg-gray-900 dark:bg-white text-white dark:text-gray-900 self-start">
                                 {streamingContent}
-                                <span className="inline-block w-1.5 h-3 bg-gray-400 dark:bg-gray-600 animate-pulse ml-0.5 align-text-bottom" />
+                                <span className="inline-block w-[5px] h-[14px] bg-gray-400 dark:bg-gray-600 animate-pulse ml-0.5 align-text-bottom rounded-sm" />
                             </div>
                         )}
                     </>
@@ -136,30 +111,31 @@ export default function ChatView({ documentId }) {
                 <div ref={messagesEndRef} />
             </div>
 
-            <form onSubmit={handleSend} className="flex gap-2 relative">
+            {/* Input */}
+            <form onSubmit={handleSend} className="flex gap-2">
                 <input
                     type="text"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    placeholder="Ask a question..."
-                    className="flex-1 bg-gray-50 dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-800 rounded-full px-4 py-2 text-sm outline-none w-full"
+                    placeholder="Type a question…"
+                    className="flex-1 bg-gray-50 dark:bg-gray-800/40 border border-gray-200/80 dark:border-gray-800/80 rounded-xl px-3.5 py-2 text-[13px] outline-none placeholder:text-gray-300 dark:placeholder:text-gray-600 focus:border-gray-400 dark:focus:border-gray-600 transition"
                     disabled={isBusy || !documentId}
                 />
                 {streaming ? (
                     <button
                         type="button"
                         onClick={cancelChatStream}
-                        className="px-4 py-2 rounded-full text-sm font-medium border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+                        className="text-[12px] font-medium px-3 py-2 rounded-xl text-red-500 border border-red-200 dark:border-red-800/40 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
                     >
-                        Cancel
+                        Stop
                     </button>
                 ) : (
                     <button
                         type="submit"
                         disabled={loading || !input.trim() || !documentId}
-                        className="bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded-full text-sm font-medium disabled:opacity-50"
+                        className="text-[12px] font-medium px-4 py-2 rounded-xl bg-gray-900 dark:bg-white text-white dark:text-black disabled:opacity-30 hover:opacity-90 transition"
                     >
-                        {loading ? "..." : "Send"}
+                        {loading ? "…" : "Send"}
                     </button>
                 )}
             </form>
