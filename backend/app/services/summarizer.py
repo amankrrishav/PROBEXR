@@ -3,17 +3,22 @@ Summarization: single LLM call (human-like) when an API key is set, or free
 TF-IDF extractive fallback ($0, no key).
 
 Supports three length modes: brief, standard, detailed.
-Returns rich metadata: word counts, compression ratio, reading time, key takeaways.
+Returns rich metadata: word counts, compression ratio, reading time, key takeaways,
+content type detection, readability scoring, and notable quote extraction.
 
 Architecture: ONE unified LLM call returns both summary + takeaways as structured JSON.
 
-Upgrades over v1:
+Upgrades:
   - Chain-of-density inspired prompt engineering with domain-adaptive tone
   - Smart text preprocessing: boilerplate removal, unicode normalization
   - Map-reduce chunking for long articles (>3000 words)
   - Response validation: length checks, auto-retry on garbage
   - In-memory hash cache to skip re-summarization of identical text
   - Stronger anti-hallucination guardrails
+  - Content-type auto-detection (news, academic, technical, opinion, general)
+  - Flesch-Kincaid readability scoring with human labels
+  - Notable quote extraction from source text
+  - Content-type-adaptive prompt tuning
 """
 import hashlib
 import json
@@ -82,6 +87,14 @@ _BOILERPLATE_RE = [
     re.compile(r"(?i)^\s*(click|tap)\s+here\b.*$", re.MULTILINE),
     re.compile(r"(?i)\b(sign\s*up|subscribe|newsletter|log\s*in)\s+(for|to|now)\b.*$", re.MULTILINE),
     re.compile(r"(?i)\bread\s+more\s*[:\.]?\s*$", re.MULTILINE),
+    # Additional boilerplate
+    re.compile(r"(?i)^\s*(related\s+articles?|you\s+may\s+also\s+like|recommended)\s*[:\.]?.*$", re.MULTILINE),
+    re.compile(r"(?i)^\s*(table\s+of\s+contents?)\s*$", re.MULTILINE),
+    re.compile(r"(?i)^\s*(leave\s+a\s+comment|comments?\s+section).*$", re.MULTILINE),
+    re.compile(r"(?i)^\s*(last\s+updated|published|modified)\s*:?\s*\d.*$", re.MULTILINE),
+    re.compile(r"(?i)^\s*tags?\s*:.*$", re.MULTILINE),
+    re.compile(r"(?i)\b(accept\s+(all\s+)?cookies?)\b.*$", re.MULTILINE),
+    re.compile(r"(?i)\b(we\s+use\s+cookies?)\b.*$", re.MULTILINE),
 ]
 
 
@@ -96,6 +109,13 @@ def _clean_text(text: str) -> str:
     text = text.replace("\u2013", "-").replace("\u2014", " — ")
     text = text.replace("\u00a0", " ")  # non-breaking space
     text = text.replace("\u200b", "")   # zero-width space
+    text = text.replace("\u2026", "...")  # ellipsis
+    text = text.replace("\u200e", "")   # left-to-right mark
+    text = text.replace("\u200f", "")   # right-to-left mark
+    text = text.replace("\ufeff", "")   # BOM
+
+    # Remove image alt text artifacts
+    text = re.sub(r"\[(?:image|img|photo|figure|alt)\s*:?[^\]]*\]", "", text, flags=re.IGNORECASE)
 
     # Remove boilerplate patterns
     for pattern in _BOILERPLATE_RE:
@@ -108,6 +128,155 @@ def _clean_text(text: str) -> str:
     text = re.sub(r"\s+", " ", text)
 
     return text.strip()
+
+
+# ---------------------------------------------------------------------------
+# Content-type detection
+# ---------------------------------------------------------------------------
+
+_ACADEMIC_SIGNALS = re.compile(
+    r"(?i)\b(abstract|methodology|hypothesis|empirical|peer[- ]review|findings|p[- ]?value"
+    r"|statistical(?:ly)?\s+significant|literature\s+review|et\s+al\.?|doi:|arxiv"
+    r"|journal\s+of|proceedings|meta[- ]analysis|regression|controlled\s+trial)\b"
+)
+_NEWS_SIGNALS = re.compile(
+    r"(?i)\b(reuters|associated\s+press|AP|AFP|reported\s+(?:on|that|by)"
+    r"|press\s+release|breaking\s+news|correspondent|spokesperson"
+    r"|according\s+to\s+(?:a\s+)?(?:statement|official|source)|announced\s+(?:on|today|that))\b"
+)
+_TECH_SIGNALS = re.compile(
+    r"(?i)\b(api|sdk|framework|deploy(?:ment)?|(?:micro)?service|kubernetes|docker"
+    r"|repository|open[- ]?source|backend|frontend|algorithm|benchmark"
+    r"|latency|throughput|scalab(?:le|ility)|machine\s+learning|neural\s+net(?:work)?)\b"
+)
+_OPINION_SIGNALS = re.compile(
+    r"(?i)\b(i\s+(?:believe|think|argue|contend)|in\s+my\s+(?:view|opinion|experience)"
+    r"|(?:we|i)\s+should|it\s+(?:seems|appears)\s+(?:to me|that)|editorial|op[- ]?ed"
+    r"|commentary|my\s+take|i\s+(?:strongly|firmly))\b"
+)
+
+
+def _detect_content_type(text: str) -> str:
+    """Classify content as: academic, news, technical, opinion, or general."""
+    academic = len(_ACADEMIC_SIGNALS.findall(text))
+    news = len(_NEWS_SIGNALS.findall(text))
+    tech = len(_TECH_SIGNALS.findall(text))
+    opinion = len(_OPINION_SIGNALS.findall(text))
+
+    scores = {
+        "academic": academic * 2,  # academic signals are stronger markers
+        "news": news,
+        "technical": tech,
+        "opinion": opinion,
+    }
+
+    best = max(scores, key=scores.get)
+    # Require minimum signal strength to classify — otherwise "general"
+    if scores[best] < 3:
+        return "general"
+    return best
+
+
+_CONTENT_TYPE_TONE = {
+    "academic": "precise and scholarly — preserve methodological rigor, hedge language, and qualification",
+    "news": "factual and direct — lead with the who/what/where/when, then context and implications",
+    "technical": "clear and practical — focus on what it does, how it works, and why it matters to practitioners",
+    "opinion": "balanced — present the author's argument fairly, note the evidence cited, and capture the rhetorical stance",
+    "general": "clear, natural prose — like a senior analyst briefing a busy executive",
+}
+
+
+# ---------------------------------------------------------------------------
+# Readability scoring (Flesch-Kincaid)
+# ---------------------------------------------------------------------------
+
+def _count_syllables(word: str) -> int:
+    """Estimate syllable count using vowel-group heuristic."""
+    word = word.lower().rstrip("e")
+    if not word:
+        return 1
+    count = len(re.findall(r"[aeiouy]+", word))
+    return max(1, count)
+
+
+def _readability_score(text: str) -> tuple[float, str]:
+    """
+    Compute Flesch Reading Ease score and human label.
+    Returns (score, label) where higher score = easier to read.
+    """
+    sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+    sentences = [s for s in sentences if s.strip()]
+    words = re.findall(r"[a-zA-Z']+", text)
+
+    if not sentences or not words:
+        return 50.0, "Average"
+
+    total_sentences = len(sentences)
+    total_words = len(words)
+    total_syllables = sum(_count_syllables(w) for w in words)
+
+    # Flesch Reading Ease formula
+    asl = total_words / total_sentences  # avg sentence length
+    asw = total_syllables / total_words  # avg syllables per word
+    score = 206.835 - (1.015 * asl) - (84.6 * asw)
+    score = round(max(0, min(100, score)), 1)
+
+    # Label
+    if score >= 80:
+        label = "Very Easy"
+    elif score >= 65:
+        label = "Easy"
+    elif score >= 50:
+        label = "Average"
+    elif score >= 35:
+        label = "Moderate"
+    elif score >= 20:
+        label = "Difficult"
+    else:
+        label = "Very Difficult"
+
+    return score, label
+
+
+# ---------------------------------------------------------------------------
+# Notable quote extraction
+# ---------------------------------------------------------------------------
+
+def _extract_notable_quotes(text: str, max_quotes: int = 3) -> list[str]:
+    """
+    Extract the most notable direct quotes from the text.
+    Looks for quoted text between quotation marks that contains substance.
+    """
+    # Match both straight and curly quotes
+    patterns = [
+        re.compile(r'["\u201c]([^"\u201d]{20,200})["\u201d]'),
+    ]
+
+    quotes = []
+    for pattern in patterns:
+        for match in pattern.finditer(text):
+            q = match.group(1).strip()
+            # Filter out non-substantive quotes
+            words = q.split()
+            if len(words) < 5:
+                continue
+            # Skip quotes that look like titles, labels, or UI text
+            if q.endswith(":") or q.startswith("http"):
+                continue
+            quotes.append(q)
+
+    # Deduplicate and take the longest (most substantive) quotes
+    seen = set()
+    unique = []
+    for q in quotes:
+        key = q.lower()[:50]
+        if key not in seen:
+            seen.add(key)
+            unique.append(q)
+
+    # Sort by length descending (longer quotes tend to be more substantive)
+    unique.sort(key=len, reverse=True)
+    return unique[:max_quotes]
 
 
 # ---------------------------------------------------------------------------
@@ -164,16 +333,30 @@ def _target_words(original_word_count: int, cfg: AppConfig, length: str = "stand
 
 
 def _compute_metadata(original_text: str, summary_text: str) -> dict[str, Any]:
-    """Compute word counts, compression ratio, and reading time."""
+    """Compute word counts, compression ratio, reading time, content type, readability, and quotes."""
     original_wc = len(original_text.split())
     summary_wc = len(summary_text.split())
     compression = round((1 - summary_wc / max(original_wc, 1)) * 100, 1)
     reading_time_seconds = max(1, round(summary_wc / 200 * 60))
+
+    # Content-type detection
+    content_type = _detect_content_type(original_text)
+
+    # Readability scoring (on the summary, since that's what the user reads)
+    readability_score, readability_label = _readability_score(summary_text)
+
+    # Notable quotes from source
+    notable_quotes = _extract_notable_quotes(original_text)
+
     return {
         "original_word_count": original_wc,
         "summary_word_count": summary_wc,
         "compression_ratio": compression,
         "reading_time_seconds": reading_time_seconds,
+        "content_type": content_type,
+        "readability_score": readability_score,
+        "readability_label": readability_label,
+        "notable_quotes": notable_quotes,
     }
 
 
@@ -192,8 +375,40 @@ def _build_unified_prompt(
     target_words: int,
     preset: dict[str, Any],
     length: str,
+    content_type: str = "general",
 ) -> list[dict[str, str]]:
-    """Build a single-call prompt that returns summary + takeaways as structured JSON."""
+    """Build a single-call prompt that returns summary + takeaways as structured JSON.
+    Adapts tone and strategy based on detected content type."""
+
+    # Adaptive tone based on content type
+    tone = _CONTENT_TYPE_TONE.get(content_type, preset["tone"])
+
+    # Content-type-specific instructions
+    type_guidance = ""
+    if content_type == "academic":
+        type_guidance = (
+            "\n- Preserve methodology descriptions, sample sizes, and statistical findings."
+            "\n- Note limitations and scope acknowledged by the authors."
+            "\n- Keep hedge language (\"suggests\", \"may\", \"appears to\") where the original uses it."
+        )
+    elif content_type == "news":
+        type_guidance = (
+            "\n- Lead with the core news event (inverted pyramid style)."
+            "\n- Include attribution: who said/did/reported what."
+            "\n- Note timeline: when events occurred or are expected."
+        )
+    elif content_type == "technical":
+        type_guidance = (
+            "\n- Explain how the technology/approach works at a conceptual level."
+            "\n- Include performance benchmarks or comparisons if mentioned."
+            "\n- Note practical implications: who benefits and how."
+        )
+    elif content_type == "opinion":
+        type_guidance = (
+            "\n- Clearly attribute the argument: \"The author argues...\" when presenting contested claims."
+            "\n- Distinguish between the author's opinions and cited evidence."
+            "\n- Capture the strongest counterarguments the author addresses."
+        )
 
     system = f"""You are an expert analyst and writer. Read the provided article and produce TWO things in a SINGLE response:
 
@@ -201,7 +416,7 @@ def _build_unified_prompt(
 2. Exactly **{preset["takeaway_count"]} key takeaways** — each a single, specific, factual sentence.
 
 ## Summary Instructions
-- Tone: {preset["tone"]}.
+- Tone: {tone}.
 - {preset["structure_guidance"]}
 - Write as if explaining to an intelligent colleague who hasn't read the piece.
 - Use the "chain of density" approach: start with the most important claim, then layer in supporting details until you reach the target length. Every sentence should add new information.
@@ -209,7 +424,7 @@ def _build_unified_prompt(
 - Use your own natural phrasing — do NOT copy sentences verbatim from the source.
 - Include specific names, numbers, dates, and evidence when they are central to the argument.
 - Do NOT start with "The article discusses..." or "This piece explores..." — jump straight into the substance.
-- No bullet points, no headings, no markdown formatting in the summary.
+- No bullet points, no headings, no markdown formatting in the summary.{type_guidance}
 
 ## Takeaway Instructions
 - Each takeaway must be a standalone, self-contained sentence a reader can understand without context.
@@ -404,12 +619,16 @@ async def summarize(text: str, length: str = "standard") -> dict[str, Any]:
     target = _target_words(original_word_count, cfg, length)
     preset = LENGTH_PRESETS.get(length, LENGTH_PRESETS["standard"])
 
+    # Detect content type for adaptive prompting
+    content_type = _detect_content_type(text)
+    logger.info("Content type detected: %s", content_type)
+
     # Map-reduce for long articles
     chunks = _chunk_text(text)
     if len(chunks) > 1:
-        result = await _map_reduce_summarize(chunks, target, preset, length, llm)
+        result = await _map_reduce_summarize(chunks, target, preset, length, llm, content_type)
     else:
-        result = await _single_call_summarize(text, target, preset, length, llm)
+        result = await _single_call_summarize(text, target, preset, length, llm, content_type=content_type)
 
     _cache_set(text, length, result)
     return result
@@ -422,9 +641,10 @@ async def _single_call_summarize(
     length: str,
     llm: Any,
     retry: bool = True,
+    content_type: str = "general",
 ) -> dict[str, Any]:
     """Single LLM call summarization with retry on validation failure."""
-    messages = _build_unified_prompt(text, target, preset, length)
+    messages = _build_unified_prompt(text, target, preset, length, content_type)
 
     raw = await llm.chat_completion(
         messages,
@@ -443,7 +663,7 @@ async def _single_call_summarize(
     if not _validate_summary(summary, target, preset) and retry:
         logger.warning("Summary failed validation (wc=%d, target=%d). Retrying...",
                         len(summary.split()) if summary else 0, target)
-        return await _single_call_summarize(text, target, preset, length, llm, retry=False)
+        return await _single_call_summarize(text, target, preset, length, llm, retry=False, content_type=content_type)
 
     if not summary:
         raise ValueError("Summary could not be generated.")
@@ -459,6 +679,7 @@ async def _map_reduce_summarize(
     preset: dict[str, Any],
     length: str,
     llm: Any,
+    content_type: str = "general",
 ) -> dict[str, Any]:
     """Map-reduce: summarize each chunk, then merge summaries."""
     import asyncio
@@ -468,7 +689,7 @@ async def _map_reduce_summarize(
 
     async def _summarize_chunk(chunk: str) -> str:
         chunk_preset = {**preset, "takeaway_count": 3}
-        messages = _build_unified_prompt(chunk, chunk_target, chunk_preset, length)
+        messages = _build_unified_prompt(chunk, chunk_target, chunk_preset, length, content_type)
         raw = await llm.chat_completion(
             messages,
             max_tokens=max(600, chunk_target * 4),
