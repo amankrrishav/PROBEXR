@@ -231,8 +231,8 @@ def _mmr_select(
 # Public API
 # ---------------------------------------------------------------------------
 
-def _target_word_count(num_words: int, min_w: int = 80, max_w: int = 300) -> int:
-    target = max(min_w, int(num_words * 0.25))
+def _target_word_count(num_words: int, min_w: int = 80, max_w: int = 300, ratio: float = 0.25) -> int:
+    target = max(min_w, int(num_words * ratio))
     return min(target, max_w)
 
 
@@ -241,6 +241,7 @@ def summarize_extractive(
     min_words: int = 30,
     target_min: int = 80,
     target_max: int = 300,
+    word_ratio: float = 0.25,
 ) -> str:
     """
     Extract key sentences using TF-IDF scoring with MMR diversity.
@@ -268,7 +269,7 @@ def summarize_extractive(
         clean_sentences = sentences
         clean_indices = list(range(len(sentences)))
 
-    target_words = _target_word_count(len(words), target_min, target_max)
+    target_words = _target_word_count(len(words), target_min, target_max, ratio=word_ratio)
     n = len(clean_sentences)
 
     # Compute TF-IDF vectors
