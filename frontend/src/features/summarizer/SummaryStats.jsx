@@ -1,15 +1,14 @@
 import { useEffect, useState } from "react";
 
 /**
- * SummaryStats — animated pill-badges showing compression stats.
- * Appears above the summary text with a stagger animation.
+ * SummaryStats — subtle inline metrics. No emojis. Clean data.
  */
 export default function SummaryStats({ meta }) {
     const [visible, setVisible] = useState(false);
 
     useEffect(() => {
         if (meta) {
-            const t = setTimeout(() => setVisible(true), 200);
+            const t = setTimeout(() => setVisible(true), 150);
             return () => clearTimeout(t);
         }
         setVisible(false);
@@ -23,33 +22,19 @@ export default function SummaryStats({ meta }) {
         ? `${reading_time_seconds}s read`
         : `${Math.round(reading_time_seconds / 60)} min read`;
 
-    const stats = [
-        {
-            icon: "📊",
-            label: `${original_word_count?.toLocaleString()} → ${summary_word_count?.toLocaleString()} words`,
-        },
-        {
-            icon: "⚡",
-            label: `${compression_ratio}% compressed`,
-        },
-        {
-            icon: "⏱️",
-            label: readingStr,
-        },
-    ];
-
     return (
-        <div className={`flex flex-wrap gap-2 mb-5 transition-all duration-500 ${visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2"}`}>
-            {stats.map((s, i) => (
-                <span
-                    key={i}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
-                    style={{ transitionDelay: `${i * 100}ms` }}
-                >
-                    <span>{s.icon}</span>
-                    {s.label}
-                </span>
-            ))}
+        <div className={`flex items-center gap-4 transition-all duration-500 ${visible ? "opacity-100" : "opacity-0"}`}>
+            <span className="text-[11px] tabular-nums text-gray-400 dark:text-gray-500">
+                {original_word_count?.toLocaleString()} → {summary_word_count?.toLocaleString()} words
+            </span>
+            <span className="text-[11px] text-gray-300 dark:text-gray-700">·</span>
+            <span className="text-[11px] tabular-nums text-gray-400 dark:text-gray-500">
+                {compression_ratio}% compressed
+            </span>
+            <span className="text-[11px] text-gray-300 dark:text-gray-700">·</span>
+            <span className="text-[11px] tabular-nums text-gray-400 dark:text-gray-500">
+                {readingStr}
+            </span>
         </div>
     );
 }

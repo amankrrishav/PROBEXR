@@ -149,6 +149,14 @@ async def fetch_and_clean_url(url: str, user_id: int, session: AsyncSession) -> 
 
 async def ingest_text_document(user_id: int, text: str, title: str, session: AsyncSession) -> Document:
     """Save a pasted text document. Extracted from router to maintain service layer separation."""
+    # Auto-generate title from content when the caller passes a generic placeholder
+    if not title or title.strip().lower() in ("pasted text", "untitled", ""):
+        words = text.strip().split()[:12]
+        title = " ".join(words)
+        if len(title) > 80:
+            title = title[:77] + "…"
+        if not title:
+            title = "Untitled Note"
     doc = Document(
         user_id=user_id,
         url="pasted_text",

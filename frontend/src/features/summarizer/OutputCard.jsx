@@ -8,14 +8,8 @@ import { useSummarizerContext } from "../../contexts/SummarizerContext.jsx";
 
 export default function OutputCard() {
   const {
-    summaryText,
-    documentId,
-    isRestored,
-    streaming,
-    streamingText,
-    summaryMeta,
-    keyTakeaways,
-    reset,
+    summaryText, documentId, isRestored,
+    streaming, streamingText, summaryMeta, keyTakeaways, reset,
   } = useSummarizerContext();
 
   const [copied, setCopied] = useState(false);
@@ -23,69 +17,74 @@ export default function OutputCard() {
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(summaryText);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
     } catch {
-      // fallback
       const ta = document.createElement("textarea");
       ta.value = summaryText;
       document.body.appendChild(ta);
       ta.select();
       document.execCommand("copy");
       document.body.removeChild(ta);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
     }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
 
   return (
-    <div className="bg-white dark:bg-[#121212] border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm">
+    <div className="rounded-2xl border border-gray-200/80 dark:border-gray-800/80 bg-white dark:bg-[#111] overflow-hidden">
 
-      {/* Header with actions */}
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-xs uppercase tracking-wider text-gray-400">
+      {/* ── Header ── */}
+      <div className="flex items-center justify-between px-6 pt-5 pb-0">
+        <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
           Summary
         </h3>
         {summaryText && !streaming && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <button
               onClick={handleCopy}
-              className="text-[11px] px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition"
+              className="text-[11px] font-medium px-2.5 py-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:text-gray-300 dark:hover:bg-white/[0.03] transition"
             >
-              {copied ? "✓ Copied" : "Copy"}
+              {copied ? "Copied ✓" : "Copy"}
             </button>
             <button
               onClick={reset}
-              className="text-[11px] px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white transition"
+              className="text-[11px] font-medium px-2.5 py-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-50 dark:hover:text-gray-300 dark:hover:bg-white/[0.03] transition"
             >
-              New Summary
+              New
             </button>
           </div>
         )}
       </div>
 
-      {/* Summary stats — compression, word counts, reading time */}
+      {/* ── Stats ── */}
       {!streaming && summaryMeta && (
-        <SummaryStats meta={summaryMeta} />
+        <div className="px-6 pt-3">
+          <SummaryStats meta={summaryMeta} />
+        </div>
       )}
 
-      <TypingSummary
-        text={summaryText}
-        instant={isRestored}
-        streaming={streaming}
-        streamingText={streamingText}
-      />
+      {/* ── Summary text ── */}
+      <div className="px-6 py-4">
+        <TypingSummary
+          text={summaryText}
+          instant={isRestored}
+          streaming={streaming}
+          streamingText={streamingText}
+        />
+      </div>
 
-      {/* Key takeaways — appears after streaming */}
-      {!streaming && keyTakeaways && keyTakeaways.length > 0 && (
-        <KeyTakeaways takeaways={keyTakeaways} />
+      {/* ── Takeaways ── */}
+      {!streaming && keyTakeaways?.length > 0 && (
+        <div className="px-6 pb-2">
+          <KeyTakeaways takeaways={keyTakeaways} />
+        </div>
       )}
 
+      {/* ── Actions + Chat ── */}
       {documentId && !streaming && (
-        <>
+        <div className="px-6 pb-6">
           <DocumentActions documentId={documentId} />
           <ChatView documentId={documentId} />
-        </>
+        </div>
       )}
     </div>
   );
