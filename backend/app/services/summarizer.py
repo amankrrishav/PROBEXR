@@ -386,13 +386,14 @@ async def summarize(text: str, length: str = "standard") -> dict[str, Any]:
         return cached
 
     if not cfg.has_llm_provider:
+        preset = LENGTH_PRESETS.get(length, LENGTH_PRESETS["standard"])
         summary = summarize_extractive(
             text,
             min_words=cfg.min_words,
-            target_min=cfg.target_min_words,
-            target_max=cfg.target_max_words,
+            target_min=preset["min_target"],
+            target_max=preset["max_target"],
+            word_ratio=preset["word_ratio"],
         )
-        preset = LENGTH_PRESETS.get(length, LENGTH_PRESETS["standard"])
         takeaways = _extract_takeaways_from_extractive(summary, count=preset["takeaway_count"])
         result = {"summary": summary, "key_takeaways": takeaways}
         _cache_set(text, length, result)
@@ -550,13 +551,14 @@ async def prepare_summarize_messages(text: str, length: str = "standard") -> Sum
         raise ValueError(f"Text too short. Minimum {cfg.min_words} words.")
 
     if not cfg.has_llm_provider:
+        preset = LENGTH_PRESETS.get(length, LENGTH_PRESETS["standard"])
         result = summarize_extractive(
             text,
             min_words=cfg.min_words,
-            target_min=cfg.target_min_words,
-            target_max=cfg.target_max_words,
+            target_min=preset["min_target"],
+            target_max=preset["max_target"],
+            word_ratio=preset["word_ratio"],
         )
-        preset = LENGTH_PRESETS.get(length, LENGTH_PRESETS["standard"])
         takeaways = _extract_takeaways_from_extractive(result, count=preset["takeaway_count"])
         return SummarizePrepResult(
             extractive_result=result,
