@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_config
 from app.routers import health, summarize, auth, ingest, synthesis, chat, flashcards, tts, streaming, documents
 from app.db import async_engine
+from sqlmodel import SQLModel
 from app.middleware import (
     LoggingMiddleware,
     RateLimitingMiddleware,
@@ -83,6 +84,13 @@ async def lifespan(app: FastAPI):
         cfg.summarize_provider or "extractive",
         "configured",
     )
+
+    # 7. Auto-create tables for SQLite (dev) — production uses Alembic migrations
+    if cfg.is_sqlite:
+        import app.models  # noqa: F401 — ensure all models are registered
+        async with async_engine.begin() as conn:
+            await conn.run_sync(SQLModel.metadata.create_all)
+        logger.info("SQLite tables auto-created from models.")
 
     yield
 
