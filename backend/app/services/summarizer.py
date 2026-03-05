@@ -178,7 +178,7 @@ def _compute_metadata(original_text: str, summary_text: str) -> dict[str, Any]:
 
 
 def _extract_takeaways_from_extractive(summary: str, count: int = 3) -> list[str]:
-    """Derive takeaways from extractive summary by splitting sentences."""
+    """Legacy fallback: derive takeaways by splitting sentences. Used by streaming router."""
     sentences = re.split(r'(?<=[.!?])\s+', summary.strip())
     return [s.strip() for s in sentences[:count] if s.strip()]
 
@@ -387,15 +387,15 @@ async def summarize(text: str, length: str = "standard") -> dict[str, Any]:
 
     if not cfg.has_llm_provider:
         preset = LENGTH_PRESETS.get(length, LENGTH_PRESETS["standard"])
-        summary = summarize_extractive(
+        ext_result = summarize_extractive(
             text,
             min_words=cfg.min_words,
             target_min=preset["min_target"],
             target_max=preset["max_target"],
             word_ratio=preset["word_ratio"],
+            takeaway_count=preset["takeaway_count"],
         )
-        takeaways = _extract_takeaways_from_extractive(summary, count=preset["takeaway_count"])
-        result = {"summary": summary, "key_takeaways": takeaways}
+        result = {"summary": ext_result["summary"], "key_takeaways": ext_result["key_takeaways"]}
         _cache_set(text, length, result)
         return result
 
@@ -552,17 +552,17 @@ async def prepare_summarize_messages(text: str, length: str = "standard") -> Sum
 
     if not cfg.has_llm_provider:
         preset = LENGTH_PRESETS.get(length, LENGTH_PRESETS["standard"])
-        result = summarize_extractive(
+        ext_result = summarize_extractive(
             text,
             min_words=cfg.min_words,
             target_min=preset["min_target"],
             target_max=preset["max_target"],
             word_ratio=preset["word_ratio"],
+            takeaway_count=preset["takeaway_count"],
         )
-        takeaways = _extract_takeaways_from_extractive(result, count=preset["takeaway_count"])
         return SummarizePrepResult(
-            extractive_result=result,
-            extractive_takeaways=takeaways,
+            extractive_result=ext_result["summary"],
+            extractive_takeaways=ext_result["key_takeaways"],
             original_text=text,
             length=length,
         )
