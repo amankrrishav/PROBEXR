@@ -36,7 +36,7 @@ async def list_flashcard_sets(
     stmt = (
         select(FlashcardSet)
         .where(FlashcardSet.user_id == user.id)
-        .order_by(FlashcardSet.created_at.desc())  # type: ignore[arg-type]
+        .order_by(FlashcardSet.created_at.desc())  # type: ignore[attr-defined]
         .offset(offset)
         .limit(per_page)
     )

@@ -12,14 +12,13 @@ from typing import AsyncGenerator
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
 
 import app.models  # noqa: F401 — register all models on metadata
 from app.db import get_session
-from app.main import app
+from app.main import fastapi_app
 from app.middleware import set_rate_limiter
 
 
@@ -41,7 +40,7 @@ _test_engine = create_async_engine(
     poolclass=StaticPool,
 )
 
-_TestSessionLocal = sessionmaker(
+_TestSessionLocal = async_sessionmaker(
     _test_engine, class_=AsyncSession, expire_on_commit=False
 )
 
@@ -51,7 +50,7 @@ async def _override_get_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-app.dependency_overrides[get_session] = _override_get_session
+fastapi_app.dependency_overrides[get_session] = _override_get_session
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -73,7 +72,7 @@ async def _setup_db():
 
 @pytest_asyncio.fixture
 async def client() -> AsyncGenerator[AsyncClient, None]:
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=fastapi_app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
 

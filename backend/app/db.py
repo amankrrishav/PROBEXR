@@ -8,10 +8,9 @@ Supports two modes driven by DATABASE_URL:
 Connection pooling is configured for PostgreSQL only.
 """
 import logging
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator
 
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from app.config import get_config
@@ -20,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 cfg = get_config()
 
-_engine_kwargs: dict = {}
+_engine_kwargs: dict[str, Any] = {}
 
 if cfg.is_sqlite:
     # SQLite + aiosqlite: use StaticPool (single connection, no pooling)
@@ -41,8 +40,8 @@ else:
 
 async_engine = create_async_engine(cfg.async_database_url, **_engine_kwargs)
 
-async_session_factory = sessionmaker(
-    async_engine, class_=AsyncSession, expire_on_commit=False
+async_session_factory: async_sessionmaker[AsyncSession] = async_sessionmaker(
+    async_engine, expire_on_commit=False
 )
 
 
@@ -61,7 +60,7 @@ if "+asyncpg" in _sync_url:
 if "+aiosqlite" in _sync_url:
     _sync_url = _sync_url.replace("+aiosqlite", "")
 
-_sync_engine_kwargs: dict = {}
+_sync_engine_kwargs: dict[str, Any] = {}
 if cfg.is_sqlite:
     _sync_engine_kwargs = {"connect_args": {"check_same_thread": False}}
 

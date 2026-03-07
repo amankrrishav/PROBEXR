@@ -170,7 +170,7 @@ def _detect_content_type(text: str) -> str:
         "opinion": opinion,
     }
 
-    best = max(scores, key=scores.get)
+    best = max(list(scores.keys()), key=lambda k: scores[k])
     # Require minimum signal strength to classify — otherwise "general"
     if scores[best] < 3:
         return "general"
@@ -328,8 +328,8 @@ LENGTH_PRESETS = {
 
 def _target_words(original_word_count: int, cfg: AppConfig, length: str = "standard") -> int:
     preset = LENGTH_PRESETS.get(length, LENGTH_PRESETS["standard"])
-    base = max(preset["min_target"], int(original_word_count * preset["word_ratio"]))
-    return min(base, preset["max_target"])
+    base = max(int(str(preset["min_target"])), int(original_word_count * float(str(preset["word_ratio"]))))
+    return min(base, int(str(preset["max_target"])))
 
 
 def _compute_metadata(original_text: str, summary_text: str) -> dict[str, Any]:
@@ -605,10 +605,10 @@ async def summarize(text: str, length: str = "standard") -> dict[str, Any]:
         ext_result = summarize_extractive(
             text,
             min_words=cfg.min_words,
-            target_min=preset["min_target"],
-            target_max=preset["max_target"],
-            word_ratio=preset["word_ratio"],
-            takeaway_count=preset["takeaway_count"],
+            target_min=int(str(preset["min_target"])),
+            target_max=int(str(preset["max_target"])),
+            word_ratio=float(str(preset["word_ratio"])),
+            takeaway_count=int(str(preset["takeaway_count"])),
         )
         result = {"summary": ext_result["summary"], "key_takeaways": ext_result["key_takeaways"]}
         _cache_set(text, length, result)
@@ -776,10 +776,10 @@ async def prepare_summarize_messages(text: str, length: str = "standard") -> Sum
         ext_result = summarize_extractive(
             text,
             min_words=cfg.min_words,
-            target_min=preset["min_target"],
-            target_max=preset["max_target"],
-            word_ratio=preset["word_ratio"],
-            takeaway_count=preset["takeaway_count"],
+            target_min=int(str(preset["min_target"])),
+            target_max=int(str(preset["max_target"])),
+            word_ratio=float(str(preset["word_ratio"])),
+            takeaway_count=int(str(preset["takeaway_count"])),
         )
         return SummarizePrepResult(
             extractive_result=ext_result["summary"],
@@ -801,7 +801,7 @@ async def prepare_summarize_messages(text: str, length: str = "standard") -> Sum
         temperature=0.3,
         original_text=text,
         length=length,
-        takeaway_count=preset["takeaway_count"],
+        takeaway_count=int(str(preset["takeaway_count"])),
     )
 
 

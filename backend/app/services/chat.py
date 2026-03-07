@@ -11,7 +11,7 @@ Key invariants:
 from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
+from sqlmodel import select, desc
 
 from app.models.chat import ChatMessage, ChatSession
 from app.models.document import Document
@@ -88,7 +88,7 @@ async def prepare_chat_context(
     history_stmt = (
         select(ChatMessage)
         .where(ChatMessage.session_id == session_id)
-        .order_by(ChatMessage.created_at.desc())  # type: ignore[arg-type]
+        .order_by(desc(ChatMessage.created_at))
         .limit(HISTORY_LIMIT)
     )
     result = await session.execute(history_stmt)
@@ -109,6 +109,7 @@ async def prepare_chat_context(
     for m in recent_msgs:
         messages_payload.append({"role": m.role, "content": m.content})
 
+    assert session_id is not None
     return ChatContext(messages_payload=messages_payload, session_id=session_id)
 
 

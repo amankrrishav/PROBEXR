@@ -1,0 +1,175 @@
+
+> readpulse@0.0.0 lint
+> eslint .
+
+
+/Users/oakgrovian/readpulse/frontend/src/App.jsx
+   9:10  warning  'Sidebar' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   no-unused-vars
+  10:10  warning  'Editor' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    no-unused-vars
+  10:18  warning  'OutputCard' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                no-unused-vars
+  10:30  warning  'SynthesisWorkspace' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        no-unused-vars
+  11:10  warning  'AuthModal' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 no-unused-vars
+  12:10  warning  'AnalyticsDashboard' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        no-unused-vars
+  21:11  warning  'dark' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             no-unused-vars
+  34:7   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  32 |     try {
+  33 |       const flag = window.localStorage.getItem(USAGE_KEY);
+> 34 |       setHasUsedFeatureOnce(flag === "true");
+     |       ^^^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  35 |     } catch {
+  36 |       // ignore
+  37 |     }                                                                                                                                                                                                                                             react-hooks/set-state-in-effect
+  70:47  error    Compilation Skipped: Existing memoization could not be preserved
+
+React Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. The inferred dependencies did not match the manually specified dependencies, which could cause the value to change more or less frequently than expected. The inferred dependency was `summarizer`, but the source dependencies were [hasUsedFeatureOnce, auth.isAuthenticated, summarizer.onSummarize]. Inferred less specific property than source.
+
+  68 |   }
+  69 |
+> 70 |   const handleSummarizeWithGate = useCallback(() => {
+     |                                               ^^^^^^^
+> 71 |     if (!hasUsedFeatureOnce) {
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 72 |       setHasUsedFeatureOnce(true);
+     …
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 83 |     summarizer.onSummarize();
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 84 |   }, [hasUsedFeatureOnce, auth.isAuthenticated, summarizer.onSummarize]);
+     | ^^^^ Could not preserve existing manual memoization
+  85 |
+  86 |   return (
+  87 |     <div className="h-screen flex bg-[#F8F7F4] text-[#1A1A2E] dark:bg-[#0a0a0a] dark:text-white transition-colors duration-300">  react-hooks/preserve-manual-memoization
+  84:6   warning  React Hook useCallback has a missing dependency: 'summarizer'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       react-hooks/exhaustive-deps
+
+/Users/oakgrovian/readpulse/frontend/src/contexts/AppContext.jsx
+  27:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/oakgrovian/readpulse/frontend/src/contexts/SummarizerContext.jsx
+  16:17  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/Users/oakgrovian/readpulse/frontend/src/features/analytics/AnalyticsDashboard.jsx
+   10:24  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+   8 |     const raf = useRef(null);
+   9 |     useEffect(() => {
+> 10 |         if (!target) { setValue(0); return; }
+     |                        ^^^^^^^^ Avoid calling setState() directly within an effect
+  11 |         const start = performance.now();
+  12 |         const from = 0;
+  13 |         function tick(now) {  react-hooks/set-state-in-effect
+   25:10  warning  'AnimNum' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     no-unused-vars
+   40:10  warning  'Heatmap' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     no-unused-vars
+  141:10  warning  'Sources' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     no-unused-vars
+
+/Users/oakgrovian/readpulse/frontend/src/features/auth/AuthModal.jsx
+  19:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  17 |   useEffect(() => {
+  18 |     if (open) {
+> 19 |       setEmail("");
+     |       ^^^^^^^^ Avoid calling setState() directly within an effect
+  20 |       setPassword("");
+  21 |     }
+  22 |   }, [open, mode]);  react-hooks/set-state-in-effect
+
+/Users/oakgrovian/readpulse/frontend/src/features/layout/DocumentBrowser.jsx
+  33:10  warning  'DocCard' is defined but never used              no-unused-vars
+  75:11  warning  'summarizer' is assigned a value but never used  no-unused-vars
+
+/Users/oakgrovian/readpulse/frontend/src/features/layout/Sidebar.jsx
+  5:8  warning  'DocumentBrowser' is defined but never used  no-unused-vars
+
+/Users/oakgrovian/readpulse/frontend/src/features/summarizer/Editor.jsx
+  11:63  warning  'charCount' is assigned a value but never used  no-unused-vars
+
+/Users/oakgrovian/readpulse/frontend/src/features/summarizer/OutputCard.jsx
+  2:8   warning  'TypingSummary' is defined but never used    no-unused-vars
+  3:8   warning  'ChatView' is defined but never used         no-unused-vars
+  4:8   warning  'DocumentActions' is defined but never used  no-unused-vars
+  5:8   warning  'SummaryStats' is defined but never used     no-unused-vars
+  6:8   warning  'KeyTakeaways' is defined but never used     no-unused-vars
+  9:10  warning  'NotableQuotes' is defined but never used    no-unused-vars
+
+/Users/oakgrovian/readpulse/frontend/src/features/summarizer/SummaryStats.jsx
+  32:9  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  30 |             return () => clearTimeout(t);
+  31 |         }
+> 32 |         setVisible(false);
+     |         ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  33 |     }, [meta]);
+  34 |
+  35 |     if (!meta) return null;  react-hooks/set-state-in-effect
+
+/Users/oakgrovian/readpulse/frontend/src/hooks/useBackendHealth.js
+  15:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  13 |   useEffect(() => {
+  14 |     if (!enabled) {
+> 15 |       setLoading(false);
+     |       ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  16 |       return;
+  17 |     }
+  18 |     let cancelled = false;  react-hooks/set-state-in-effect
+
+/Users/oakgrovian/readpulse/frontend/src/hooks/useTheme.js
+  14:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  12 |     const saved = localStorage.getItem(STORAGE_KEY);
+  13 |     if (saved === "dark") {
+> 14 |       setDark(true);
+     |       ^^^^^^^ Avoid calling setState() directly within an effect
+  15 |       document.documentElement.classList.add("dark");
+  16 |     }
+  17 |   }, []);  react-hooks/set-state-in-effect
+
+/Users/oakgrovian/readpulse/frontend/src/main.jsx
+   1:10  warning  'StrictMode' is defined but never used          no-unused-vars
+   3:10  warning  'Analytics' is defined but never used           no-unused-vars
+   6:8   warning  'App' is defined but never used                 no-unused-vars
+   7:10  warning  'ErrorBoundary' is defined but never used       no-unused-vars
+   9:10  warning  'AppProvider' is defined but never used         no-unused-vars
+  10:10  warning  'SummarizerProvider' is defined but never used  no-unused-vars
+
+/Users/oakgrovian/readpulse/frontend/src/services/client.js
+  62:11  warning  '_skipAutoRefresh' is assigned a value but never used  no-unused-vars
+
+✖ 37 problems (7 errors, 30 warnings)
+

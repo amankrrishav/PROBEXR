@@ -6,15 +6,20 @@ import { useEffect, useState } from "react";
 const STORAGE_KEY = "theme";
 
 export function useTheme() {
-  const [dark, setDark] = useState(false);
+  const [dark, setDark] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem(STORAGE_KEY) === "dark";
+    }
+    return false;
+  });
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved === "dark") {
-      setDark(true);
+    if (dark) {
       document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
     }
-  }, []);
+  }, [dark]);
 
   function toggleTheme() {
     if (dark) {

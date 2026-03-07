@@ -59,6 +59,7 @@ export async function request(path, options = {}) {
     ...options.headers,
   };
   // Remove internal flag before passing to fetch
+  // eslint-disable-next-line no-unused-vars
   const { _skipAutoRefresh, ...fetchOptions } = options;
   const init = {
     ...fetchOptions,

@@ -2,7 +2,7 @@
  * App — thin shell: composes config, hooks, and features (like backend main.py).
  * Add new features: new hook + feature folder, then wire here.
  */
-import { useEffect, useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { config } from "./config.js";
 import { useAppContext } from "./contexts/AppContext.jsx";
 import { useSummarizerContext } from "./contexts/SummarizerContext.jsx";
@@ -18,24 +18,21 @@ function isBrowser() {
 }
 
 export default function App() {
-  const { dark, auth } = useAppContext();
+  const { auth } = useAppContext();
   const summarizer = useSummarizerContext();
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState("signup");
-  const [hasUsedFeatureOnce, setHasUsedFeatureOnce] = useState(false);
+  const [hasUsedFeatureOnce, setHasUsedFeatureOnce] = useState(() => {
+    if (!isBrowser()) return false;
+    try {
+      return window.localStorage.getItem(USAGE_KEY) === "true";
+    } catch {
+      return false;
+    }
+  });
   const [snackbar, setSnackbar] = useState(null);
   const [activeTab, setActiveTab] = useState("summarize");
-
-  useEffect(() => {
-    if (!isBrowser()) return;
-    try {
-      const flag = window.localStorage.getItem(USAGE_KEY);
-      setHasUsedFeatureOnce(flag === "true");
-    } catch {
-      // ignore
-    }
-  }, []);
 
   function markFeatureUsedOnce() {
     if (!isBrowser()) return;
@@ -81,7 +78,7 @@ export default function App() {
     }
 
     summarizer.onSummarize();
-  }, [hasUsedFeatureOnce, auth.isAuthenticated, summarizer.onSummarize]);
+  }, [hasUsedFeatureOnce, auth.isAuthenticated, summarizer]);
 
   return (
     <div className="h-screen flex bg-[#F8F7F4] text-[#1A1A2E] dark:bg-[#0a0a0a] dark:text-white transition-colors duration-300">

@@ -4,10 +4,15 @@ import { getAnalytics } from "../../services/api";
 
 // ─── Animated number ─────────────────────────────────────────────────
 function useAnimatedValue(target, duration = 900) {
-    const [value, setValue] = useState(0);
+    const [value, setValue] = useState(target || 0);
     const raf = useRef(null);
+
     useEffect(() => {
-        if (!target) { setValue(0); return; }
+        if (!target) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setValue(0);
+            return;
+        }
         const start = performance.now();
         const from = 0;
         function tick(now) {

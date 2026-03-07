@@ -19,4 +19,5 @@ async def dashboard(
     session: DbSession,
 ) -> dict:
     """Return aggregated reading analytics for the authenticated user."""
+    assert user.id is not None
     return await get_dashboard(user.id, session)

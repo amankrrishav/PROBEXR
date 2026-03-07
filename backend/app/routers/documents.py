@@ -41,7 +41,7 @@ async def list_documents(
     stmt = (
         select(Document)
         .where(Document.user_id == user.id)
-        .order_by(Document.created_at.desc())  # type: ignore[arg-type]
+        .order_by(Document.created_at.desc())  # type: ignore[attr-defined]
         .offset(offset)
         .limit(per_page)
     )

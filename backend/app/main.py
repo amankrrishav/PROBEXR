@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app_inst: FastAPI):
     setup_logging()
     cfg = get_config()
 
@@ -67,7 +67,7 @@ async def lifespan(app: FastAPI):
             decode_responses=True,
             socket_connect_timeout=3,
         )
-        await redis_client.ping()
+        await redis_client.ping()  # type: ignore[misc]
         set_rate_limiter(RedisRateLimiter(redis_client))
         logger.info("Redis connected: %s", cfg.redis_url.split("@")[-1] if "@" in cfg.redis_url else cfg.redis_url)
     except Exception as e:
@@ -100,7 +100,7 @@ async def lifespan(app: FastAPI):
         await redis_client.aclose()
         logger.info("Redis connection closed.")
 
-app = FastAPI(
+fastapi_app = FastAPI(
     title="ReadPulse",
     description="Human-like article summarization API",
     version="1.0.0",
@@ -110,10 +110,10 @@ app = FastAPI(
 cfg = get_config()
 origins = [o.strip() for o in cfg.cors_origins.split(",") if o.strip()]
 
-app.add_middleware(LoggingMiddleware)
-app.add_middleware(RateLimitingMiddleware)
+fastapi_app.add_middleware(LoggingMiddleware)
+fastapi_app.add_middleware(RateLimitingMiddleware)
 
-app.add_middleware(
+fastapi_app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
@@ -122,14 +122,14 @@ app.add_middleware(
 )
 
 # ----- Routers -----
-app.include_router(health.router)
-app.include_router(summarize.router)
-app.include_router(auth.router)
-app.include_router(ingest.router, prefix="/api")
-app.include_router(synthesis.router, prefix="/api")
-app.include_router(chat.router, prefix="/api")
-app.include_router(flashcards.router, prefix="/api")
-app.include_router(tts.router, prefix="/api")
-app.include_router(documents.router, prefix="/api")
-app.include_router(analytics.router, prefix="/api")
-app.include_router(streaming.router)
+fastapi_app.include_router(health.router)
+fastapi_app.include_router(summarize.router)
+fastapi_app.include_router(auth.router)
+fastapi_app.include_router(ingest.router, prefix="/api")
+fastapi_app.include_router(synthesis.router, prefix="/api")
+fastapi_app.include_router(chat.router, prefix="/api")
+fastapi_app.include_router(flashcards.router, prefix="/api")
+fastapi_app.include_router(tts.router, prefix="/api")
+fastapi_app.include_router(documents.router, prefix="/api")
+fastapi_app.include_router(analytics.router, prefix="/api")
+fastapi_app.include_router(streaming.router)
