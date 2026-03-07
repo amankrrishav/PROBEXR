@@ -28,6 +28,12 @@ if _db_url:
     # Normalise postgres:// → postgresql://
     if _db_url.startswith("postgres://"):
         _db_url = _db_url.replace("postgres://", "postgresql://", 1)
+    
+    # CockroachDB + Render fix: verify-full requires a local cert file which isn't present.
+    # We switch to 'require' for migrations to ensure connectivity.
+    if "cockroachlabs.cloud" in _db_url and "sslmode=verify-full" in _db_url:
+        _db_url = _db_url.replace("sslmode=verify-full", "sslmode=require")
+    
     config.set_main_option("sqlalchemy.url", _db_url)
 
 
