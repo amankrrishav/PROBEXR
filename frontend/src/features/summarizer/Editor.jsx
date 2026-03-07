@@ -8,7 +8,7 @@ const LENGTH_OPTIONS = [
 
 export default function Editor({ onSummarize, handleKeyDown }) {
   const {
-    text, setText, loading, loadingMessage, error, wordCount, charCount,
+    text, setText, loading, loadingMessage, error, wordCount,
     hasSummary, isUrlMode, setIsUrlMode, url, setUrl,
     streaming, cancelStreaming, summaryLength, setSummaryLength,
   } = useSummarizerContext();

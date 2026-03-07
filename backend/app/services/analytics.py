@@ -54,7 +54,7 @@ async def get_dashboard(user_id: int, session: AsyncSession) -> dict:
     fc_card_stmt = (
         select(func.count())
         .select_from(Flashcard)
-        .join(FlashcardSet, Flashcard.set_id == FlashcardSet.id)
+        .join(FlashcardSet, Flashcard.set_id == FlashcardSet.id)  # type: ignore[arg-type]
         .where(FlashcardSet.user_id == user_id)
     )
     total_flashcards = (await session.execute(fc_card_stmt)).scalar() or 0
@@ -71,7 +71,7 @@ async def get_dashboard(user_id: int, session: AsyncSession) -> dict:
     chat_msg_stmt = (
         select(func.count())
         .select_from(ChatMessage)
-        .join(ChatSession, ChatMessage.session_id == ChatSession.id)
+        .join(ChatSession, ChatMessage.session_id == ChatSession.id)  # type: ignore[arg-type]
         .where(ChatSession.user_id == user_id)
     )
     total_chat_messages = (await session.execute(chat_msg_stmt)).scalar() or 0

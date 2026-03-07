@@ -75,7 +75,7 @@ async def _assert_safe_url(url: str) -> None:
         raise ValueError(f"Could not resolve hostname: {hostname}")
 
     for info in infos:
-        raw_ip = info[4][0]
+        raw_ip: str = str(info[4][0])
         _check_ip_not_private(raw_ip)
 
 
@@ -94,7 +94,10 @@ async def fetch_and_clean_url(url: str, user_id: int, session: AsyncSession) -> 
         return existing
 
     # 3. Fetch with size enforcement
-    async with httpx.AsyncClient(follow_redirects=True, timeout=15.0) as client:
+    headers = {
+        "User-Agent": "Mozilla/5.0 (compatible; ReadPulse/1.0; +http://localhost)"
+    }
+    async with httpx.AsyncClient(follow_redirects=True, timeout=15.0, headers=headers) as client:
         # Start a streaming request to read Content-Length header first
         async with client.stream("GET", url) as response:
             response.raise_for_status()
@@ -122,15 +125,47 @@ async def fetch_and_clean_url(url: str, user_id: int, session: AsyncSession) -> 
     raw_html = raw_bytes.decode("utf-8", errors="replace")
 
     # 4. Parse + clean
+    import re
     soup = BeautifulSoup(raw_html, "html.parser")
     title = soup.title.string if soup.title and soup.title.string else url
 
+    # Remove noisy tags
     for element in soup(
         ["script", "style", "meta", "noscript", "header", "footer", "nav", "aside", "svg"]
     ):
         element.extract()
 
+    # Remove noisy elements by id or class (Wikipedia chrome, generic site UI)
+    NOISY_IDS = {
+        "catlinks", "mw-navigation", "mw-head", "mw-panel", "mw-page-base",
+        "mw-head-base", "footer", "siteNotice", "contentSub", "jump-to-nav",
+        "mw-fr-toolbar", "toc",
+    }
+    NOISY_CLASSES = {
+        "navbox", "navbox-inner", "navbox-group", "navbox-list",
+        "reflist", "refbegin", "references",
+        "mw-editsection", "mw-jump-link", "mw-indicators",
+        "printfooter", "catlinks", "sistersitebox",
+        "infobox", "sidebar", "toc", "thumb", "noprint",
+        "hatnote", "mbox", "ambox", "ombox", "tmbox", "fmbox", "cmbox",
+        "spoken-wikipedia", "bandeau-container",
+    }
+    for element in soup.find_all(True):
+        el_id = element.get("id", "")
+        classes_raw = element.get("class")
+        if not classes_raw:
+            el_classes = set()
+        elif isinstance(classes_raw, list):
+            el_classes = set(classes_raw)
+        else:
+            el_classes = set([str(classes_raw)])
+        if el_id in NOISY_IDS or bool(el_classes & NOISY_CLASSES):
+            element.extract()
+
     cleaned_content = soup.get_text(separator="\n", strip=True)
+
+    # Collapse excessive blank lines
+    cleaned_content = re.sub(r"\n{3,}", "\n\n", cleaned_content).strip()
 
     # Trim stored content to avoid unbounded DB growth
     cleaned_to_store = cleaned_content[:MAX_CLEANED_BYTES]

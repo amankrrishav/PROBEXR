@@ -25,11 +25,12 @@ export default function SummaryStats({ meta }) {
     const [visible, setVisible] = useState(false);
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setVisible(false);
         if (meta) {
             const t = setTimeout(() => setVisible(true), 150);
             return () => clearTimeout(t);
         }
-        setVisible(false);
     }, [meta]);
 
     if (!meta) return null;

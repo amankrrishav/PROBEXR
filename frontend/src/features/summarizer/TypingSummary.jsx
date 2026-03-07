@@ -17,10 +17,14 @@ const TypingSummary = memo(function TypingSummary({
 
   useEffect(() => {
     if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
-    if (streaming || !text) { setDisplayedText(""); return; }
-    if (instant) { setDisplayedText(text); return; }
+    
+    if (instant && text && !streaming) { 
+        setDisplayedText(text); 
+        return; 
+    }
 
     setDisplayedText("");
+    if (streaming || !text) return;
     const words = text.split(/(\s+)/);
     let index = 0, accumulated = "";
     intervalRef.current = setInterval(() => {

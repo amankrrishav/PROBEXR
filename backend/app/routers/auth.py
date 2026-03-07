@@ -41,6 +41,7 @@ async def register(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+    assert user.id is not None
     access_token = create_access_token({"sub": user.email})
     refresh = await create_refresh_token(session, user.id)
 
@@ -60,6 +61,7 @@ async def login(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
 
+    assert user.id is not None
     access_token = create_access_token({"sub": user.email})
     refresh = await create_refresh_token(session, user.id)
 
@@ -112,6 +114,7 @@ async def logout_all(
     session: DbSession,
 ) -> dict:
     """Revoke all refresh tokens for the current user (log out everywhere)."""
+    assert current_user.id is not None
     count = await revoke_all_user_tokens(session, current_user.id)
     delete_auth_cookies(response)
     return {"message": f"Logged out of all sessions ({count} tokens revoked)"}

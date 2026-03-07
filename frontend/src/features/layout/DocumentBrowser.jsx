@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAppContext } from "../../contexts/AppContext.jsx";
-import { useSummarizerContext } from "../../contexts/SummarizerContext.jsx";
 import { getDocuments, deleteDocument } from "../../services/api";
 
 // ─── Helpers ─────────────────────────────────────────────────────────
@@ -72,7 +71,6 @@ function DocCard({ doc, onDelete, deleting }) {
 // ═════════════════════════════════════════════════════════════════════
 export default function DocumentBrowser({ onSelectDocument }) {
     const { auth } = useAppContext();
-    const summarizer = useSummarizerContext();
     const user = auth?.user;
 
     const [documents, setDocuments] = useState([]);

@@ -134,11 +134,12 @@ async def summarize_stream(
 
     # Extractive fallback — emit as a single token + metadata
     if prep.is_extractive:
-        meta = _compute_metadata(prep.original_text, prep.extractive_result)
+        ext_res = prep.extractive_result or ""
+        meta = _compute_metadata(prep.original_text, ext_res)
         takeaways = prep.extractive_takeaways or []
 
-        async def _extractive_gen():
-            yield _sse_token(prep.extractive_result)
+        async def _extractive_gen() -> AsyncIterator[str]:
+            yield _sse_token(ext_res)
             yield f"data: {json.dumps({'takeaways': takeaways})}\n\n"
             yield _sse_done(0.0, 1, **meta, quality="extractive", length=prep.length)
         return StreamingResponse(_extractive_gen(), media_type="text/event-stream")

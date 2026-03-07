@@ -8,16 +8,13 @@ export function useBackendHealth(options = {}) {
   const { enabled = true } = options;
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(enabled);
+  const [isFetching, setIsFetching] = useState(enabled);
 
   useEffect(() => {
-    if (!enabled) {
-      setLoading(false);
-      return;
-    }
+    if (!enabled) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setIsFetching(true);
     let cancelled = false;
-    setLoading(true);
-    setError(null);
     getHealth()
       .then((res) => {
         if (!cancelled) {
@@ -32,7 +29,7 @@ export function useBackendHealth(options = {}) {
         }
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setIsFetching(false);
       });
     return () => {
       cancelled = true;
@@ -44,6 +41,6 @@ export function useBackendHealth(options = {}) {
     backendMode: data?.mode ?? null,
     backendVersion: data?.version ?? null,
     backendError: error,
-    backendLoading: loading,
+    backendLoading: enabled ? isFetching : false,
   };
 }

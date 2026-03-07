@@ -31,7 +31,7 @@ function NotableQuotes({ quotes }) {
               key={i}
               className="border-l-2 border-gray-200 dark:border-gray-700 pl-4 text-[13px] leading-relaxed text-gray-500 dark:text-gray-400 italic"
             >
-              "{q}"
+              &quot;{q}&quot;
             </blockquote>
           ))}
         </div>

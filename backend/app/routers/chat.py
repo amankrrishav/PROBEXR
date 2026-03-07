@@ -36,7 +36,7 @@ async def list_chat_sessions(
     stmt = (
         select(ChatSession)
         .where(ChatSession.user_id == user.id)
-        .order_by(ChatSession.created_at.desc())  # type: ignore[arg-type]
+        .order_by(ChatSession.created_at.desc())  # type: ignore[attr-defined]
         .offset(offset)
         .limit(per_page)
     )
@@ -93,7 +93,7 @@ async def list_session_messages(
     stmt = (
         select(ChatMessage)
         .where(ChatMessage.session_id == session_id)
-        .order_by(ChatMessage.created_at.asc())  # type: ignore[arg-type]
+        .order_by(ChatMessage.created_at.asc())  # type: ignore[attr-defined]
         .offset(offset)
         .limit(per_page)
     )
