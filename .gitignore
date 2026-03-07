@@ -71,3 +71,13 @@ backend/app/logs/
 *.njsproj
 *.sln
 *.sw?
+
+# ===============================
+# Testing & Linting Caches
+# ===============================
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+lint_output.txt
+.eslintcache
