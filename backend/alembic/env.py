@@ -24,7 +24,7 @@ if config.config_file_name is not None:
 _db_url = os.environ.get("DATABASE_URL")
 if _db_url:
     # Alembic needs the sync driver, strip async prefixes
-    _db_url = _db_url.replace("+asyncpg", "").replace("+aiosqlite", "")
+    _db_url = _db_url.replace("+asyncpg", "+psycopg").replace("+aiosqlite", "")
     # Normalise postgres:// → postgresql://
     if _db_url.startswith("postgres://"):
         _db_url = _db_url.replace("postgres://", "postgresql://", 1)
