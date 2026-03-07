@@ -46,3 +46,4 @@ redis>=5.0
 greenlet>=3.0
 soupsieve>=2.5
 alembic>=1.13
+psycopg2-binary>=2.9.9
