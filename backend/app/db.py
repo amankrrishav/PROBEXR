@@ -42,24 +42,8 @@ else:
 print(f"App: Initializing Async Engine (scheme={cfg.async_database_url.split('://')[0]})")
 async_engine = create_async_engine(cfg.async_database_url, **_engine_kwargs)
 
-# CockroachDB Version Hack: Prevent SQLAlchemy from crashing on version check
-from sqlalchemy import event  # noqa: E402
-@event.listens_for(async_engine.sync_engine, "connect")
-def _receive_connect(dbapi_connection, connection_record):
-    """Bypass version check for CockroachDB."""
-    # For many drivers, we can monkeypatch the connection object
-    if hasattr(dbapi_connection, "get_server_version_info"):
-        try:
-            dbapi_connection.get_server_version_info = lambda: (13, 0, 0)
-        except Exception:
-            pass
-    
-    # For asyncpg, it might be on the underlying connection
-    if hasattr(dbapi_connection, "_connection") and hasattr(dbapi_connection._connection, "get_server_version_info"):
-        try:
-            dbapi_connection._connection.get_server_version_info = lambda: (13, 0, 0)
-        except Exception:
-            pass
+# The async engine now uses the cockroachdb+asyncpg dialect in production, 
+# which correctly handles the CockroachDB version string.
 
 async_session_factory: async_sessionmaker[AsyncSession] = async_sessionmaker(
     async_engine, expire_on_commit=False

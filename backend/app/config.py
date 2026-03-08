@@ -131,12 +131,15 @@ class AppConfig:
             return ""
 
         # 1. Normalise driver prefixes
+        is_cloud = any(x in url for x in ["cockroachlabs.cloud", "render.com", "amazonaws.com"])
         if url.startswith("sqlite:///"):
             url = url.replace("sqlite:///", "sqlite+aiosqlite:///", 1)
-        elif url.startswith("postgresql://"):
-            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
-        elif url.startswith("postgres://"):
-            url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+        elif url.startswith("postgresql://") or url.startswith("postgres://"):
+            prefix = "postgresql"
+            if is_cloud:
+                prefix = "cockroachdb"
+            url = url.replace("postgresql://", f"{prefix}+asyncpg://", 1)
+            url = url.replace("postgres://", f"{prefix}+asyncpg://", 1)
         
         # 2. Aggressive Purification for Cloud/CockroachDB
         from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
