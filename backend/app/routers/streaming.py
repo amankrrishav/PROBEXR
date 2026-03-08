@@ -146,8 +146,10 @@ async def summarize_stream(
 
     # LLM path: stream the unified prompt, then parse JSON for summary + takeaways
     collected_tokens: list[str] = []
+    found_separator = False
 
     async def _summarize_stream_with_meta():
+        nonlocal found_separator
         async for chunk in _stream_llm(
             prep.messages,
             max_tokens=prep.max_tokens,
@@ -159,13 +161,22 @@ async def summarize_stream(
                 try:
                     token_data = json.loads(chunk[6:])
                     if "token" in token_data:
-                        collected_tokens.append(token_data["token"])
+                        token = token_data["token"]
+                        collected_tokens.append(token)
+                        
+                        # Check if we've hit the separator in the accumulated text
+                        if "---JSON_START---" in "".join(collected_tokens):
+                            found_separator = True
                 except Exception:
                     pass
+            
             # Don't yield the _stream_llm's DONE event; we replace it with our own
             if chunk.startswith('data: {"done"'):
                 continue
-            yield chunk
+            
+            # Only yield tokens if we haven't hit the JSON separator yet
+            if not found_separator:
+                yield chunk
 
         # After streaming completes, parse the collected JSON to extract
         # summary text and takeaways from the unified response

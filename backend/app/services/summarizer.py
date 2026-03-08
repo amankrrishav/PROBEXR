@@ -438,8 +438,13 @@ def _build_unified_prompt(
 - If the article lacks depth or substance, produce a proportionally shorter summary rather than padding with filler.
 
 ## Output Format
-Respond with ONLY a valid JSON object — no markdown fences, no commentary, no preamble:
-{{"summary": "your summary here", "key_takeaways": ["takeaway 1", "takeaway 2", ...]}}"""
+Respond with the summary text FIRST, then the separator "---JSON_START---", and finally a valid JSON object containing the takeaways.
+
+Example:
+South Asia is a subregion... (your summary)
+---JSON_START---
+{{"key_takeaways": ["takeaway 1", "takeaway 2", ...]}}
+"""
 
     user = f"Article to summarize:\n\n{text}"
 
@@ -450,10 +455,33 @@ Respond with ONLY a valid JSON object — no markdown fences, no commentary, no 
 
 
 def _parse_llm_json(raw: str) -> dict[str, Any]:
-    """Robustly parse the LLM's JSON response, handling common format issues."""
+    """Robustly parse the LLM's response, handling both unified JSON and the new text + JSON format."""
     cleaned = raw.strip()
 
-    # Strip markdown code fences if present
+    # 1. New Format check: Text + Separator + JSON
+    if "---JSON_START---" in cleaned:
+        parts = cleaned.split("---JSON_START---", 1)
+        summary = parts[0].strip()
+        json_part = parts[1].strip()
+        
+        # Strip markdown code fences if present in the JSON part
+        if json_part.startswith("```"):
+            json_part = re.sub(r'^```\w*\n?', '', json_part)
+            json_part = re.sub(r'\n?```$', '', json_part)
+            json_part = json_part.strip()
+            
+        try:
+            result = json.loads(json_part)
+            if isinstance(result, dict):
+                # Ensure we have the summary field
+                result["summary"] = summary
+                return result
+        except json.JSONDecodeError:
+            # Fall back to trying to find JSON within the json_part
+            pass
+
+    # 2. Legacy/Fallback: Try to find JSON object in the entire response
+    # Strip markdown code fences
     if cleaned.startswith("```"):
         cleaned = re.sub(r'^```\w*\n?', '', cleaned)
         cleaned = re.sub(r'\n?```$', '', cleaned)
@@ -481,8 +509,13 @@ def _parse_llm_json(raw: str) -> dict[str, Any]:
                 candidate = cleaned[start:i + 1]
                 try:
                     result = json.loads(candidate)
-                    if isinstance(result, dict) and "summary" in result:
-                        return result
+                    if isinstance(result, dict):
+                        # If we have a summary and it's not JSON, we found a winner
+                        if "summary" in result or "key_takeaways" in result:
+                            # If no summary in JSON, maybe it was before the JSON
+                            if "summary" not in result and start > 0:
+                                result["summary"] = cleaned[:start].strip()
+                            return result
                 except json.JSONDecodeError:
                     pass
                 start = -1
