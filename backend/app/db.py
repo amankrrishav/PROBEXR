@@ -54,11 +54,18 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 from sqlalchemy import create_engine as _sa_create_engine  # noqa: E402
 
 _sync_url = cfg.database_url
-# Ensure Alembic uses the raw (sync) URL
+# Ensure Alembic uses the raw (sync) URL or modernized psycopg v3 URL
 if "+asyncpg" in _sync_url:
-    _sync_url = _sync_url.replace("+asyncpg", "")
+    _sync_url = _sync_url.replace("+asyncpg", "+psycopg")
 if "+aiosqlite" in _sync_url:
     _sync_url = _sync_url.replace("+aiosqlite", "")
+
+# Sync fix for CockroachDB cloud
+if "cockroachlabs.cloud" in _sync_url:
+    if "sslmode=verify-full" in _sync_url:
+        _sync_url = _sync_url.replace("sslmode=verify-full", "sslmode=require")
+    elif "sslmode" not in _sync_url:
+        _sync_url += ("&" if "?" in _sync_url else "?") + "sslmode=require"
 
 _sync_engine_kwargs: dict[str, Any] = {}
 if cfg.is_sqlite:
