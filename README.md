@@ -3,9 +3,12 @@
 ReadPulse is a full-stack article summarizer and learning platform: paste text or URLs, get a short, human-like summary, chat with the document, and export flashcards.  
 *Extract signal. Ignore noise.*
 
+**Live App:** [https://probefy.netlify.app/](https://probefy.netlify.app/)  
+**Live API (Core Hub):** [https://readpulse.onrender.com/](https://readpulse.onrender.com/)
+
 **100% free and open-source.** No plans, no paywalls, no limits.
 
-**Backend:** Scalable FastAPI app with async PostgreSQL (asyncpg), Redis rate limiting, and streaming-ready LLM layer. **$0 options:** no API key = extractive summarization; or Groq/OpenRouter free tier for human-like summaries. No need to spend $5–10/month. Runs locally with SQLite + no Redis for easy development.
+**Backend:** Scalable FastAPI app with async PostgreSQL/CockroachDB (asyncpg), Redis rate limiting, and streaming-ready LLM layer. **$0 options:** no API key = extractive summarization; or Groq/OpenRouter free tier for human-like summaries. No need to spend $5–10/month. Runs locally with SQLite + no Redis for easy development.
 
 ---
 
@@ -126,11 +129,11 @@ backend/
 
 ## Deploy (serverless / cloud)
 
-- **Railway / Render / Fly:** Set build command to install deps and start command to `uvicorn app.main:app --host 0.0.0.0 --port $PORT`. Add env vars (`DATABASE_URL` for PostgreSQL, `REDIS_URL`, `SECRET_KEY`, and optionally `GROQ_API_KEY`). Run `python -m alembic upgrade head` as a release command.  
+- **Railway / Render / Fly:** Set build command to install deps and start command to `uvicorn app.main:app --host 0.0.0.0 --port $PORT`. Add env vars (`DATABASE_URL` for PostgreSQL/CockroachDB, `REDIS_URL`, `SECRET_KEY`, and optionally `GROQ_API_KEY`). Run `python -m alembic upgrade head` as a release command. Use `cockroachdb+psycopg` for migrations and `postgresql+asyncpg` for the app.
 - **AWS Lambda:** Use [Mangum](https://mangum.io/) to wrap `app.main:app`; package with dependencies; set handler and env.  
-- **Vercel / Netlify:** Use their Python serverless support and point to a single module that exports the ASGI app (or a serverless function that forwards to your backend URL).  
-- **Database:** Use a managed PostgreSQL (e.g. Supabase, Neon, Railway Postgres) and set `DATABASE_URL`.  
-- **Redis:** Use managed Redis (e.g. Upstash, Railway Redis) and set `REDIS_URL`. Falls back to in-memory if unavailable.
+- **Vercel / Netlify:** Optimized for React. Use `netlify.toml` with `base = "frontend"` and point to the `dist` directory. Ensure `_redirects` is set for SPA routing.
+- **Database:** Use a managed PostgreSQL or CockroachDB (e.g. CockroachDB Serverless, Supabase, Neon). Configure `sslmode=require` for secure connections.
+- **Redis:** Use managed Redis (e.g. Upstash, Railway Redis) or Aiven. Falls back to in-memory if unavailable.
 
 ---
 

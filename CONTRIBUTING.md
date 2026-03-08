@@ -78,7 +78,7 @@ See root [README.md](README.md) and `backend/README.md`, `frontend/README.md` fo
 
 ## Infrastructure notes
 
-- **Database:** All services use `AsyncSession` (from `sqlalchemy.ext.asyncio`). PostgreSQL (`asyncpg`) for production, SQLite (`aiosqlite`) for dev. Connection pooling is configured in `config.py`.
+- **Database:** All services use `AsyncSession` (from `sqlalchemy.ext.asyncio`). PostgreSQL/CockroachDB (`asyncpg`) for production, SQLite (`aiosqlite`) for dev. In production, we use a specialized setup for CockroachDB compatibility (splitting dialects for migrations and app).
 - **Rate limiting:** Redis-backed (`INCR + EXPIRE`) with in-memory fallback. Configured in `middleware.py`, initialized in `main.py` lifespan.
 - **LLM layer:** `services/llm.py` provides `generate_full()` (blocking) and `generate_stream()` (async iterator). Existing callers use `chat_completion` alias.
 - **Migrations:** Alembic reads `DATABASE_URL` from environment. Run `python -m alembic upgrade head` after model changes.
