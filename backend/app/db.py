@@ -36,6 +36,7 @@ else:
         "pool_timeout": cfg.db_pool_timeout,
         "pool_pre_ping": True,
         "echo": False,
+        "connect_args": {"ssl": True},
     }
 
 print(f"App: Initializing Async Engine (scheme={cfg.async_database_url.split('://')[0]})")
