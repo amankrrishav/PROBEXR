@@ -22,7 +22,6 @@ from app.middleware import (
 
 logger = logging.getLogger(__name__)
 
-print("READPULSE PULSE: Main script loaded.")
 
 @asynccontextmanager
 async def lifespan(app_inst: FastAPI):
@@ -101,7 +100,7 @@ async def lifespan(app_inst: FastAPI):
         await redis_client.aclose()
         logger.info("Redis connection closed.")
 
-fastapi_app = FastAPI(
+app = FastAPI(
     title="ReadPulse",
     description="Human-like article summarization API",
     version="1.0.0",
@@ -111,10 +110,10 @@ fastapi_app = FastAPI(
 cfg = get_config()
 origins = [o.strip() for o in cfg.cors_origins.split(",") if o.strip()]
 
-fastapi_app.add_middleware(LoggingMiddleware)
-fastapi_app.add_middleware(RateLimitingMiddleware)
+app.add_middleware(LoggingMiddleware)
+app.add_middleware(RateLimitingMiddleware)
 
-fastapi_app.add_middleware(
+app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
@@ -123,14 +122,14 @@ fastapi_app.add_middleware(
 )
 
 # ----- Routers -----
-fastapi_app.include_router(health.router)
-fastapi_app.include_router(summarize.router)
-fastapi_app.include_router(auth.router)
-fastapi_app.include_router(ingest.router, prefix="/api")
-fastapi_app.include_router(synthesis.router, prefix="/api")
-fastapi_app.include_router(chat.router, prefix="/api")
-fastapi_app.include_router(flashcards.router, prefix="/api")
-fastapi_app.include_router(tts.router, prefix="/api")
-fastapi_app.include_router(documents.router, prefix="/api")
-fastapi_app.include_router(analytics.router, prefix="/api")
-fastapi_app.include_router(streaming.router)
+app.include_router(health.router)
+app.include_router(summarize.router)
+app.include_router(auth.router)
+app.include_router(ingest.router, prefix="/api")
+app.include_router(synthesis.router, prefix="/api")
+app.include_router(chat.router, prefix="/api")
+app.include_router(flashcards.router, prefix="/api")
+app.include_router(tts.router, prefix="/api")
+app.include_router(documents.router, prefix="/api")
+app.include_router(analytics.router, prefix="/api")
+app.include_router(streaming.router)
