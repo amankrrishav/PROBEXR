@@ -30,6 +30,14 @@ if cfg.is_sqlite:
     }
 else:
     # PostgreSQL + asyncpg: real connection pooling
+    _engine_kwargs = {
+        "pool_size": cfg.db_pool_size,
+        "max_overflow": cfg.db_max_overflow,
+        "pool_timeout": cfg.db_pool_timeout,
+        "pool_pre_ping": True,
+        "echo": False,
+    }
+
 print(f"App: Initializing Async Engine (scheme={cfg.async_database_url.split('://')[0]})")
 async_engine = create_async_engine(cfg.async_database_url, **_engine_kwargs)
 
