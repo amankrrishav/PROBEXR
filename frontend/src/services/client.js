@@ -93,11 +93,14 @@ export async function request(path, options = {}) {
 
     if (!res.ok) {
       let message = res.statusText || "Request failed";
-      try {
-        const data = await res.json();
-        message = parseErrorDetail(data.detail) || data.error || message;
-      } catch {
-        // ignore
+      const contentType = res.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        try {
+          const data = await res.json();
+          message = parseErrorDetail(data.detail) || data.error || message;
+        } catch {
+          // ignore
+        }
       }
       throw new Error(message);
     }
@@ -105,7 +108,11 @@ export async function request(path, options = {}) {
     // 204 No Content (e.g. DELETE) — no body to parse
     if (res.status === 204) return null;
 
-    return res.json();
+    const contentType = res.headers.get("content-type");
+    if (contentType && contentType.includes("application/json")) {
+      return res.json();
+    }
+    return res.text();
   } catch (err) {
     clearTimeout(timeoutId);
     if (err.name === "AbortError") {
@@ -158,11 +165,14 @@ export async function streamRequest(path, options, onToken, onDone, onTakeaways,
 
     if (!res.ok) {
       let message = res.statusText || "Stream request failed";
-      try {
-        const data = await res.json();
-        message = parseErrorDetail(data.detail) || data.error || message;
-      } catch {
-        // body may not be JSON
+      const contentType = res.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        try {
+          const data = await res.json();
+          message = parseErrorDetail(data.detail) || data.error || message;
+        } catch {
+          // ignore
+        }
       }
       onError(message);
       return;
