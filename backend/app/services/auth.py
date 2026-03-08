@@ -84,7 +84,7 @@ async def create_refresh_token(session: AsyncSession, user_id: int) -> RefreshTo
     token = RefreshToken(
         token=str(uuid.uuid4()),
         user_id=user_id,
-        family=str(uuid.uuid4()),
+        token_family=str(uuid.uuid4()),
         expires_at=datetime.now(timezone.utc) + timedelta(days=cfg.refresh_token_expire_days),
     )
     session.add(token)
@@ -112,7 +112,7 @@ async def rotate_refresh_token(session: AsyncSession, old_token_str: str) -> tup
 
     # Reuse detection: if token is already revoked, someone is replaying it
     if old_token.is_revoked:
-        await _revoke_family(session, old_token.family)
+        await _revoke_family(session, old_token.token_family)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Refresh token reuse detected — all sessions revoked",
@@ -141,7 +141,7 @@ async def rotate_refresh_token(session: AsyncSession, old_token_str: str) -> tup
     new_token = RefreshToken(
         token=str(uuid.uuid4()),
         user_id=old_token.user_id,
-        family=old_token.family,
+        token_family=old_token.token_family,
         expires_at=datetime.now(timezone.utc) + timedelta(days=cfg.refresh_token_expire_days),
     )
     session.add(new_token)
@@ -179,10 +179,10 @@ async def revoke_all_user_tokens(session: AsyncSession, user_id: int) -> int:
     return count
 
 
-async def _revoke_family(session: AsyncSession, family: str) -> None:
+async def _revoke_family(session: AsyncSession, token_family: str) -> None:
     """Revoke all tokens in a family (reuse detection response)."""
     statement = select(RefreshToken).where(
-        RefreshToken.family == family,
+        RefreshToken.token_family == token_family,
         RefreshToken.is_revoked == False,  # noqa: E712
     )
     result = await session.execute(statement)
