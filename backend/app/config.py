@@ -149,9 +149,8 @@ class AppConfig:
             for k in ["sslrootcert", "sslcert", "sslkey"]:
                 q.pop(k, None)
             
-            # Ensure safe sslmode for cloud
-            if "cockroachlabs.cloud" in url or "render.com" in url or "amazonaws.com" in url:
-                q["sslmode"] = ["require"]
+            # Ensure we strip sslmode for asyncpg (handled in connect_args)
+            q.pop("sslmode", None)
             
             u = u._replace(query=urlencode(q, doseq=True))
             url = urlunparse(u)
