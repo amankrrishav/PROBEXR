@@ -4,8 +4,9 @@ Add new routers in app/routers and mount here.
 """
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_config
@@ -108,12 +109,39 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    # Ensure CORS headers for cross-domain auth failures
+    cfg = get_config()
+    origins = [o.strip() for o in cfg.cors_origins.split(",") if o.strip()]
+    origin = request.headers.get("origin")
+    headers = {}
+    if origin in origins or "*" in origins:
+        headers["Access-Control-Allow-Origin"] = origin
+        headers["Access-Control-Allow-Credentials"] = "true"
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+        headers=headers,
+    )
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logger.exception("Global exception caught: %s", str(exc))
+    cfg = get_config()
+    origins = [o.strip() for o in cfg.cors_origins.split(",") if o.strip()]
+    origin = request.headers.get("origin")
+    headers = {}
+    if origin in origins or "*" in origins:
+        headers["Access-Control-Allow-Origin"] = origin
+        headers["Access-Control-Allow-Credentials"] = "true"
+
     return JSONResponse(
         status_code=500,
         content={"detail": "Internal Server Error", "error": str(exc)},
+        headers=headers,
     )
 
 cfg = get_config()

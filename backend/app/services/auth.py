@@ -64,13 +64,13 @@ def create_access_token(data: dict[str, Any]) -> str:
 
 
 def set_auth_cookie(response: Response, token: str) -> None:
-    is_secure = cfg.environment == "production"
+    is_prod = cfg.environment == "production"
     response.set_cookie(
         key="access_token",
         value=f"Bearer {token}",
         httponly=True,
-        samesite="lax",
-        secure=is_secure,
+        samesite="none" if is_prod else "lax",
+        secure=is_prod,  # Mandatory for samesite=none
         max_age=cfg.access_token_expire_minutes * 60,
     )
 
@@ -194,15 +194,15 @@ async def _revoke_family(session: AsyncSession, token_family: str) -> None:
 
 
 def set_refresh_cookie(response: Response, token_str: str) -> None:
-    is_secure = cfg.environment == "production"
+    is_prod = cfg.environment == "production"
     response.set_cookie(
         key="refresh_token",
         value=token_str,
         httponly=True,
-        samesite="lax",
-        secure=is_secure,
+        samesite="none" if is_prod else "lax",
+        secure=is_prod,  # Mandatory for samesite=none
         path="/auth",  # Only sent to auth endpoints
-        max_age=cfg.refresh_token_expire_days * 86400,
+        max_age=cfg.refresh_token_expire_days * 24 * 60 * 60,
     )
 
 
