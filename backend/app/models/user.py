@@ -18,4 +18,9 @@ class User(SQLModel, table=True):
     last_login_at: Optional[datetime] = None
     signup_source: Optional[str] = Field(default=None, index=True)
 
+    # Usage / Plan
+    plan: str = Field(default="free", index=True)
+    usage_today: int = Field(default=0)
+    usage_reset_at: Optional[datetime] = None
+
     documents: list["Document"] = Relationship(back_populates="user", cascade_delete=True)
