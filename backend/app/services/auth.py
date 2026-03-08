@@ -230,6 +230,7 @@ async def register_user(session: AsyncSession, email: str, password: str) -> Use
         email=email,
         hashed_password=hash_password(password),
         signup_source="app",
+        created_at=datetime.utcnow(),
     )
     session.add(user)
     await session.commit()
