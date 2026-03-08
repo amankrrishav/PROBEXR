@@ -53,9 +53,12 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 # --- Sync engine for Alembic migrations only ---
 from sqlalchemy import create_engine as _sa_create_engine  # noqa: E402
 
-_sync_url = cfg.database_url
-# Ensure Alembic uses the raw (sync) URL or modernized psycopg v3 URL
-if _sync_url.startswith("postgres://"):
+# Ensure Alembic uses the raw (sync) URL or modernized CockroachDB driver
+if "cockroachlabs.cloud" in _sync_url:
+    _sync_url = _sync_url.replace("postgresql://", "cockroachdb+psycopg://").replace("postgres://", "cockroachdb+psycopg://")
+    if "+asyncpg" in _sync_url:
+        _sync_url = _sync_url.replace("+asyncpg", "+psycopg")
+elif _sync_url.startswith("postgres://"):
     _sync_url = _sync_url.replace("postgres://", "postgresql+psycopg://", 1)
 elif _sync_url.startswith("postgresql://"):
     _sync_url = _sync_url.replace("postgresql://", "postgresql+psycopg://", 1)

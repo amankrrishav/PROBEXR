@@ -47,3 +47,4 @@ greenlet>=3.0
 soupsieve>=2.5
 alembic>=1.13
 psycopg[binary]>=3.2.0
+sqlalchemy-cockroachdb>=2.0.2
