@@ -23,33 +23,20 @@ if config.config_file_name is not None:
 # Override sqlalchemy.url from environment if available
 _db_url = os.environ.get("DATABASE_URL")
 if _db_url:
-    # Alembic needs the sync driver, strip async prefixes
-    _db_url = _db_url.replace("+asyncpg", "+psycopg").replace("+aiosqlite", "")
-    # Normalise and force CockroachDB v3 dialect for sync migrations
-    if "cockroachlabs.cloud" in _db_url:
-        if _db_url.startswith("postgres://"):
-            _db_url = _db_url.replace("postgres://", "cockroachdb+psycopg://", 1)
-        elif _db_url.startswith("postgresql://"):
-            _db_url = _db_url.replace("postgresql://", "cockroachdb+psycopg://", 1)
-        elif "+psycopg" in _db_url:
-            _db_url = _db_url.replace("postgresql+psycopg", "cockroachdb+psycopg", 1)
-        
-        # Ensure sslmode=require for Render compatibility
-        if "sslmode=verify-full" in _db_url:
-            _db_url = _db_url.replace("sslmode=verify-full", "sslmode=require")
-        elif "sslmode" not in _db_url:
-            connector = "&" if "?" in _db_url else "?"
-            _db_url += f"{connector}sslmode=require"
-    else:
-        # Standard Postgres driver upgrade for non-cockroach URLs
-        if _db_url.startswith("postgres://"):
-            _db_url = _db_url.replace("postgres://", "postgresql+psycopg://", 1)
-        elif _db_url.startswith("postgresql://"):
-            _db_url = _db_url.replace("postgresql://", "postgresql+psycopg://", 1)
-        elif "sslmode" not in _db_url:
-            connector = "&" if "?" in _db_url else "?"
-            _db_url += f"{connector}sslmode=require"
+    # 1. Robust Scheme Construction
+    is_cockroach = "cockroachlabs.cloud" in _db_url
+    if "://" in _db_url:
+        _, rest = _db_url.split("://", 1)
+        scheme = "cockroachdb+psycopg" if is_cockroach else "postgresql+psycopg"
+        _db_url = f"{scheme}://{rest}"
     
+    # 2. SSL Fallback for Render
+    if "sslmode=verify-full" in _db_url:
+        _db_url = _db_url.replace("sslmode=verify-full", "sslmode=require")
+    elif "sslmode" not in _db_url:
+        _db_url += ("&" if "?" in _db_url else "?") + "sslmode=require"
+    
+    print(f"Alembic: Connecting with scheme {_db_url.split(':', 1)[0]} (Cockroach={is_cockroach})")
     config.set_main_option("sqlalchemy.url", _db_url)
 
 

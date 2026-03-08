@@ -53,22 +53,15 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 # --- Sync engine for Alembic migrations only ---
 from sqlalchemy import create_engine as _sa_create_engine  # noqa: E402
 
-# Ensure Alembic uses the raw (sync) URL or modernized CockroachDB driver
-if "cockroachlabs.cloud" in _sync_url:
-    _sync_url = _sync_url.replace("postgresql://", "cockroachdb+psycopg://").replace("postgres://", "cockroachdb+psycopg://")
-    if "+asyncpg" in _sync_url:
-        _sync_url = _sync_url.replace("+asyncpg", "+psycopg")
-elif _sync_url.startswith("postgres://"):
-    _sync_url = _sync_url.replace("postgres://", "postgresql+psycopg://", 1)
-elif _sync_url.startswith("postgresql://"):
-    _sync_url = _sync_url.replace("postgresql://", "postgresql+psycopg://", 1)
-elif "+asyncpg" in _sync_url:
-    _sync_url = _sync_url.replace("+asyncpg", "+psycopg")
-elif "+aiosqlite" in _sync_url:
-    _sync_url = _sync_url.replace("+aiosqlite", "")
-
-# Sync fix for CockroachDB cloud
-if "cockroachlabs.cloud" in _sync_url:
+# Robust sync URL builder for Alembic/Migrations
+_sync_url = cfg.database_url
+if _sync_url:
+    _is_cockroach = "cockroachlabs.cloud" in _sync_url
+    if "://" in _sync_url:
+        _, _rest = _sync_url.split("://", 1)
+        _scheme = "cockroachdb+psycopg" if _is_cockroach else "postgresql+psycopg"
+        _sync_url = f"{_scheme}://{_rest}"
+    
     if "sslmode=verify-full" in _sync_url:
         _sync_url = _sync_url.replace("sslmode=verify-full", "sslmode=require")
     elif "sslmode" not in _sync_url:
