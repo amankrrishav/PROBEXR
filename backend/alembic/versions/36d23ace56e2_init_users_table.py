@@ -25,7 +25,7 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('email', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('hashed_password', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
-    sa.Column('is_active', sa.Boolean(), nullable=False, server_default=sa.text('1')),
+    sa.Column('is_active', sa.Boolean(), nullable=False, server_default=sa.text('true')),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('last_login_at', sa.DateTime(), nullable=True),
     sa.Column('signup_source', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
