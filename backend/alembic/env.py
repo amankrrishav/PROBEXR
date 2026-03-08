@@ -25,9 +25,14 @@ _db_url = os.environ.get("DATABASE_URL")
 if _db_url:
     # Alembic needs the sync driver, strip async prefixes
     _db_url = _db_url.replace("+asyncpg", "+psycopg").replace("+aiosqlite", "")
-    # Normalise postgres:// → postgresql://
+    # Normalise and force psycopg v3 for sync migrations
     if _db_url.startswith("postgres://"):
-        _db_url = _db_url.replace("postgres://", "postgresql://", 1)
+        _db_url = _db_url.replace("postgres://", "postgresql+psycopg://", 1)
+    elif _db_url.startswith("postgresql://"):
+        _db_url = _db_url.replace("postgresql://", "postgresql+psycopg://", 1)
+    elif "+psycopg" not in _db_url and "postgresql" in _db_url:
+        # Catch cases where it might already have a driver but not psycopg
+        _db_url = _db_url.replace("postgresql", "postgresql+psycopg", 1)
     
     # CockroachDB + Render fix: verify-full requires a local cert file which isn't present.
     # We switch to 'require' for migrations to ensure connectivity.
