@@ -25,20 +25,27 @@ _db_url = os.environ.get("DATABASE_URL")
 if _db_url:
     # Alembic needs the sync driver, strip async prefixes
     _db_url = _db_url.replace("+asyncpg", "+psycopg").replace("+aiosqlite", "")
-    # Normalise and force psycopg v3 for sync migrations
-    if _db_url.startswith("postgres://"):
-        _db_url = _db_url.replace("postgres://", "postgresql+psycopg://", 1)
-    elif _db_url.startswith("postgresql://"):
-        _db_url = _db_url.replace("postgresql://", "postgresql+psycopg://", 1)
-    elif "+psycopg" not in _db_url and "postgresql" in _db_url:
-        # Catch cases where it might already have a driver but not psycopg
-        _db_url = _db_url.replace("postgresql", "postgresql+psycopg", 1)
-    
-    # CockroachDB + Render fix: verify-full requires a local cert file which isn't present.
-    # We switch to 'require' for migrations to ensure connectivity.
+    # Normalise and force CockroachDB v3 dialect for sync migrations
     if "cockroachlabs.cloud" in _db_url:
+        if _db_url.startswith("postgres://"):
+            _db_url = _db_url.replace("postgres://", "cockroachdb+psycopg://", 1)
+        elif _db_url.startswith("postgresql://"):
+            _db_url = _db_url.replace("postgresql://", "cockroachdb+psycopg://", 1)
+        elif "+psycopg" in _db_url:
+            _db_url = _db_url.replace("postgresql+psycopg", "cockroachdb+psycopg", 1)
+        
+        # Ensure sslmode=require for Render compatibility
         if "sslmode=verify-full" in _db_url:
             _db_url = _db_url.replace("sslmode=verify-full", "sslmode=require")
+        elif "sslmode" not in _db_url:
+            connector = "&" if "?" in _db_url else "?"
+            _db_url += f"{connector}sslmode=require"
+    else:
+        # Standard Postgres driver upgrade for non-cockroach URLs
+        if _db_url.startswith("postgres://"):
+            _db_url = _db_url.replace("postgres://", "postgresql+psycopg://", 1)
+        elif _db_url.startswith("postgresql://"):
+            _db_url = _db_url.replace("postgresql://", "postgresql+psycopg://", 1)
         elif "sslmode" not in _db_url:
             connector = "&" if "?" in _db_url else "?"
             _db_url += f"{connector}sslmode=require"
