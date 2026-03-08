@@ -65,18 +65,42 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
+    print("Alembic Online: Starting engine creation...")
     try:
+        # 1. Driver/Dependency Check
+        try:
+            import psycopg
+            print(f"DRIVER CHECK: psycopg {psycopg.__version__} is available.")
+        except ImportError:
+            print("DRIVER CHECK: psycopg (v3) is NOT found. This is a fatal dependency issue.")
+        
+        # 2. Engine Creation
         connectable = engine_from_config(
             config.get_section(config.config_ini_section, {}),
             prefix="sqlalchemy.",
             poolclass=pool.NullPool,
         )
+        
+        # 3. CockroachDB Version Bypass (IN-PLACE FOR ALEMBIC ENGNE)
+        from sqlalchemy import event
+        @event.listens_for(connectable, "connect")
+        def _receive_connect(dbapi_connection, connection_record):
+            """Bypass version check to prevent SQLAlchemy from crashing on CockroachDB."""
+            def _get_server_version_info(connection):
+                return (13, 0, 0)
+            dbapi_connection.get_server_version_info = _get_server_version_info
+            print("ALEMBIC ENGINE: Version bypass injected.")
+
+        print("Alembic Online: Attempting connection...")
         with connectable.connect() as connection:
+            print("Alembic Online: Connected! Configuring context...")
             context.configure(
                 connection=connection, target_metadata=target_metadata
             )
             with context.begin_transaction():
+                print("Alembic Online: Running migrations...")
                 context.run_migrations()
+                print("Alembic Online: Success!")
     except Exception as e:
         print(f"ALEMBIC FATAL ERROR: {type(e).__name__}: {str(e)}")
         import traceback
