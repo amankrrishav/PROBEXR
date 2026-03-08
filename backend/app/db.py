@@ -12,6 +12,14 @@ from typing import Any, AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
+import sqlalchemy.dialects.postgresql.base  # Global monkeypatch for CockroachDB
+
+# --- THE SLEDGEHAMMER: Bypass version check globally ---
+# CockroachDB version strings often break SQLAlchemy's standard Postgres parser.
+def _mock_server_version_info(self, connection):
+    return (13, 0, 0)
+sqlalchemy.dialects.postgresql.base.PGDialect._get_server_version_info = _mock_server_version_info
+# -------------------------------------------------------
 
 from app.config import get_config
 
