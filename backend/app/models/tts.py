@@ -13,6 +13,6 @@ class AudioSummary(SQLModel, table=True):
     document_id: Optional[int] = Field(default=None, foreign_key="document.id", index=True)
     audio_url: str
     provider: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     document: Optional["Document"] = Relationship(back_populates="audio_summaries")
