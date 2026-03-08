@@ -77,7 +77,7 @@ async def get_dashboard(user_id: int, session: AsyncSession) -> dict:
     total_chat_messages = (await session.execute(chat_msg_stmt)).scalar() or 0
 
     # ---- 4. Activity heatmap — last 365 days ----
-    today = datetime.now(timezone.utc).replace(tzinfo=None).date()
+    today = datetime.utcnow().date()
     year_ago = today - timedelta(days=364)
 
     # Group documents by creation date
