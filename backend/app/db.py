@@ -46,9 +46,19 @@ from sqlalchemy import event  # noqa: E402
 @event.listens_for(async_engine.sync_engine, "connect")
 def _receive_connect(dbapi_connection, connection_record):
     """Bypass version check for CockroachDB."""
-    def _get_server_version_info(connection):
-        return (13, 0, 0) # Mock a high enough Postgres version
-    dbapi_connection.get_server_version_info = _get_server_version_info
+    # For many drivers, we can monkeypatch the connection object
+    if hasattr(dbapi_connection, "get_server_version_info"):
+        try:
+            dbapi_connection.get_server_version_info = lambda: (13, 0, 0)
+        except Exception:
+            pass
+    
+    # For asyncpg, it might be on the underlying connection
+    if hasattr(dbapi_connection, "_connection") and hasattr(dbapi_connection._connection, "get_server_version_info"):
+        try:
+            dbapi_connection._connection.get_server_version_info = lambda: (13, 0, 0)
+        except Exception:
+            pass
 
 async_session_factory: async_sessionmaker[AsyncSession] = async_sessionmaker(
     async_engine, expire_on_commit=False
