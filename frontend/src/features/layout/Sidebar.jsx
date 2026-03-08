@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useAppContext } from "../../contexts/AppContext.jsx";
 import { useSummarizerContext } from "../../contexts/SummarizerContext.jsx";
 import DocumentBrowser from "./DocumentBrowser.jsx";
+import { AccountSettings } from "../auth";
 
 export default function Sidebar({
   appName,
@@ -15,11 +16,13 @@ export default function Sidebar({
   const { user } = auth;
   const { reset } = useSummarizerContext();
   const [accountOpen, setAccountOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
-  const initial = user?.email ? user.email.charAt(0).toUpperCase() : null;
+  const initial = user?.full_name ? user.full_name.charAt(0).toUpperCase() : user?.email ? user.email.charAt(0).toUpperCase() : null;
 
   return (
     <aside className="relative flex w-80 flex-col border-r border-gray-200 bg-white dark:border-gray-800 dark:bg-[#111111]">
+      <AccountSettings open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       <div className="flex items-center justify-between border-b border-gray-100 px-6 py-6 dark:border-gray-800">
         <div className="text-lg font-semibold tracking-tight">
@@ -59,6 +62,17 @@ export default function Sidebar({
                       </p>
                     </div>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSettingsOpen(true);
+                      setAccountOpen(false);
+                    }}
+                    className="mt-1 w-full rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[11px] font-medium text-gray-700 transition hover:bg-gray-50 dark:border-gray-800 dark:bg-transparent dark:text-gray-300 dark:hover:bg-white/5"
+                  >
+                    Manage Profile
+                  </button>
 
                   <button
                     type="button"

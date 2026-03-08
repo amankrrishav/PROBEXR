@@ -68,7 +68,7 @@ from sqlalchemy import create_engine as _sa_create_engine  # noqa: E402
 
 # Robust sync URL builder for Alembic/Migrations
 _sync_url = cfg.database_url
-if _sync_url:
+if _sync_url and not cfg.is_sqlite:
     _is_cockroach = "cockroachlabs.cloud" in _sync_url
     if "://" in _sync_url:
         _, _rest = _sync_url.split("://", 1)

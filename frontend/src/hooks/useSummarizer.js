@@ -123,12 +123,7 @@ export function useSummarizer() {
 
             // Parse rich metadata from done event
             if (metadata) {
-              setSummaryMeta({
-                original_word_count: metadata.original_word_count,
-                summary_word_count: metadata.summary_word_count,
-                compression_ratio: metadata.compression_ratio,
-                reading_time_seconds: metadata.reading_time_seconds,
-              });
+              setSummaryMeta(metadata);
               setQuality(metadata.quality || "full");
             }
           },
@@ -164,12 +159,7 @@ export function useSummarizer() {
       setIsRestored(false);
 
       // Rich metadata from non-streaming response
-      setSummaryMeta({
-        original_word_count: result.original_word_count,
-        summary_word_count: result.summary_word_count,
-        compression_ratio: result.compression_ratio,
-        reading_time_seconds: result.reading_time_seconds,
-      });
+      setSummaryMeta(result);
       setKeyTakeaways(result.key_takeaways || []);
 
     } catch (err) {

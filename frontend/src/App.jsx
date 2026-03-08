@@ -8,7 +8,7 @@ import { useAppContext } from "./contexts/AppContext.jsx";
 import { useSummarizerContext } from "./contexts/SummarizerContext.jsx";
 import { Sidebar } from "./features/layout";
 import { Editor, OutputCard, SynthesisWorkspace } from "./features/summarizer";
-import { AuthModal } from "./features/auth";
+import { AuthModal, SocialCallback } from "./features/auth";
 import { AnalyticsDashboard } from "./features/analytics";
 
 const USAGE_KEY = "readpulse.hasUsedFeatureOnce";
@@ -23,6 +23,14 @@ export default function App() {
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState("signup");
+
+  // Simple routing for auth callbacks
+  const pathname = window.location.pathname;
+  const isSocialCallback = pathname.startsWith("/auth/callback/");
+  const isMagicVerify = pathname === "/auth/verify";
+  const authProvider = isSocialCallback ? pathname.split("/").pop() : isMagicVerify ? "verify" : null;
+  const isCallback = isSocialCallback || isMagicVerify;
+
   const [hasUsedFeatureOnce, setHasUsedFeatureOnce] = useState(() => {
     if (!isBrowser()) return false;
     try {
@@ -79,6 +87,19 @@ export default function App() {
 
     summarizer.onSummarize();
   }, [hasUsedFeatureOnce, auth.isAuthenticated, summarizer]);
+
+  if (isCallback) {
+    return (
+      <SocialCallback
+        provider={authProvider}
+        onResult={(success) => {
+          window.setTimeout(() => {
+            window.location.href = "/";
+          }, success ? 500 : 2000);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="h-screen flex bg-[#F8F7F4] text-[#1A1A2E] dark:bg-[#0a0a0a] dark:text-white transition-colors duration-300">

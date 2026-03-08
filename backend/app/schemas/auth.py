@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -22,9 +23,21 @@ class Token(BaseModel):
 class UserRead(BaseModel):
     id: int
     email: EmailStr
+    full_name: Optional[str] = None
+    avatar_url: Optional[str] = None
     is_active: bool
+    is_verified: bool
     created_at: datetime
 
     class Config:
         from_attributes = True
+
+
+class MagicLinkRequest(BaseModel):
+    email: EmailStr
+
+
+class ProfileUpdate(BaseModel):
+    full_name: Optional[str] = None
+    avatar_url: Optional[str] = None
 

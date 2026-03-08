@@ -56,6 +56,13 @@ class AppConfig:
 
         self.app_version = _env("APP_VERSION", "1.0.0") or "1.0.0"
 
+        # OAuth2
+        self.google_client_id = _env("GOOGLE_CLIENT_ID")
+        self.google_client_secret = _env("GOOGLE_CLIENT_SECRET")
+        self.github_client_id = _env("GITHUB_CLIENT_ID")
+        self.github_client_secret = _env("GITHUB_CLIENT_SECRET")
+        self.frontend_url = _env("FRONTEND_URL", "http://localhost:5173") or "http://localhost:5173"
+
 
         self.SECRET_KEY = _env("SECRET_KEY", "dev-secret-change-this") or "dev-secret-change-this"
         self.ALGORITHM = _env("JWT_ALGORITHM", "HS256") or "HS256"
@@ -142,6 +149,9 @@ class AppConfig:
             url = url.replace("postgres://", f"{prefix}+asyncpg://", 1)
         
         # 2. Aggressive Purification for Cloud/CockroachDB
+        if self.is_sqlite:
+            return url
+
         from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
         
         try:

@@ -21,6 +21,57 @@ SECRET_KEY = cfg.SECRET_KEY
 ALGORITHM = cfg.ALGORITHM
 
 
+async def create_magic_link_token(email: str) -> str:
+    """
+    Create a short-lived token for magic link authentication.
+    """
+    expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+    to_encode = {
+        "sub": email,
+        "exp": expire,
+        "type": "magic_link"
+    }
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+async def verify_magic_link_token(session: AsyncSession, token: str) -> User:
+    """
+    Verify a magic link token and return the user.
+    """
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") != "magic_link":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token type",
+            )
+        email = payload.get("sub")
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Could not validate credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    user = await get_user_by_email(session, email)
+    if not user:
+        # Just-In-Time Provisioning for new magic link users
+        user = await register_user(session, email, str(uuid.uuid4()))
+    
+    user.last_login_at = datetime.now(timezone.utc)
+    user.is_verified = True
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+    return user
+
+
 def get_token_from_request(request: Request) -> Optional[str]:
     token = request.cookies.get("access_token")
     if token and token.startswith("Bearer "):
@@ -245,6 +296,69 @@ async def authenticate_user(session: AsyncSession, email: str, password: str) ->
     user.last_login_at = datetime.utcnow()
     session.add(user)
     await session.commit()
+    return user
+
+
+async def handle_social_login(session: AsyncSession, provider: str, user_info: dict[str, Any]) -> User:
+    """Find or create a user based on social provider info."""
+    email = user_info.get("email")
+    if not email:
+        raise ValueError(f"No email provided by {provider}")
+
+    # 1. Try to find by Social ID
+    social_id = str(user_info.get("id") or user_info.get("sub"))
+    id_field = User.google_id if provider == "google" else User.github_id
+    
+    statement = select(User).where(id_field == social_id)
+    result = await session.execute(statement)
+    user = result.scalars().first()
+
+    if user:
+        user.last_login_at = datetime.utcnow()
+        # Update avatar if it changed
+        new_avatar = user_info.get("picture") or user_info.get("avatar_url")
+        if new_avatar:
+            user.avatar_url = new_avatar
+        session.add(user)
+        await session.commit()
+        return user
+
+    # 2. Try to find by email (Linking)
+    user = await get_user_by_email(session, email)
+    if user:
+        # Link existing account
+        if provider == "google":
+            user.google_id = social_id
+        else:
+            user.github_id = social_id
+        
+        user.last_login_at = datetime.utcnow()
+        user.is_verified = True  # Social emails are trusted
+        new_avatar = user_info.get("picture") or user_info.get("avatar_url")
+        if new_avatar:
+            user.avatar_url = new_avatar
+        session.add(user)
+        await session.commit()
+        return user
+
+    # 3. Create new account (JIT)
+    user = User(
+        email=email,
+        full_name=user_info.get("name") or user_info.get("login"),
+        avatar_url=user_info.get("picture") or user_info.get("avatar_url"),
+        signup_source=f"social_{provider}",
+        is_verified=True,
+        created_at=datetime.utcnow(),
+        last_login_at=datetime.utcnow(),
+    )
+    if provider == "google":
+        user.google_id = social_id
+    else:
+        user.github_id = social_id
+
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
     return user
 
 

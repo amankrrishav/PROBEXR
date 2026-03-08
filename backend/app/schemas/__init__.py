@@ -4,6 +4,8 @@ from app.schemas.auth import (
     RegisterRequest,
     Token,
     UserRead,
+    MagicLinkRequest,
+    ProfileUpdate,
 )
 
 __all__ = [
@@ -12,4 +14,6 @@ __all__ = [
     "RegisterRequest",
     "Token",
     "UserRead",
+    "MagicLinkRequest",
+    "ProfileUpdate",
 ]
