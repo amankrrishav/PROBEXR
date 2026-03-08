@@ -22,6 +22,7 @@ from app.middleware import (
 
 logger = logging.getLogger(__name__)
 
+print("READPULSE PULSE: Main script loaded.")
 
 @asynccontextmanager
 async def lifespan(app_inst: FastAPI):
