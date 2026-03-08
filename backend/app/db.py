@@ -30,16 +30,17 @@ if cfg.is_sqlite:
     }
 else:
     # PostgreSQL + asyncpg: real connection pooling
-    _engine_kwargs = {
-        "pool_size": cfg.db_pool_size,
-        "max_overflow": cfg.db_max_overflow,
-        "pool_timeout": cfg.db_pool_timeout,
-        "pool_pre_ping": True,
-        "echo": False,
-    }
-
 print(f"App: Initializing Async Engine (scheme={cfg.async_database_url.split('://')[0]})")
 async_engine = create_async_engine(cfg.async_database_url, **_engine_kwargs)
+
+# CockroachDB Version Hack: Prevent SQLAlchemy from crashing on version check
+from sqlalchemy import event  # noqa: E402
+@event.listens_for(async_engine.sync_engine, "connect")
+def _receive_connect(dbapi_connection, connection_record):
+    """Bypass version check for CockroachDB."""
+    def _get_server_version_info(connection):
+        return (13, 0, 0) # Mock a high enough Postgres version
+    dbapi_connection.get_server_version_info = _get_server_version_info
 
 async_session_factory: async_sessionmaker[AsyncSession] = async_sessionmaker(
     async_engine, expire_on_commit=False

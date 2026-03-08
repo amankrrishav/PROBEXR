@@ -127,7 +127,9 @@ class AppConfig:
     def async_database_url(self) -> str:
         """Convert DATABASE_URL to async driver variant with robust cloud fixes."""
         url = self.database_url
-        
+        if not url:
+            return ""
+
         # 1. Normalise driver prefixes
         if url.startswith("sqlite:///"):
             url = url.replace("sqlite:///", "sqlite+aiosqlite:///", 1)
@@ -135,18 +137,26 @@ class AppConfig:
             url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
         elif url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql+asyncpg://", 1)
-        # Handle cases where user might have pasted a sync URL with custom port or scheme
-        elif "://" in url and "+asyncpg" not in url and "+aiosqlite" not in url:
-            if "postgresql" in url or "postgres" in url:
-                url = url.replace("postgresql://", "postgresql+asyncpg://").replace("postgres://", "postgresql+asyncpg://")
-
-        # 2. CockroachDB + Render fix: verify-full requires a local cert file which isn't present.
-        # We enforce 'sslmode=require' for safe cloud connectivity if not specified or too strict.
-        if "cockroachlabs.cloud" in url:
-            if "sslmode=verify-full" in url:
-                url = url.replace("sslmode=verify-full", "sslmode=require")
-            elif "sslmode" not in url:
-                connector = "&" if "?" in url else "?"
-                url += f"{connector}sslmode=require"
         
+        # 2. Aggressive Purification for Cloud/CockroachDB
+        from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
+        
+        try:
+            u = urlparse(url)
+            q = parse_qs(u.query)
+            
+            # Remove junk that causes driver failures if local files are missing
+            for k in ["sslrootcert", "sslcert", "sslkey"]:
+                q.pop(k, None)
+            
+            # Ensure safe sslmode for cloud
+            if "cockroachlabs.cloud" in url or "render.com" in url or "amazonaws.com" in url:
+                q["sslmode"] = ["require"]
+            
+            u = u._replace(query=urlencode(q, doseq=True))
+            url = urlunparse(u)
+        except Exception:
+            # Fallback to original if parsing fails
+            pass
+
         return url

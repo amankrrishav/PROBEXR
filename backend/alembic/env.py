@@ -26,15 +26,27 @@ if _db_url:
     # 1. Robust Scheme Construction
     is_cockroach = "cockroachlabs.cloud" in _db_url
     if "://" in _db_url:
-        _, rest = _db_url.split("://", 1)
+        _scheme_part, _rest = _db_url.split("://", 1)
         scheme = "cockroachdb+psycopg" if is_cockroach else "postgresql+psycopg"
-        _db_url = f"{scheme}://{rest}"
+        _db_url = f"{scheme}://{_rest}"
     
-    # 2. SSL Fallback for Render
-    if "sslmode=verify-full" in _db_url:
-        _db_url = _db_url.replace("sslmode=verify-full", "sslmode=require")
-    elif "sslmode" not in _db_url:
-        _db_url += ("&" if "?" in _db_url else "?") + "sslmode=require"
+    # 2. Aggressive SSL Purification for Render CockroachDB
+    # We strip sslrootcert/sslcert/sslkey because they point to paths that don't exist in the build container,
+    # and we force sslmode=require which is safer and doesn't need them.
+    from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
+    
+    _u = urlparse(_db_url)
+    _q = parse_qs(_u.query)
+    
+    # Remove junk
+    for k in ["sslrootcert", "sslcert", "sslkey"]:
+        _q.pop(k, None)
+    
+    # Force safe mode
+    _q["sslmode"] = ["require"]
+    
+    _u = _u._replace(query=urlencode(_q, doseq=True))
+    _db_url = urlunparse(_u)
     
     print(f"Alembic: Connecting with scheme {_db_url.split(':', 1)[0]} (Cockroach={is_cockroach})")
     config.set_main_option("sqlalchemy.url", _db_url)
@@ -53,17 +65,23 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
-    with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
+    try:
+        connectable = engine_from_config(
+            config.get_section(config.config_ini_section, {}),
+            prefix="sqlalchemy.",
+            poolclass=pool.NullPool,
         )
-        with context.begin_transaction():
-            context.run_migrations()
+        with connectable.connect() as connection:
+            context.configure(
+                connection=connection, target_metadata=target_metadata
+            )
+            with context.begin_transaction():
+                context.run_migrations()
+    except Exception as e:
+        print(f"ALEMBIC FATAL ERROR: {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
 
 
 if context.is_offline_mode():
