@@ -48,7 +48,7 @@ if _db_url:
     _u = _u._replace(query=urlencode(_q, doseq=True))
     _db_url = urlunparse(_u)
     
-    print(f"Alembic: Connecting with scheme {_db_url.split(':', 1)[0]} (Cockroach={is_cockroach})")
+    print(f"Alembic: Connecting with scheme {_db_url.split('://')[0]} (Cockroach={is_cockroach})")
     config.set_main_option("sqlalchemy.url", _db_url)
 
 
