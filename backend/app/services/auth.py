@@ -85,7 +85,7 @@ async def create_refresh_token(session: AsyncSession, user_id: int) -> RefreshTo
         token=str(uuid.uuid4()),
         user_id=user_id,
         token_family=str(uuid.uuid4()),
-        expires_at=(datetime.now(timezone.utc) + timedelta(days=cfg.refresh_token_expire_days)).replace(tzinfo=None),
+        expires_at=(datetime.utcnow() + timedelta(days=cfg.refresh_token_expire_days)).replace(tzinfo=None),
     )
     session.add(token)
     await session.commit()
@@ -119,7 +119,7 @@ async def rotate_refresh_token(session: AsyncSession, old_token_str: str) -> tup
         )
 
     # Compare expiry — handle both naive (SQLite) and aware (PostgreSQL) datetimes
-    now_utc = datetime.now(timezone.utc)
+    now_utc = datetime.utcnow()
     expires = old_token.expires_at
     if expires.tzinfo is None:
         expires = expires.replace(tzinfo=timezone.utc)
@@ -142,7 +142,7 @@ async def rotate_refresh_token(session: AsyncSession, old_token_str: str) -> tup
         token=str(uuid.uuid4()),
         user_id=old_token.user_id,
         token_family=old_token.token_family,
-        expires_at=(datetime.now(timezone.utc) + timedelta(days=cfg.refresh_token_expire_days)).replace(tzinfo=None),
+        expires_at=(datetime.utcnow() + timedelta(days=cfg.refresh_token_expire_days)).replace(tzinfo=None),
     )
     session.add(new_token)
     await session.commit()
@@ -241,7 +241,7 @@ async def authenticate_user(session: AsyncSession, email: str, password: str) ->
     if user is None or not verify_password(password, user.hashed_password):
         raise ValueError("Invalid credentials")
 
-    user.last_login_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    user.last_login_at = datetime.utcnow()
     session.add(user)
     await session.commit()
     return user

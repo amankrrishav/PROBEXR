@@ -19,7 +19,7 @@ class Document(SQLModel, table=True):
     url: str
     title: str = Field(default="")
     cleaned_content: str = Field(default="")
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
 
     user: Optional["User"] = Relationship(back_populates="documents")
     flashcard_sets: list["FlashcardSet"] = Relationship(back_populates="document", cascade_delete=True)
