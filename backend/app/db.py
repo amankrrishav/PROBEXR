@@ -38,6 +38,7 @@ else:
         "echo": False,
     }
 
+print(f"App: Initializing Async Engine (scheme={cfg.async_database_url.split('://')[0]})")
 async_engine = create_async_engine(cfg.async_database_url, **_engine_kwargs)
 
 async_session_factory: async_sessionmaker[AsyncSession] = async_sessionmaker(
