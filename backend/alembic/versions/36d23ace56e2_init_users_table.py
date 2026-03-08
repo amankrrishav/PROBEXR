@@ -22,7 +22,7 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     """Upgrade schema."""
     op.create_table('user',
-    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('id', sa.BigInteger(), nullable=False),
     sa.Column('email', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('hashed_password', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=False, server_default=sa.text('true')),
@@ -30,7 +30,7 @@ def upgrade() -> None:
     sa.Column('last_login_at', sa.DateTime(), nullable=True),
     sa.Column('signup_source', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
     sa.Column('plan', sqlmodel.sql.sqltypes.AutoString(), nullable=False, server_default='free'),
-    sa.Column('usage_today', sa.Integer(), nullable=False, server_default=sa.text('0')),
+    sa.Column('usage_today', sa.BigInteger(), nullable=False, server_default=sa.text('0')),
     sa.Column('usage_reset_at', sa.DateTime(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )

@@ -22,8 +22,8 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     """Upgrade schema."""
     op.create_table('document',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('id', sa.BigInteger(), nullable=False),
+    sa.Column('user_id', sa.BigInteger(), nullable=False),
     sa.Column('url', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('title', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('raw_content', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
@@ -34,8 +34,8 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_document_user_id'), 'document', ['user_id'], unique=False)
     op.create_table('synthesis',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('id', sa.BigInteger(), nullable=False),
+    sa.Column('user_id', sa.BigInteger(), nullable=False),
     sa.Column('summary', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
@@ -43,9 +43,9 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_synthesis_user_id'), 'synthesis', ['user_id'], unique=False)
     op.create_table('audiosummary',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('user_id', sa.Integer(), nullable=False),
-    sa.Column('document_id', sa.Integer(), nullable=True),
+    sa.Column('id', sa.BigInteger(), nullable=False),
+    sa.Column('user_id', sa.BigInteger(), nullable=False),
+    sa.Column('document_id', sa.BigInteger(), nullable=True),
     sa.Column('audio_url', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('provider', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
@@ -56,9 +56,9 @@ def upgrade() -> None:
     op.create_index(op.f('ix_audiosummary_document_id'), 'audiosummary', ['document_id'], unique=False)
     op.create_index(op.f('ix_audiosummary_user_id'), 'audiosummary', ['user_id'], unique=False)
     op.create_table('chatsession',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('user_id', sa.Integer(), nullable=False),
-    sa.Column('document_id', sa.Integer(), nullable=True),
+    sa.Column('id', sa.BigInteger(), nullable=False),
+    sa.Column('user_id', sa.BigInteger(), nullable=False),
+    sa.Column('document_id', sa.BigInteger(), nullable=True),
     sa.Column('context', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['document_id'], ['document.id'], ),
@@ -68,9 +68,9 @@ def upgrade() -> None:
     op.create_index(op.f('ix_chatsession_document_id'), 'chatsession', ['document_id'], unique=False)
     op.create_index(op.f('ix_chatsession_user_id'), 'chatsession', ['user_id'], unique=False)
     op.create_table('flashcardset',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('user_id', sa.Integer(), nullable=False),
-    sa.Column('document_id', sa.Integer(), nullable=True),
+    sa.Column('id', sa.BigInteger(), nullable=False),
+    sa.Column('user_id', sa.BigInteger(), nullable=False),
+    sa.Column('document_id', sa.BigInteger(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['document_id'], ['document.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
@@ -79,8 +79,8 @@ def upgrade() -> None:
     op.create_index(op.f('ix_flashcardset_document_id'), 'flashcardset', ['document_id'], unique=False)
     op.create_index(op.f('ix_flashcardset_user_id'), 'flashcardset', ['user_id'], unique=False)
     op.create_table('chatmessage',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('session_id', sa.Integer(), nullable=False),
+    sa.Column('id', sa.BigInteger(), nullable=False),
+    sa.Column('session_id', sa.BigInteger(), nullable=False),
     sa.Column('role', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('content', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
@@ -90,8 +90,8 @@ def upgrade() -> None:
     op.create_index(op.f('ix_chatmessage_role'), 'chatmessage', ['role'], unique=False)
     op.create_index(op.f('ix_chatmessage_session_id'), 'chatmessage', ['session_id'], unique=False)
     op.create_table('flashcard',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('set_id', sa.Integer(), nullable=False),
+    sa.Column('id', sa.BigInteger(), nullable=False),
+    sa.Column('set_id', sa.BigInteger(), nullable=False),
     sa.Column('front', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('back', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.ForeignKeyConstraint(['set_id'], ['flashcardset.id'], ),
