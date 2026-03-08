@@ -26,7 +26,13 @@ from app.deps import OptionalUser, DbSession
 from app.schemas import TextRequest
 from app.schemas.requests import ChatRequest
 from app.models.chat import ChatMessage
-from app.services.summarizer import prepare_summarize_messages, _compute_metadata, _extract_takeaways_from_extractive, _parse_llm_json, LENGTH_PRESETS
+from app.services.summarizer import (
+    prepare_summarize_messages,
+    compute_metadata as _compute_metadata,
+    LENGTH_PRESETS,
+    JSON_SEP,
+)
+from app.services.summarizer.core import _parse_llm_response as _parse_llm_json
 from app.services.chat import prepare_chat_context
 from app.services.llm import generate_stream
 
@@ -111,12 +117,6 @@ async def summarize_stream(
 ):
     """
     Streaming summarization endpoint.
-
-    Delegates to services/summarizer.prepare_summarize_messages() for all
-    business logic (validation, extractive fallback, prompt building).
-    This router streams the unified LLM response (JSON with summary + takeaways).
-
-    NO blocking pre-step — prepare_summarize_messages() returns instantly.
     """
     try:
         prep = await prepare_summarize_messages(body.text, length=body.length)
@@ -132,7 +132,7 @@ async def summarize_stream(
             media_type="text/event-stream",
         )
 
-    # Extractive fallback — emit as a single token + metadata
+    # Extractive fallback
     if prep.is_extractive:
         ext_res = prep.extractive_result or ""
         meta = _compute_metadata(prep.original_text, ext_res)
@@ -144,7 +144,7 @@ async def summarize_stream(
             yield _sse_done(0.0, 1, **meta, quality="extractive", length=prep.length)
         return StreamingResponse(_extractive_gen(), media_type="text/event-stream")
 
-    # LLM path: stream the unified prompt, then parse JSON for summary + takeaways
+    # LLM path
     collected_tokens: list[str] = []
     found_separator = False
 
@@ -156,7 +156,6 @@ async def summarize_stream(
             temperature=prep.temperature,
             request=request,
         ):
-            # Intercept tokens to collect them
             if chunk.startswith('data: {"token"'):
                 try:
                     token_data = json.loads(chunk[6:])
@@ -164,30 +163,24 @@ async def summarize_stream(
                         token = token_data["token"]
                         collected_tokens.append(token)
                         
-                        # Check if we've hit the separator in the accumulated text
-                        if "---JSON_START---" in "".join(collected_tokens):
+                        if JSON_SEP in "".join(collected_tokens):
                             found_separator = True
                 except Exception:
                     pass
             
-            # Don't yield the _stream_llm's DONE event; we replace it with our own
             if chunk.startswith('data: {"done"'):
                 continue
             
-            # Only yield tokens if we haven't hit the JSON separator yet
             if not found_separator:
                 yield chunk
 
-        # After streaming completes, parse the collected JSON to extract
-        # summary text and takeaways from the unified response
         raw_response = "".join(collected_tokens)
-        parsed = _parse_llm_json(raw_response)
-
-        summary_text = parsed.get("summary", raw_response)
-        takeaways = parsed.get("key_takeaways", [])
+        summary_text, llm_meta = _parse_llm_json(raw_response)
+        
+        takeaways = llm_meta.get("key_takeaways", [])
         takeaways = [str(t).strip() for t in takeaways if str(t).strip()][:prep.takeaway_count]
 
-        meta = _compute_metadata(prep.original_text, summary_text)
+        meta = _compute_metadata(prep.original_text, summary_text, llm_meta)
 
         yield f"data: {json.dumps({'takeaways': takeaways})}\n\n"
         yield _sse_done(0.0, len(collected_tokens), **meta, quality="full", length=prep.length)
@@ -215,10 +208,6 @@ async def chat_stream(
 ):
     """
     Streaming chat endpoint.
-
-    Delegates to services/chat.prepare_chat_context() for all business logic
-    (ownership check, session management, history, payload assembly).
-    This router only handles SSE transport and post-stream DB persistence.
     """
     if not user or user.id is None:
         return StreamingResponse(
@@ -227,7 +216,6 @@ async def chat_stream(
             status_code=status.HTTP_401_UNAUTHORIZED,
         )
 
-    # Prepare context via service layer
     try:
         ctx = await prepare_chat_context(
             document_id=body.document_id,
@@ -249,7 +237,6 @@ async def chat_stream(
             status_code=http_status,
         )
 
-    # Stream LLM response, collect tokens, persist on completion
     t0 = time.monotonic()
     token_count = 0
     collected_tokens: list[str] = []
@@ -267,7 +254,6 @@ async def chat_stream(
                 collected_tokens.append(delta)
                 yield _sse_token(delta)
 
-            # Persist the full assistant message
             full_content = "".join(collected_tokens)
             assistant_msg = ChatMessage(session_id=ctx.session_id, role="assistant", content=full_content)
             session.add(assistant_msg)
@@ -285,7 +271,6 @@ async def chat_stream(
                 extra={"duration_s": round(duration, 2), "token_count": token_count, "session_id": ctx.session_id},
             )
         except asyncio.CancelledError:
-            # Try to persist partial response
             if collected_tokens:
                 partial = "".join(collected_tokens)
                 partial_msg = ChatMessage(session_id=ctx.session_id, role="assistant", content=partial + " [interrupted]")

@@ -87,6 +87,32 @@ export function useAuth() {
     }
   }
 
+  async function refreshUser() {
+    try {
+      const me = await getCurrentUser();
+      setUser(me);
+      return me;
+    } catch (err) {
+      setUser(null);
+      throw err;
+    }
+  }
+
+  async function updateProfile(data) {
+    setError(null);
+    setSubmitting(true);
+    try {
+      const updated = await import("../services/auth.js").then(m => m.updateProfile(data));
+      setUser(updated);
+      return updated;
+    } catch (err) {
+      setError(err.message || "Update failed");
+      throw err;
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return {
     user,
     initializing,
@@ -98,5 +124,7 @@ export function useAuth() {
     register,
     logout,
     logoutAll,
+    refreshUser,
+    updateProfile,
   };
 }

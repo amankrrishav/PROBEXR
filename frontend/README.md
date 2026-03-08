@@ -1,36 +1,19 @@
 # ReadPulse Frontend
 
-React + Vite frontend. Structure matches backend: config, services (API), hooks, features.
+React + Vite frontend. Structure matches backend: config, services (API), hooks, features. Includes premium **Auth UX** (Google, GitHub, Magic Links).
+
+## Features
+
+- **Social Login:** Google and GitHub integration.
+- **Magic Links:** Passwordless signup/login via email.
+- **Profile Management:** In-app settings for name and avatar.
+- **Modern UI:** Vibrant, premium design with dark mode and smooth transitions.
 
 ## Structure (scalable)
 
-```
-src/
-├── config.js           # Env and constants (like backend app/config.py)
-├── App.jsx             # Thin shell: composes hooks + features
-├── main.jsx
-├── index.css
-├── services/           # API layer (like backend routers)
-│   ├── client.js       # Base URL, request(), parseErrorDetail
-│   └── api.js          # summarizeText(), ingestText(), ingestUrl(), sendChatMessage(), generateAudioSummary(), generateFlashcards(), synthesizeDocuments()
-├── hooks/              # Feature and app state (like backend services)
-│   ├── useSummarizer.js
-│   └── useTheme.js
-└── features/           # Feature modules (like backend routers by domain)
-    ├── layout/         # Sidebar, etc.
-    │   ├── index.js
-    │   └── Sidebar.jsx
-    └── summarizer/     # Editor, OutputCard, TypingSummary, ChatView, SynthesisWorkspace
-        ├── index.js
-        ├── Editor.jsx
-        ├── OutputCard.jsx
-        ├── ChatView.jsx
-        ├── DocumentActions.jsx
-        ├── SynthesisWorkspace.jsx
-        └── TypingSummary.jsx
-```
-
-**Adding a feature:** add config (if needed) → API in `services/api.js` → hook in `hooks/` → feature folder under `features/` → wire in `App.jsx`.
+- **src/services/auth.js** — API client for authentication (JWT based).
+- **src/hooks/useAuth.js** — Central state management for user sessions and profile updates.
+- **src/features/auth/** — AuthModal, SocialCallback, and AccountSettings components.
 
 ## Run
 
@@ -41,10 +24,16 @@ npm run dev
 
 Uses `VITE_API_URL` (default `http://localhost:8000`) to talk to the backend.
 
+## Production Deployment (Netlify)
+
+1. **Connect GitHub:** Deploy the `/frontend` subdirectory.
+2. **Build Settings:** Netlify automatically uses `netlify.toml`.
+3. **Env Vars:** Set `VITE_API_URL` to your Render backend URL.
+
 ## Env
 
 | Env | Purpose |
 |-----|--------|
-| `VITE_API_URL` | Backend base URL (default `http://localhost:8000`) |
-| `VITE_APP_NAME` | App name (optional) |
-| `VITE_SUMMARIZE_MIN_WORDS` | Min words for summarizer (optional, default 30) |
+| `VITE_API_URL` | Backend base URL. |
+| `VITE_APP_NAME` | Defaults to `ReadPulse`. |
+| `VITE_SUMMARIZE_MIN_WORDS` | Min word count to trigger summarization (default 30). |

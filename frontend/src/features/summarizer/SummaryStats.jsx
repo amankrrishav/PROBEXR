@@ -71,6 +71,7 @@ export default function SummaryStats({ meta }) {
                 {compression_ratio}% compressed
             </span>
             <span className="text-[11px] text-gray-200 dark:text-gray-800">·</span>
+            {/* Reading Time */}
             <span className="text-[11px] tabular-nums text-gray-400 dark:text-gray-500">
                 {readingStr}
             </span>
@@ -81,6 +82,26 @@ export default function SummaryStats({ meta }) {
                     <span className="text-[11px] text-gray-200 dark:text-gray-800">·</span>
                     <span className={`text-[11px] font-medium ${readabilityColor}`}>
                         {readability_label}
+                    </span>
+                </>
+            )}
+
+            {/* Complexity Score */}
+            {meta.complexity_score && (
+                <>
+                    <span className="text-[11px] text-gray-200 dark:text-gray-800">·</span>
+                    <span className="text-[11px] text-gray-400 dark:text-gray-500">
+                        Complexity: <span className="font-medium text-gray-500 dark:text-gray-400">{meta.complexity_score}/10</span>
+                    </span>
+                </>
+            )}
+
+            {/* Sentiment */}
+            {meta.sentiment && (
+                <>
+                    <span className="text-[11px] text-gray-200 dark:text-gray-800">·</span>
+                    <span className="text-[11px] text-gray-400 dark:text-gray-500">
+                        {meta.sentiment === "Positive" ? "😊" : meta.sentiment === "Negative" ? "😟" : "😐"} {meta.sentiment}
                     </span>
                 </>
             )}

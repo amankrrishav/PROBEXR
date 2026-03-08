@@ -42,3 +42,10 @@ export async function logoutAll() {
     method: "POST",
   });
 }
+
+export async function updateProfile(data) {
+  return request("/auth/me", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}

@@ -6,6 +6,35 @@ import SummaryStats from "./SummaryStats";
 import KeyTakeaways from "./KeyTakeaways";
 import { useSummarizerContext } from "../../contexts/SummarizerContext.jsx";
 
+function EntitySection({ entities }) {
+  if (!entities || (!entities.people?.length && !entities.orgs?.length && !entities.concepts?.length)) return null;
+
+  return (
+    <div className="border-t border-gray-100 dark:border-gray-800/60 pt-4 mt-2">
+      <h4 className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">
+        Intelligence Discovery
+      </h4>
+      <div className="flex flex-wrap gap-2">
+        {entities.people?.map((p, i) => (
+          <span key={`p-${i}`} className="text-[11px] px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/50">
+            👤 {p}
+          </span>
+        ))}
+        {entities.orgs?.map((o, i) => (
+          <span key={`o-${i}`} className="text-[11px] px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-800/50">
+            🏢 {o}
+          </span>
+        ))}
+        {entities.concepts?.map((c, i) => (
+          <span key={`c-${i}`} className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800/50">
+            💡 {c}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function NotableQuotes({ quotes }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -100,6 +129,14 @@ export default function OutputCard() {
 
       {/* ── Summary text ── */}
       <div className="px-6 py-4">
+        {!streaming && summaryMeta?.tldr && (
+          <div className="mb-4 p-3 rounded-xl bg-gray-50 dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.05]">
+            <p className="text-[13px] font-medium leading-relaxed text-gray-700 dark:text-gray-300">
+              <span className="text-[10px] uppercase tracking-wider text-emerald-500 mr-2">TL;DR</span>
+              {summaryMeta.tldr}
+            </p>
+          </div>
+        )}
         <TypingSummary
           text={summaryText}
           instant={isRestored}
@@ -112,6 +149,13 @@ export default function OutputCard() {
       {!streaming && keyTakeaways?.length > 0 && (
         <div className="px-6 pb-2">
           <KeyTakeaways takeaways={keyTakeaways} />
+        </div>
+      )}
+
+      {/* ── Entities ── */}
+      {!streaming && summaryMeta?.entities && (
+        <div className="px-6 pb-2">
+          <EntitySection entities={summaryMeta.entities} />
         </div>
       )}
 
