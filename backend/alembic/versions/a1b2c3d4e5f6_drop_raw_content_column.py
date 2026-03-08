@@ -20,8 +20,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Drop the raw_content column — it was never read and caused DB bloat."""
-    with op.batch_alter_table('document') as batch_op:
-        batch_op.drop_column('raw_content')
+    op.drop_column('document', 'raw_content')
 
 
 def downgrade() -> None:
