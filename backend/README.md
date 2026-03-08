@@ -38,12 +38,13 @@ You can run the backend **right now with $0** — no key = extractive; add a fre
 
    If you set **no key**, the backend still runs and uses extractive summarization ($0).
 
-4. **Optional: PostgreSQL** (defaults to SQLite for dev):
+4. **Optional: PostgreSQL / CockroachDB** (defaults to SQLite for dev):
 
    ```bash
    # In .env:
    DATABASE_URL=postgresql://user:pass@localhost:5432/readpulse
    ```
+   **Note:** In production (Render + CockroachDB), the app uses `cockroachdb+psycopg` for migrations and `postgresql+asyncpg` for the app.
 
 5. **Optional: Redis** (defaults to in-memory rate limiter for dev):
 
@@ -61,6 +62,11 @@ You can run the backend **right now with $0** — no key = extractive; add a fre
    Or: `python run.py`
 
    Backend: [http://127.0.0.1:8000](http://127.0.0.1:8000). Health: [http://127.0.0.1:8000/](http://127.0.0.1:8000/) (shows `mode: extractive` or `groq` etc.).
+
+7. **Run tests:**
+   ```bash
+   pytest
+   ```
 
 ## Run (later)
 

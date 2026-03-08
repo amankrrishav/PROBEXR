@@ -6,9 +6,12 @@ ReadPulse is **100% free and open-source**. This doc outlines completed work and
 
 ## Current (Completed)
 
-- **Backend:** FastAPI (fully async), config, routers, services. Includes endpoints for Summarize (extractive + LLM), URL Ingest, Text-to-Speech (stub, coming soon), Contextual Chat, Flashcard Export, and Multi-Document Synthesis. Health checks, auth (email + password, JWT with HttpOnly cookies).
-- **Infrastructure:** Async database layer (PostgreSQL via `asyncpg` + SQLite via `aiosqlite`), connection pooling, Redis rate limiter with in-memory fallback, LLM streaming (`generate_full` + `generate_stream`), structured JSON observability logging, Alembic migrations (env-driven). Full local dev compatibility preserved.
+- **Backend:** FastAPI (fully async), config, routers, services. Includes endpoints for Summarize (extractive + LLM), URL Ingest, Text-to-Speech (ready for production implementation), Contextual Chat, Flashcard Export, and Multi-Document Synthesis. Health checks, auth (email + password, JWT with HttpOnly cookies).
+- **Infrastructure:** Async database layer (PostgreSQL/CockroachDB via `asyncpg` + SQLite via `aiosqlite`), connection pooling, Redis rate limiter with in-memory fallback, LLM streaming (`generate_full` + `generate_stream`), structured JSON observability logging, Alembic migrations (env-driven). Full local dev compatibility preserved.
 - **Frontend:** React + Vite, config, hooks, features. Summarizer + theme, backend health on load, request timeout, auth modal (sign up / log in), account menu. Features include the Synthesis Workspace, Sidebar navigation, and interactive Output Cards for chat and flashcards. SSE streaming with automatic fallback.
+- **Testing:** Comprehensive backend test suite (pytest) covering auth, documents, chat, flashcards, etc.
+- **Production Hardening:** Live deployment on Netlify (Frontend) and Render (Backend) with SSL/TLS, CORS configuration, and managed database/Redis.
+- **Session Sync:** Multi-device session support with Refresh Token rotation and reuse detection.
 
 ---
 
@@ -19,16 +22,7 @@ ReadPulse is **100% free and open-source**. This doc outlines completed work and
 - [ ] **Export & Sharing** — copy as markdown, PDF export, public share links
 - [ ] **Highlights & Annotations** — highlight text spans, add notes, export
 - [ ] **Real TTS** — browser SpeechSynthesis API (zero cost), then server-side TTS with better voices
-- [ ] **Testing** — add pytest for backend, vitest for frontend
-
----
-
-## Phase Future — Ecosystem
-
-- [ ] **Mobile Support:** PWA or React Native for iOS/Android
-- [ ] **Social login / OAuth** (Google, GitHub)
-- [ ] **Multi-device session sync** (token rotation, refresh tokens)
-- [ ] **Production hardening:** domain, TLS, CDN, monitoring, backups
+- [ ] **Frontend Testing** — add vitest/cypress for frontend-specific coverage
 
 ---
 
