@@ -31,8 +31,12 @@ if _db_url:
     
     # CockroachDB + Render fix: verify-full requires a local cert file which isn't present.
     # We switch to 'require' for migrations to ensure connectivity.
-    if "cockroachlabs.cloud" in _db_url and "sslmode=verify-full" in _db_url:
-        _db_url = _db_url.replace("sslmode=verify-full", "sslmode=require")
+    if "cockroachlabs.cloud" in _db_url:
+        if "sslmode=verify-full" in _db_url:
+            _db_url = _db_url.replace("sslmode=verify-full", "sslmode=require")
+        elif "sslmode" not in _db_url:
+            connector = "&" if "?" in _db_url else "?"
+            _db_url += f"{connector}sslmode=require"
     
     config.set_main_option("sqlalchemy.url", _db_url)
 
