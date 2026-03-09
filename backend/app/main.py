@@ -1,5 +1,5 @@
 """
-ReadPulse backend — scalable, serverless-ready.
+PROBEfy backend — scalable, serverless-ready.
 Add new routers in app/routers and mount here.
 """
 import logging
@@ -81,7 +81,7 @@ async def lifespan(app_inst: FastAPI):
         redis_client = None
 
     logger.info(
-        "ReadPulse starting: env=%s, provider=%s, db=%s",
+        "PROBEfy starting: env=%s, provider=%s, db=%s",
         cfg.environment,
         cfg.summarize_provider or "extractive",
         "configured",
@@ -103,7 +103,7 @@ async def lifespan(app_inst: FastAPI):
         logger.info("Redis connection closed.")
 
 app = FastAPI(
-    title="ReadPulse",
+    title="PROBEfy",
     description="Human-like article summarization API",
     version="1.0.0",
     lifespan=lifespan,

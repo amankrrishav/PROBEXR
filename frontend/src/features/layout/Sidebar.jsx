@@ -26,7 +26,7 @@ export default function Sidebar({
 
       <div className="flex items-center justify-between border-b border-gray-100 px-6 py-6 dark:border-gray-800">
         <div className="text-lg font-semibold tracking-tight">
-          {appName ?? "ReadPulse"}
+          {appName ?? "PROBEXR"}
         </div>
 
         <div className="flex items-center gap-2">
@@ -58,7 +58,7 @@ export default function Sidebar({
                         {user.email}
                       </p>
                       <p className="text-[10px] text-gray-400">
-                        Account · ReadPulse
+                        Account · PROBEXR
                       </p>
                     </div>
                   </div>

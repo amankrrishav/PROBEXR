@@ -1,10 +1,10 @@
-# ReadPulse — Article Summarizer & Learning Hub
+# PROBEXR — Article Summarizer & Learning Hub
 
-ReadPulse is a full-stack article summarizer and learning platform: paste text or URLs, get a short, human-like summary, chat with the document, and export flashcards.  
+PROBEXR is a full-stack article summarizer and learning platform: paste text or URLs, get a short, human-like summary, chat with the document, and export flashcards.  
 *Extract signal. Ignore noise.*
 
 **Live App:** [https://probefy.netlify.app/](https://probefy.netlify.app/)  
-**Live API (Core Hub):** [https://readpulse.onrender.com/](https://readpulse.onrender.com/)
+**Live API (Core Hub):** [https://probexr.onrender.com/](https://probexr.onrender.com/)
 
 **100% free and open-source.** No plans, no paywalls, no limits.**Backend:** Scalable FastAPI app with async PostgreSQL/CockroachDB (asyncpg), Redis rate limiting, and streaming-ready LLM layer. **$0 options:** no API key = extractive summarization; or Groq/OpenRouter free tier for human-like summaries. No need to spend $5–10/month. Runs locally with SQLite + no Redis for easy development.
 
@@ -97,7 +97,7 @@ backend/
   - Copy `.env.example` to `.env` and configure (defaults work for local dev)  
   - **Optional:** Set a free API key for human-like summaries (Groq: [console.groq.com](https://console.groq.com) → `export GROQ_API_KEY=your_key`). If you set **no key**, the backend still runs using extractive summarization ($0).  
   - **OAuth:** Set `GOOGLE_CLIENT_ID` and `GITHUB_CLIENT_ID` for `http://localhost:5173`.
-  - **Optional:** Install PostgreSQL and set `DATABASE_URL=postgresql://user:pass@localhost:5432/readpulse` (defaults to SQLite for dev)  
+  - **Optional:** Install PostgreSQL and set `DATABASE_URL=postgresql://user:pass@localhost:5432/probexr` (defaults to SQLite for dev)  
   - **Optional:** Install Redis and set `REDIS_URL=redis://localhost:6379/0` (defaults to in-memory rate limiter for dev)  
   - Run migrations: `python -m alembic upgrade head`  
   - `uvicorn app.main:app --reload` or `python run.py`  
@@ -120,7 +120,7 @@ backend/
 
 | Env | Purpose |
 |-----|--------|
-| `DATABASE_URL` | Database connection (`sqlite:///./readpulse.db` or `postgresql://...`) |
+| `DATABASE_URL` | Database connection (`sqlite:///./probexr.db` or `postgresql://...`) |
 | `REDIS_URL` | Redis connection for rate limiting (optional) |
 | `SECRET_KEY` | JWT secret (**must change in production**) |
 | `GROQ_API_KEY` | Groq (free tier) for high-intelligence summaries |

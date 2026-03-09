@@ -4,7 +4,7 @@
  */
 
 export const config = {
-  appName: import.meta.env.VITE_APP_NAME || "ReadPulse",
+  appName: import.meta.env.VITE_APP_NAME || "PROBEXR",
   appVersion: import.meta.env.VITE_APP_VERSION || "1.0.0",
   apiBaseUrl: import.meta.env.VITE_API_URL || "http://localhost:8000",
 

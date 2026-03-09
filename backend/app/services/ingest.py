@@ -88,6 +88,7 @@ async def fetch_and_clean_url(url: str, user_id: int, session: AsyncSession) -> 
         Document.user_id == user_id,
         Document.url == url,
     )
+    fake_url = f"https://storage.probefy.local/audio/{uuid.uuid4()}.mp3"
     result = await session.execute(existing_stmt)
     existing = result.scalars().first()
     if existing:
@@ -95,7 +96,7 @@ async def fetch_and_clean_url(url: str, user_id: int, session: AsyncSession) -> 
 
     # 3. Fetch with size enforcement
     headers = {
-        "User-Agent": "Mozilla/5.0 (compatible; ReadPulse/1.0; +http://localhost)"
+        "User-Agent": "Mozilla/5.0 (compatible; PROBEfy/1.0; +http://localhost)"
     }
     async with httpx.AsyncClient(follow_redirects=True, timeout=15.0, headers=headers) as client:
         # Start a streaming request to read Content-Length header first

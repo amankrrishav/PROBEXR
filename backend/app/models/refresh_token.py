@@ -19,4 +19,4 @@ class RefreshToken(SQLModel, table=True):
 
     is_revoked: bool = Field(default=False)
     expires_at: datetime
-    created_at: datetime = Field(default_factory=lambda: datetime.utcnow())
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))

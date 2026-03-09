@@ -74,7 +74,7 @@ export default function AuthModal({
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold tracking-tight">
-              {isSignup ? "Create your ReadPulse account" : "Welcome back"}
+              {isSignup ? "Create your PROBEXR account" : "Welcome back"}
             </h2>
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               One account for all your summaries. No clutter.

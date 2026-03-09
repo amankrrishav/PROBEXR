@@ -11,7 +11,7 @@ import { Editor, OutputCard, SynthesisWorkspace } from "./features/summarizer";
 import { AuthModal, SocialCallback } from "./features/auth";
 import { AnalyticsDashboard } from "./features/analytics";
 
-const USAGE_KEY = "readpulse.hasUsedFeatureOnce";
+const USAGE_KEY = "probexr.hasUsedFeatureOnce";
 
 function isBrowser() {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
