@@ -13,7 +13,6 @@ from .intelligence import (
     clean_text,
     compute_metadata,
 )
-from .prompts import JSON_SEP
 
 __all__ = [
     "summarize",
@@ -23,5 +22,4 @@ __all__ = [
     "LENGTH_PRESETS",
     "clean_text",
     "compute_metadata",
-    "JSON_SEP",
 ]

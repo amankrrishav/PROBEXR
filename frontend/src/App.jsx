@@ -7,7 +7,7 @@ import { config } from "./config.js";
 import { useAppContext } from "./contexts/AppContext.jsx";
 import { useSummarizerContext } from "./contexts/SummarizerContext.jsx";
 import { Sidebar } from "./features/layout";
-import { Editor, OutputCard, SynthesisWorkspace } from "./features/summarizer";
+import { Editor, OutputCard, SynthesisWorkspace, SummaryHistory } from "./features/summarizer";
 import { AuthModal, SocialCallback } from "./features/auth";
 import { AnalyticsDashboard } from "./features/analytics";
 
@@ -131,7 +131,10 @@ export default function App() {
                 }}
               />
               {summarizer.hasSummary && (
-                <OutputCard />
+                <div className="space-y-4">
+                  <OutputCard />
+                  <SummaryHistory />
+                </div>
               )}
             </>
           ) : activeTab === "analytics" ? (
