@@ -4,9 +4,16 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class TextRequest(BaseModel):
-    """Request body for POST /summarize."""
+    """Request body for POST /summarize and POST /summarize/stream."""
     text: str = Field(..., min_length=1, max_length=100_000, description="Max 100k chars to prevent DoS")
     length: Literal["brief", "standard", "detailed"] = Field(default="standard", description="Summary length: brief, standard, or detailed")
+    mode: Literal["paragraph", "bullets", "key_sentences", "abstract", "tldr", "outline", "executive"] = Field(
+        default="paragraph", description="Summary output format"
+    )
+    tone: Literal["neutral", "formal", "casual", "creative", "technical"] = Field(
+        default="neutral", description="Writing tone/style"
+    )
+    keywords: list[str] = Field(default_factory=list, max_length=5, description="Up to 5 focus keywords to emphasize")
 
 class URLRequest(BaseModel):
     url: str = Field(..., max_length=2048, description="URL to scrape and ingest")

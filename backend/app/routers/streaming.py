@@ -10,8 +10,8 @@ Protocol: text/event-stream
   data: [DONE]             (stream complete)
   data: {"error": "..."}   (on failure)
 
-Refactored: all business logic lives in the service layer.
-This router only handles SSE transport formatting and client-disconnect detection.
+v2: No more JSON_SEP filtering. The LLM now outputs ONLY clean summary text.
+Metadata is computed from intelligence.py after the stream completes.
 """
 import asyncio
 import json
@@ -30,11 +30,11 @@ from app.services.summarizer import (
     prepare_summarize_messages,
     compute_metadata as _compute_metadata,
     LENGTH_PRESETS,
-    JSON_SEP,
 )
-from app.services.summarizer.core import _parse_llm_response as _parse_llm_json
+from app.services.summarizer.prompts import build_takeaway_prompt
+from app.services.summarizer.core import _parse_takeaways
 from app.services.chat import prepare_chat_context
-from app.services.llm import generate_stream
+from app.services.llm import generate_stream, generate_full
 
 logger = logging.getLogger(__name__)
 
@@ -117,9 +117,16 @@ async def summarize_stream(
 ):
     """
     Streaming summarization endpoint.
+    v2: stream is pure summary text — no JSON separator filtering needed.
     """
     try:
-        prep = await prepare_summarize_messages(body.text, length=body.length)
+        prep = await prepare_summarize_messages(
+            body.text,
+            length=body.length,
+            mode=body.mode,
+            tone=body.tone,
+            keywords=body.keywords,
+        )
     except ValueError as exc:
         return StreamingResponse(
             iter([_sse_error(str(exc)), _sse_done(0, 0)]),
@@ -141,52 +148,58 @@ async def summarize_stream(
         async def _extractive_gen() -> AsyncIterator[str]:
             yield _sse_token(ext_res)
             yield f"data: {json.dumps({'takeaways': takeaways})}\n\n"
-            yield _sse_done(0.0, 1, **meta, quality="extractive", length=prep.length)
+            yield _sse_done(0.0, 1, **meta, quality="extractive", length=prep.length, mode=prep.mode)
         return StreamingResponse(_extractive_gen(), media_type="text/event-stream")
 
-    # LLM path
+    # LLM path — clean stream, no separator filtering
     collected_tokens: list[str] = []
-    found_separator = False
 
-    async def _summarize_stream_with_meta():
-        nonlocal found_separator
+    async def _summarize_stream_gen():
+        t0 = time.monotonic()
+
+        # Stream the summary tokens directly to client
         async for chunk in _stream_llm(
             prep.messages,
             max_tokens=prep.max_tokens,
             temperature=prep.temperature,
             request=request,
         ):
+            # Collect tokens for post-stream metadata
             if chunk.startswith('data: {"token"'):
                 try:
                     token_data = json.loads(chunk[6:])
                     if "token" in token_data:
-                        token = token_data["token"]
-                        collected_tokens.append(token)
-                        
-                        if JSON_SEP in "".join(collected_tokens):
-                            found_separator = True
+                        collected_tokens.append(token_data["token"])
                 except Exception:
                     pass
-            
+
+            # Skip the inner _stream_llm done event (we'll emit our own)
             if chunk.startswith('data: {"done"'):
                 continue
-            
-            if not found_separator:
-                yield chunk
 
-        raw_response = "".join(collected_tokens)
-        summary_text, llm_meta = _parse_llm_json(raw_response)
-        
-        takeaways = llm_meta.get("key_takeaways", [])
-        takeaways = [str(t).strip() for t in takeaways if str(t).strip()][:prep.takeaway_count]
+            yield chunk
 
-        meta = _compute_metadata(prep.original_text, summary_text, llm_meta)
+        # Stream complete — compute metadata from the clean summary
+        summary_text = "".join(collected_tokens).strip()
+        meta = _compute_metadata(prep.original_text, summary_text)
+
+        # Extract takeaways via a lightweight second call
+        takeaways = []
+        if prep.mode != "tldr" and len(summary_text.split()) > 30:
+            try:
+                takeaway_msgs = build_takeaway_prompt(summary_text, prep.takeaway_count)
+                raw_takeaways = await generate_full(takeaway_msgs, max_tokens=400, temperature=0.2)
+                takeaways = _parse_takeaways(raw_takeaways)[:prep.takeaway_count]
+            except Exception:
+                logger.warning("Takeaway extraction failed in stream, skipping")
 
         yield f"data: {json.dumps({'takeaways': takeaways})}\n\n"
-        yield _sse_done(0.0, len(collected_tokens), **meta, quality="full", length=prep.length)
+
+        duration = time.monotonic() - t0
+        yield _sse_done(duration, len(collected_tokens), **meta, quality="full", length=prep.length, mode=prep.mode)
 
     return StreamingResponse(
-        _summarize_stream_with_meta(),
+        _summarize_stream_gen(),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

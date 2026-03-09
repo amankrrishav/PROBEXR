@@ -1,93 +1,158 @@
 """
-Summarizer Prompts: Advanced Chain-of-Density and Synthesis templates.
-Adapted for high information density and professional tone.
+Summarizer Prompts — Clean, mode-aware prompt templates.
+
+Key design: NO JSON separator in the output. The LLM produces ONLY the summary.
+All metadata (entities, compression ratio, etc.) is computed in intelligence.py.
+This prevents the #1 bug: free-tier LLMs leaking separator/JSON into the visible stream.
 """
 from typing import Any
 
-# Separator for streaming-friendly parsing
-JSON_SEP = "---JSON_START---"
+
+# ── Mode-specific format instructions ──────────────────────────────────────
+
+_MODE_INSTRUCTIONS = {
+    "paragraph": (
+        "Write the summary as flowing, natural prose paragraphs. "
+        "Do NOT use bullet points, lists, or headings."
+    ),
+    "bullets": (
+        "Write the summary as a clean bullet-point list. "
+        "Use '•' as the bullet prefix. Each point should be 8–20 words. "
+        "No introductory sentence — go straight into bullets."
+    ),
+    "key_sentences": (
+        "Extract the most important original sentences directly from the source text. "
+        "Do NOT rephrase — use the author's exact words. "
+        "Present them as a numbered list (1., 2., 3., etc.)."
+    ),
+    "abstract": (
+        "Write an academic-style abstract. Follow this structure: "
+        "Background → Methods/Argument → Findings → Conclusion. "
+        "Use formal academic language. Target ~150 words."
+    ),
+    "tldr": (
+        "Write an ultra-short TL;DR of 1–2 sentences maximum. "
+        "Capture the single most important takeaway. Be punchy and direct."
+    ),
+    "outline": (
+        "Write a hierarchical outline with main topic headings (use ## for headings) "
+        "and sub-bullets (use - for sub-points) for supporting details. "
+        "This should read like a structured table of contents with detail."
+    ),
+    "executive": (
+        "Write a business-style executive summary with exactly three labeled sections:\n"
+        "**Overview:** (1–2 sentences of context)\n"
+        "**Key Points:** (3–5 bullet points with the core findings)\n"
+        "**Bottom Line:** (1 sentence actionable takeaway)"
+    ),
+}
+
+# ── Tone instructions  ────────────────────────────────────────────────────
+
+_TONE_INSTRUCTIONS = {
+    "neutral": "Use clear, balanced, professional language.",
+    "formal": "Use formal, academic language. Avoid contractions and colloquialisms.",
+    "casual": "Use simple, conversational language. Short sentences. Easy to read.",
+    "creative": "Use engaging, vivid language. Make it interesting to read. Use strong verbs.",
+    "technical": "Use precise, technical language. Preserve domain-specific terminology.",
+}
+
 
 def build_unified_prompt(
     text: str,
     target_words: int,
     preset: dict[str, Any],
-    content_type: str = "general",
+    *,
+    mode: str = "paragraph",
+    tone: str = "neutral",
+    keywords: list[str] | None = None,
 ) -> list[dict[str, str]]:
     """
-    Build a single-call prompt that returns summary + takeaways.
-    Uses the "Chain of Density" approach for maximum information per word.
+    Build a prompt that produces ONLY the summary text — no JSON, no metadata.
+    The LLM's job is summarization. Everything else is computed in code.
     """
-    tone_guidance = preset.get("tone", "clear, natural prose")
-    takeaway_count = preset.get("takeaway_count", 5)
-    structure = preset.get("structure_guidance", "")
+    mode_instruction = _MODE_INSTRUCTIONS.get(mode, _MODE_INSTRUCTIONS["paragraph"])
+    tone_instruction = _TONE_INSTRUCTIONS.get(tone, _TONE_INSTRUCTIONS["neutral"])
 
-    system = f"""You are a Tier-1 Research Analyst at a premier technology firm (Google/Meta/Apple). 
-Your objective is to perform a high-fidelity "Chain-of-Density" summarization that maximizes information density while maintaining clarity.
+    keyword_block = ""
+    if keywords:
+        kw_str = ", ".join(keywords[:5])
+        keyword_block = f"\n- **Focus Keywords**: Emphasize themes related to: {kw_str}"
 
-## Core Directives
-1. **Summary Phase (Density-Iteration)**:
-   - Target: {target_words} words. 
-   - Strategy: Identify the "Hollow" core concepts first, then iteratively layer in Missing Entities, Quantitative Data, and Causal Mechanics.
-   - Avoid all meta-discourse ("The article discusses", "In this text").
-   - Every sentence must be a "Power Sentence": 80% information, 20% connective tissue.
-   
-2. **TL;DR Generation**: 
-   - A single, punchy, "executive floor" sentence that captures the primary existential takeaway.
+    system = f"""You are an expert summarization engine. You produce high-quality, human-like summaries that are accurate, coherent, and preserve the key ideas of the original.
 
-3. **Key Takeaways**: Exactly {takeaway_count} points.
-   - Format: [Insight] -> [Actionable Impact].
-   - No generic bullets; everything must be specific to the source.
+## Rules
+1. Target approximately {target_words} words.
+2. NEVER hallucinate facts not in the source text.
+3. NEVER add opinions unless the tone explicitly calls for it.
+4. NEVER use meta-discourse like "The article discusses", "In this text", "The author argues".
+5. Every sentence must carry information — no filler.
+6. Produce ONLY the summary. No preamble, no commentary, no titles, no labels like "Summary:".
 
-4. **Intelligence Metadata**:
-   - Accurately identify People, Organizations, and Technical Concepts.
-   - Gauge Sentiment (Positive/Negative/Neutral) and the specific Professional Tone.
+## Output Format
+{mode_instruction}
 
-## Format Requirements
-Summary Text Content
-{JSON_SEP}
-{{
-  "tldr": "...",
-  "key_takeaways": ["...", "..."],
-  "entities": {{"people": [], "orgs": [], "concepts": []}},
-  "sentiment": "Neutral",
-  "professional_tone": "Technical",
-  "complexity_score": 1-10
-}}
-"""
-    user = f"Source Text:\n\n{text}"
-    
+## Tone
+{tone_instruction}{keyword_block}"""
+
+    user = f"Summarize the following text:\n\n{text}"
+
     return [
         {"role": "system", "content": system},
-        {"role": "user", "content": user}
+        {"role": "user", "content": user},
     ]
+
+
+def build_takeaway_prompt(summary: str, count: int = 5) -> list[dict[str, str]]:
+    """
+    Build a lightweight prompt to extract key takeaways from a completed summary.
+    This is a second, cheap call — avoids polluting the main summary with JSON.
+    """
+    system = f"""Extract exactly {count} key takeaways from the summary below.
+Format: one takeaway per line, prefixed with "• ".
+Each takeaway should be 10–20 words — specific and actionable.
+Output ONLY the bullet points. Nothing else."""
+
+    return [
+        {"role": "system", "content": system},
+        {"role": "user", "content": summary},
+    ]
+
 
 def build_reduce_prompt(
     chunk_summaries: list[str],
     target_words: int,
     preset: dict[str, Any],
+    *,
+    mode: str = "paragraph",
+    tone: str = "neutral",
+    keywords: list[str] | None = None,
 ) -> list[dict[str, str]]:
     """Prompt for the 'Reduce' phase of map-reduce synthesis."""
     combined = "\n\n---\n\n".join(chunk_summaries)
-    
-    system = f"""You are a Senior Content Strategist. You are performing a high-stakes synthesis of sectional intelligence reports.
-Merge the provided sectional summaries into a single, seamless, high-density narrative of {target_words} words.
+    mode_instruction = _MODE_INSTRUCTIONS.get(mode, _MODE_INSTRUCTIONS["paragraph"])
+    tone_instruction = _TONE_INSTRUCTIONS.get(tone, _TONE_INSTRUCTIONS["neutral"])
 
-## Synthesis Mandates
-1. **Narrative Continuity**: The output must not read like a list of summaries; it must be a single, fluid argumentative arc.
-2. **De-duplication**: Aggressively prune overlapping entities and redundant causal explanations across sections.
-3. **Hierarchical Importance**: Prioritize existential threats/opportunities and 1st-order facts over 2nd-order examples.
-4. **Follow Output Protocol**: Summary content + {JSON_SEP} + unified JSON metadata.
+    keyword_block = ""
+    if keywords:
+        kw_str = ", ".join(keywords[:5])
+        keyword_block = f"\n- **Focus Keywords**: Emphasize themes related to: {kw_str}"
 
-JSON Schema:
-{{
-  "tldr": "Total executive summary sentence",
-  "key_takeaways": ["consolidated tactical insights"],
-  "entities": {{"unified_people": [], "unified_orgs": [], "unified_concepts": []}},
-  "sentiment": "Overall Sentiment",
-  "synthesis_integrity": 1-10
-}}
-"""
+    system = f"""You are a synthesis expert. Merge the provided section summaries into a single, seamless narrative of approximately {target_words} words.
+
+## Rules
+1. The output must read as one unified piece — not a list of summaries stitched together.
+2. Aggressively de-duplicate overlapping points.
+3. Prioritize the most important information.
+4. Produce ONLY the merged summary. No preamble, no commentary.
+
+## Output Format
+{mode_instruction}
+
+## Tone
+{tone_instruction}{keyword_block}"""
+
     return [
         {"role": "system", "content": system},
-        {"role": "user", "content": f"Section Summaries:\n\n{combined}"}
+        {"role": "user", "content": f"Section summaries to merge:\n\n{combined}"},
     ]

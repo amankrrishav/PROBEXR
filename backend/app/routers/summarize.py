@@ -16,6 +16,10 @@ async def summarize_endpoint(
     session: DbSession,
 ) -> dict[str, Any]:
     try:
-        return await process_summarize(request.text, user, session, length=request.length)
+        return await process_summarize(
+            request.text, user, session,
+            length=request.length, mode=request.mode,
+            tone=request.tone, keywords=request.keywords,
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

@@ -1,7 +1,7 @@
 /**
- * Summarizer feature state and logic — keeps App thin.
- * Phase 2B: Streaming support with automatic fallback.
- * Phase 3: Length selector, rich metadata, key takeaways.
+ * Summarizer feature state and logic.
+ * v2: Mode (7 formats), Tone (5 styles), Keywords, History (last 5).
+ * Clean streaming — no JSON separator filtering needed.
  */
 import { useEffect, useState, useCallback, useRef } from "react";
 import { config } from "../config.js";
@@ -9,6 +9,26 @@ import { summarizeText, summarizeTextStream, ingestUrl, ingestText } from "../se
 
 const MIN_WORDS = config.summarizer.minWords;
 const LOADING_MESSAGES = config.loadingMessages;
+
+const MODES = [
+  { value: "paragraph", label: "Paragraph", icon: "¶" },
+  { value: "bullets", label: "Bullets", icon: "•" },
+  { value: "key_sentences", label: "Key Sentences", icon: "❝" },
+  { value: "abstract", label: "Abstract", icon: "📄" },
+  { value: "tldr", label: "TL;DR", icon: "⚡" },
+  { value: "outline", label: "Outline", icon: "≡" },
+  { value: "executive", label: "Executive", icon: "📊" },
+];
+
+const TONES = [
+  { value: "neutral", label: "Neutral" },
+  { value: "formal", label: "Formal" },
+  { value: "casual", label: "Simple" },
+  { value: "creative", label: "Creative" },
+  { value: "technical", label: "Technical" },
+];
+
+export { MODES, TONES };
 
 export function useSummarizer() {
   const [text, setText] = useState(() => localStorage.getItem("rp_text") || "");
@@ -31,13 +51,13 @@ export function useSummarizer() {
   const [streamingText, setStreamingText] = useState("");
   const abortControllerRef = useRef(null);
 
-  // Upgrade: Length selector
+  // v2: Mode, Tone, Keywords, History
   const [summaryLength, setSummaryLength] = useState("standard");
-
-  // Upgrade: Rich metadata (word counts, compression, reading time)
+  const [summaryMode, setSummaryMode] = useState("paragraph");
+  const [summaryTone, setSummaryTone] = useState("neutral");
+  const [focusKeywords, setFocusKeywords] = useState([]);
+  const [history, setHistory] = useState([]);
   const [summaryMeta, setSummaryMeta] = useState(null);
-
-  // Upgrade: Key takeaways
   const [keyTakeaways, setKeyTakeaways] = useState(null);
 
   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
@@ -55,6 +75,26 @@ export function useSummarizer() {
       setHasSummary(true);
     }
   }, [streamingText]);
+
+  // Add to history
+  const addToHistory = useCallback((entry) => {
+    setHistory(prev => {
+      const next = [entry, ...prev].slice(0, 5);
+      return next;
+    });
+  }, []);
+
+  // Restore from history
+  const restoreFromHistory = useCallback((entry) => {
+    setSummaryText(entry.summaryText);
+    setText(entry.inputText || "");
+    setSummaryMeta(entry.meta || null);
+    setKeyTakeaways(entry.takeaways || []);
+    setSummaryMode(entry.mode || "paragraph");
+    setSummaryLength(entry.length || "standard");
+    setHasSummary(true);
+    setIsRestored(true);
+  }, []);
 
   const handleSummarize = useCallback(async () => {
     if (loading || streaming) return;
@@ -93,7 +133,7 @@ export function useSummarizer() {
         }
       }
 
-      // Attempt streaming first
+      // Streaming first
       const controller = new AbortController();
       abortControllerRef.current = controller;
       setStreaming(true);
@@ -121,11 +161,21 @@ export function useSummarizer() {
             setIsRestored(false);
             abortControllerRef.current = null;
 
-            // Parse rich metadata from done event
             if (metadata) {
               setSummaryMeta(metadata);
               setQuality(metadata.quality || "full");
             }
+
+            // Add to history
+            addToHistory({
+              summaryText: streamedContent,
+              inputText: textToSummarize.slice(0, 200),
+              meta: metadata,
+              takeaways: null, // will be set separately
+              mode: summaryMode,
+              length: summaryLength,
+              timestamp: new Date().toISOString(),
+            });
           },
           // onTakeaways
           (takeaways) => {
@@ -138,11 +188,14 @@ export function useSummarizer() {
             console.warn("Streaming failed, falling back:", errMsg);
           },
           controller,
+          summaryMode,
+          summaryTone,
+          focusKeywords,
         );
 
         if (streamSucceeded) return;
       } catch {
-        // Stream fetch itself failed — fall through to non-streaming
+        // Stream fetch failed — fall through to non-streaming
       }
 
       // Fallback: non-streaming
@@ -152,15 +205,23 @@ export function useSummarizer() {
       setLoading(true);
       abortControllerRef.current = null;
 
-      const result = await summarizeText(textToSummarize, summaryLength);
+      const result = await summarizeText(textToSummarize, summaryLength, summaryMode, summaryTone, focusKeywords);
       setSummaryText(result.summary);
       setQuality(result.quality || "full");
       setHasSummary(true);
       setIsRestored(false);
-
-      // Rich metadata from non-streaming response
       setSummaryMeta(result);
       setKeyTakeaways(result.key_takeaways || []);
+
+      addToHistory({
+        summaryText: result.summary,
+        inputText: textToSummarize.slice(0, 200),
+        meta: result,
+        takeaways: result.key_takeaways || [],
+        mode: summaryMode,
+        length: summaryLength,
+        timestamp: new Date().toISOString(),
+      });
 
     } catch (err) {
       setError(err.message || "Failed to connect to backend.");
@@ -170,7 +231,7 @@ export function useSummarizer() {
       setLoading(false);
       abortControllerRef.current = null;
     }
-  }, [loading, streaming, isUrlMode, wordCount, text, url, summaryLength]);
+  }, [loading, streaming, isUrlMode, wordCount, text, url, summaryLength, summaryMode, summaryTone, focusKeywords, addToHistory]);
 
   // Sync state to localStorage
   useEffect(() => {
@@ -211,32 +272,27 @@ export function useSummarizer() {
   }, [loading]);
 
   return {
-    text,
-    setText,
+    text, setText,
     loading,
     loadingMessage: LOADING_MESSAGES[loadingStep],
     error,
-    wordCount,
-    charCount,
-    hasSummary,
-    summaryText,
-    quality,
-    isUrlMode,
-    setIsUrlMode,
-    url,
-    setUrl,
+    wordCount, charCount,
+    hasSummary, summaryText, quality,
+    isUrlMode, setIsUrlMode,
+    url, setUrl,
     documentId,
     isRestored,
     // Streaming
-    streaming,
-    streamingText,
-    cancelStreaming,
-    // Upgrade: length
-    summaryLength,
-    setSummaryLength,
-    // Upgrade: metadata
-    summaryMeta,
-    keyTakeaways,
+    streaming, streamingText, cancelStreaming,
+    // v2: Mode, Tone, Keywords
+    summaryLength, setSummaryLength,
+    summaryMode, setSummaryMode,
+    summaryTone, setSummaryTone,
+    focusKeywords, setFocusKeywords,
+    // v2: History
+    history, restoreFromHistory,
+    // Metadata
+    summaryMeta, keyTakeaways,
     onSummarize: handleSummarize,
     reset,
   };

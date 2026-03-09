@@ -1,11 +1,13 @@
 """
 Summarizer Core: Orchestration for single-call and map-reduce flows.
 Handles synthesis, validation, and metadata integration.
+
+Key change from v1: NO JSON parsing from LLM output. The LLM produces
+ONLY clean summary text. Metadata is computed purely in intelligence.py.
+Takeaways extracted via a lightweight second LLM call.
 """
 import asyncio
-import json
 import logging
-import re
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,9 +16,8 @@ import httpx
 from app.config import get_config
 from app.services.extractive import summarize_extractive
 from app.models.user import User
-from .prompts import build_unified_prompt, build_reduce_prompt, JSON_SEP
+from .prompts import build_unified_prompt, build_reduce_prompt, build_takeaway_prompt
 from .intelligence import clean_text, compute_metadata
-from .cache import cache
 
 logger = logging.getLogger(__name__)
 
@@ -49,35 +50,36 @@ def _target_words(original_count: int, length: str) -> int:
     base = max(int(preset["min_target"]), int(original_count * float(preset["word_ratio"])))
     return min(base, int(preset["max_target"]))
 
-def _parse_llm_response(raw: str) -> tuple[str, dict[str, Any]]:
-    """Robustly parse the Text + Separator + JSON response structure."""
-    cleaned = raw.strip()
-    summary = cleaned
-    metadata = {}
 
-    if JSON_SEP in cleaned:
-        parts = cleaned.split(JSON_SEP, 1)
-        summary = parts[0].strip()
-        json_part = parts[1].strip()
-        
-        # Strip code fences from JSON if present
-        if "```" in json_part:
-            json_part = re.sub(r"```(json)?\n?", "", json_part)
-            json_part = re.sub(r"\n?```", "", json_part).strip()
+def _parse_takeaways(raw: str) -> list[str]:
+    """Parse bullet takeaways from the LLM response."""
+    lines = raw.strip().splitlines()
+    takeaways = []
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        # Strip bullet prefixes
+        for prefix in ("•", "-", "*", "·"):
+            if line.startswith(prefix):
+                line = line[len(prefix):].strip()
+                break
+        # Strip numbered prefixes like "1.", "2."
+        if len(line) > 2 and line[0].isdigit() and line[1] in (".", ")"):
+            line = line[2:].strip()
+        if line:
+            takeaways.append(line)
+    return takeaways
 
-        try:
-            metadata = json.loads(json_part)
-        except json.JSONDecodeError:
-            # Fallback to searching for {} if direct load fails
-            found = re.search(r"\{.*\}", json_part, re.DOTALL)
-            if found:
-                try: metadata = json.loads(found.group())
-                except: pass
-    
-    return summary, metadata
 
-async def summarize(text: str, length: str = "standard") -> dict[str, Any]:
-    """Unified entry point for \"Big Tech\" grade summarization."""
+async def summarize(
+    text: str,
+    length: str = "standard",
+    mode: str = "paragraph",
+    tone: str = "neutral",
+    keywords: list[str] | None = None,
+) -> dict[str, Any]:
+    """Unified entry point for summarization."""
     cfg = get_config()
     text = clean_text(text)
     words = text.split()
@@ -86,13 +88,7 @@ async def summarize(text: str, length: str = "standard") -> dict[str, Any]:
     if word_count < cfg.min_words:
         raise ValueError(f"Text too short. Minimum {cfg.min_words} words.")
 
-    # 1. Check Cache
-    cached = await cache.get(text, length)
-    if cached:
-        logger.info("Summarizer: Cache hit")
-        return cached
-
-    # 2. Extractive Fallback (No LLM)
+    # 1. Extractive Fallback (No LLM)
     if not cfg.has_llm_provider:
         preset = LENGTH_PRESETS.get(length, LENGTH_PRESETS["standard"])
         ext_res = summarize_extractive(
@@ -100,107 +96,143 @@ async def summarize(text: str, length: str = "standard") -> dict[str, Any]:
             target_min=int(preset["min_target"]), target_max=int(preset["max_target"]),
             word_ratio=float(preset["word_ratio"]), takeaway_count=int(preset["takeaway_count"])
         )
-        # Compute rich metadata even for extractive
         result = {
             "summary": ext_res["summary"],
             "key_takeaways": ext_res["key_takeaways"],
             "metadata": compute_metadata(text, ext_res["summary"]),
             "quality": "extractive",
             "length": length,
+            "mode": mode,
         }
-        await cache.set(text, length, result)
         return result
 
-    # 3. LLM Flow
+    # 2. LLM Flow
     target = _target_words(word_count, length)
     preset = LENGTH_PRESETS.get(length, LENGTH_PRESETS["standard"])
-    
+
     # Map-Reduce for long text
     if word_count > _CHUNK_WORD_LIMIT:
-        result = await _map_reduce_flow(text, target, preset, length)
+        result = await _map_reduce_flow(text, target, preset, length, mode=mode, tone=tone, keywords=keywords)
     else:
-        result = await _single_call_flow(text, target, preset, length)
+        result = await _single_call_flow(text, target, preset, length, mode=mode, tone=tone, keywords=keywords)
 
     result.update({
         "quality": "full",
         "length": length,
+        "mode": mode,
     })
-    
-    await cache.set(text, length, result)
     return result
 
-async def process_summarize(text: str, user: User | None, session: AsyncSession, length: str = "standard") -> dict[str, Any]:
+
+async def process_summarize(
+    text: str,
+    user: User | None,
+    session: AsyncSession,
+    length: str = "standard",
+    mode: str = "paragraph",
+    tone: str = "neutral",
+    keywords: list[str] | None = None,
+) -> dict[str, Any]:
     """Higher-level wrapper called by the API endpoint. Handles errors and returns final dict."""
     text = text.strip()
     if not text:
         raise ValueError("Text is required.")
 
     try:
-        res = await summarize(text, length=length)
-        # Flatten for backward compatibility if needed, but we now include 'metadata'
-        # The frontend might expect flat keys, so we merge them back
+        res = await summarize(text, length=length, mode=mode, tone=tone, keywords=keywords)
         metadata = res.get("metadata", {})
         return {
             "summary": res["summary"],
-            "key_takeaways": res["key_takeaways"],
+            "key_takeaways": res.get("key_takeaways", []),
             "quality": res["quality"],
             "length": res["length"],
+            "mode": res.get("mode", "paragraph"),
             **metadata
         }
     except httpx.HTTPStatusError as e:
-        msg = str(e)
         if e.response.status_code == 429:
             raise ValueError("Rate limit exceeded. Try again in a moment.")
         if e.response.status_code == 401:
             raise ValueError("Summarization service misconfigured. Check API key.")
-        raise ValueError(msg or "Summarization failed.")
+        raise ValueError(str(e) or "Summarization failed.")
     except Exception as e:
         if isinstance(e, ValueError): raise e
         logger.exception("Summarization failed unexpectedly")
         raise ValueError("An unexpected error occurred during summarization.")
 
-async def _single_call_flow(text: str, target: int, preset: dict, length: str) -> dict[str, Any]:
+
+async def _single_call_flow(
+    text: str, target: int, preset: dict, length: str,
+    *, mode: str = "paragraph", tone: str = "neutral", keywords: list[str] | None = None,
+) -> dict[str, Any]:
     from app.services import llm
-    messages = build_unified_prompt(text, target, preset)
-    
-    raw = await llm.chat_completion(messages, max_tokens=max(1000, target * 4), temperature=0.3)
-    summary, llm_meta = _parse_llm_response(raw)
-    
+
+    messages = build_unified_prompt(text, target, preset, mode=mode, tone=tone, keywords=keywords)
+    summary = await llm.chat_completion(messages, max_tokens=max(1000, target * 4), temperature=0.3)
+    summary = summary.strip()
+
+    # Extract takeaways via a lightweight second call (skip for tldr mode — it IS the takeaway)
+    takeaway_count = int(preset.get("takeaway_count", 5))
+    takeaways = []
+    if mode != "tldr" and len(summary.split()) > 30:
+        try:
+            takeaway_msgs = build_takeaway_prompt(summary, takeaway_count)
+            raw_takeaways = await llm.chat_completion(takeaway_msgs, max_tokens=400, temperature=0.2)
+            takeaways = _parse_takeaways(raw_takeaways)[:takeaway_count]
+        except Exception:
+            logger.warning("Takeaway extraction failed, skipping")
+
     return {
         "summary": summary,
-        "key_takeaways": llm_meta.get("key_takeaways", []),
-        "metadata": compute_metadata(text, summary, llm_meta)
+        "key_takeaways": takeaways,
+        "metadata": compute_metadata(text, summary),
     }
 
-async def _map_reduce_flow(text: str, target: int, preset: dict, length: str) -> dict[str, Any]:
+
+async def _map_reduce_flow(
+    text: str, target: int, preset: dict, length: str,
+    *, mode: str = "paragraph", tone: str = "neutral", keywords: list[str] | None = None,
+) -> dict[str, Any]:
     from app.services import llm
-    
+    import re
+
     # Map phase: chunk and summarize
     chunks = _chunk_text(text)
     chunk_target = max(100, target // len(chunks))
-    
-    async def _map_chunk(c):
+
+    async def _map_chunk(c: str) -> str:
         p = {**preset, "takeaway_count": 3}
-        msgs = build_unified_prompt(c, chunk_target, p)
+        msgs = build_unified_prompt(c, chunk_target, p, mode="paragraph", tone=tone, keywords=keywords)
         raw = await llm.chat_completion(msgs, max_tokens=600, temperature=0.3)
-        s, _ = _parse_llm_response(raw)
-        return s
+        return raw.strip()
 
     chunk_summaries = await asyncio.gather(*[_map_chunk(c) for c in chunks])
-    
+
     # Reduce phase: merge and synthesize
-    reduce_msgs = build_reduce_prompt(list(chunk_summaries), target, preset)
-    raw = await llm.chat_completion(reduce_msgs, max_tokens=1000, temperature=0.3)
-    summary, llm_meta = _parse_llm_response(raw)
+    reduce_msgs = build_reduce_prompt(list(chunk_summaries), target, preset, mode=mode, tone=tone, keywords=keywords)
+    summary = await llm.chat_completion(reduce_msgs, max_tokens=1000, temperature=0.3)
+    summary = summary.strip()
+
+    # Extract takeaways
+    takeaway_count = int(preset.get("takeaway_count", 5))
+    takeaways = []
+    if mode != "tldr" and len(summary.split()) > 30:
+        try:
+            takeaway_msgs = build_takeaway_prompt(summary, takeaway_count)
+            raw_takeaways = await llm.chat_completion(takeaway_msgs, max_tokens=400, temperature=0.2)
+            takeaways = _parse_takeaways(raw_takeaways)[:takeaway_count]
+        except Exception:
+            logger.warning("Takeaway extraction failed in map-reduce, skipping")
 
     return {
         "summary": summary,
-        "key_takeaways": llm_meta.get("key_takeaways", []),
-        "metadata": compute_metadata(text, summary, llm_meta)
+        "key_takeaways": takeaways,
+        "metadata": compute_metadata(text, summary),
     }
 
+
 def _chunk_text(text: str) -> list[str]:
-    # Overlapping chunks (~3000 words each)
+    import re
     sentences = re.split(r'(?<=[.!?])\s+', text)
     chunks = []
     curr: list[str] = []
@@ -209,7 +241,7 @@ def _chunk_text(text: str) -> list[str]:
         swc = len(s.split())
         if curr_wc + swc > _CHUNK_WORD_LIMIT and curr:
             chunks.append(" ".join(curr))
-            curr = curr[-3:] # Overlap last 3 sentences for context
+            curr = curr[-3:]
             curr_wc = sum(len(x.split()) for x in curr)
         curr.append(s)
         curr_wc += swc
@@ -233,6 +265,9 @@ class SummarizePrepResult:
         temperature: float = 0.3,
         original_text: str = "",
         length: str = "standard",
+        mode: str = "paragraph",
+        tone: str = "neutral",
+        keywords: list[str] | None = None,
         takeaway_count: int = 5,
     ):
         self.extractive_result = extractive_result
@@ -242,6 +277,9 @@ class SummarizePrepResult:
         self.temperature = temperature
         self.original_text = original_text
         self.length = length
+        self.mode = mode
+        self.tone = tone
+        self.keywords = keywords or []
         self.takeaway_count = takeaway_count
 
     @property
@@ -249,7 +287,13 @@ class SummarizePrepResult:
         return self.extractive_result is not None
 
 
-async def prepare_summarize_messages(text: str, length: str = "standard") -> SummarizePrepResult:
+async def prepare_summarize_messages(
+    text: str,
+    length: str = "standard",
+    mode: str = "paragraph",
+    tone: str = "neutral",
+    keywords: list[str] | None = None,
+) -> SummarizePrepResult:
     """
     Validate and prepare for summarization without blocking on LLM.
     Used by the streaming router to get the prompt payload.
@@ -275,13 +319,16 @@ async def prepare_summarize_messages(text: str, length: str = "standard") -> Sum
             extractive_takeaways=ext_res["key_takeaways"],
             original_text=text,
             length=length,
+            mode=mode,
+            tone=tone,
+            keywords=keywords,
             takeaway_count=int(preset["takeaway_count"]),
         )
 
     # 2. LLM Path
     target = _target_words(word_count, length)
     preset = LENGTH_PRESETS.get(length, LENGTH_PRESETS["standard"])
-    messages = build_unified_prompt(text, target, preset)
+    messages = build_unified_prompt(text, target, preset, mode=mode, tone=tone, keywords=keywords)
 
     return SummarizePrepResult(
         messages=messages,
@@ -289,5 +336,8 @@ async def prepare_summarize_messages(text: str, length: str = "standard") -> Sum
         temperature=0.3,
         original_text=text,
         length=length,
+        mode=mode,
+        tone=tone,
+        keywords=keywords,
         takeaway_count=int(preset["takeaway_count"]),
     )

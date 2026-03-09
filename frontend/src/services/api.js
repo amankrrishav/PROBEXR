@@ -7,10 +7,10 @@ import { request, streamRequest } from "./client.js";
 /**
  * POST /summarize — { text, length } → { summary, key_takeaways, compression_ratio, ... }
  */
-export async function summarizeText(text, length = "standard") {
+export async function summarizeText(text, length = "standard", mode = "paragraph", tone = "neutral", keywords = []) {
   return request("/summarize", {
     method: "POST",
-    body: JSON.stringify({ text, length }),
+    body: JSON.stringify({ text, length, mode, tone, keywords }),
   });
 }
 
@@ -24,10 +24,10 @@ export async function summarizeText(text, length = "standard") {
  * @param {Function} onError - called with error string
  * @param {AbortController} [abortController]
  */
-export function summarizeTextStream(text, length, onToken, onDone, onTakeaways, onError, abortController) {
+export function summarizeTextStream(text, length, onToken, onDone, onTakeaways, onError, abortController, mode = "paragraph", tone = "neutral", keywords = []) {
   return streamRequest(
     "/summarize/stream",
-    { method: "POST", body: JSON.stringify({ text, length }) },
+    { method: "POST", body: JSON.stringify({ text, length, mode, tone, keywords }) },
     onToken,
     onDone,
     onTakeaways,
