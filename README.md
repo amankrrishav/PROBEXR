@@ -3,8 +3,7 @@
 PROBEXR is a full-stack article summarizer and learning platform: paste text or URLs, get a short, human-like summary, chat with the document, and export flashcards.  
 *Extract signal. Ignore noise.*
 
-**Live App:** [https://probefy.netlify.app/](https://probefy.netlify.app/)  
-**Live API (Core Hub):** [https://probexr.onrender.com/](https://probexr.onrender.com/)
+**Live App:** [https://probefy.netlify.app/](https://probefy.netlify.app/)
 
 **100% free and open-source.** No plans, no paywalls, no limits.**Backend:** Scalable FastAPI app with async PostgreSQL/CockroachDB (asyncpg), Redis rate limiting, and streaming-ready LLM layer. **$0 options:** no API key = extractive summarization; or Groq/OpenRouter free tier for human-like summaries. No need to spend $5–10/month. Runs locally with SQLite + no Redis for easy development.
 
@@ -80,65 +79,6 @@ backend/
 └── run.py                # Local: python run.py (from backend/)
 ```
 
-**Adding a feature:**  
-1. Add config in `app/config.py` if needed.  
-2. Add schemas in `app/schemas/`.  
-3. Add a service in `app/services/`.  
-4. Add a router in `app/routers/` and mount it in `app/main.py`.
-
----
-
-## Run locally
-
-**Backend**  
-- From `backend/`:  
-  - Create venv: `python3 -m venv .venv` then `source .venv/bin/activate`  
-  - `pip install -r requirements.txt`  
-  - Copy `.env.example` to `.env` and configure (defaults work for local dev)  
-  - **Optional:** Set a free API key for human-like summaries (Groq: [console.groq.com](https://console.groq.com) → `export GROQ_API_KEY=your_key`). If you set **no key**, the backend still runs using extractive summarization ($0).  
-  - **OAuth:** Set `GOOGLE_CLIENT_ID` and `GITHUB_CLIENT_ID` for `http://localhost:5173`.
-  - **Optional:** Install PostgreSQL and set `DATABASE_URL=postgresql://user:pass@localhost:5432/probexr` (defaults to SQLite for dev)  
-  - **Optional:** Install Redis and set `REDIS_URL=redis://localhost:6379/0` (defaults to in-memory rate limiter for dev)  
-  - Run migrations: `python -m alembic upgrade head`  
-  - `uvicorn app.main:app --reload` or `python run.py`  
-
-**Frontend**  
-- From `frontend/`: `npm install` then `npm run dev`.  
-- Uses `http://localhost:8000` by default; set `VITE_API_URL` for production.
-
----
-
-## Deploy (Production)
-
-- **Backend (Render):** Deploy `backend/` as a Web Service. Set `DATABASE_URL` (CockroachDB), `REDIS_URL` (Aiven), and `FRONTEND_URL`.
-- **Frontend (Netlify):** Use `netlify.toml` (included). Set `VITE_API_URL` to your Render endpoint.
-- **OAuth:** Update redirect URIs in Google/GitHub consoles to point to your Netlify domain.
-
----
-
-## Backend env (summary)
-
-| Env | Purpose |
-|-----|--------|
-| `DATABASE_URL` | Database connection (`sqlite:///./probexr.db` or `postgresql://...`) |
-| `REDIS_URL` | Redis connection for rate limiting (optional) |
-| `SECRET_KEY` | JWT secret (**must change in production**) |
-| `GROQ_API_KEY` | Groq (free tier) for high-intelligence summaries |
-| `OPENAI_API_KEY` | OpenAI; default model `gpt-4o-mini` |
-| `OPENROUTER_API_KEY` | OpenRouter; default model `meta-llama/llama-3.1-8b-instruct:free` |
-| `SUMMARIZE_PROVIDER` | Force provider: `groq` \| `openai` \| `openrouter` |
-| `SUMMARIZE_MODEL` | Override model name |
-| `SUMMARIZE_TIMEOUT` | LLM request timeout (seconds, default 90) |
-| `CORS_ORIGINS` | Comma-separated origins or `*` |
-| `DB_POOL_SIZE` | PostgreSQL connection pool size (default 5) |
-| `DB_MAX_OVERFLOW` | Pool overflow connections (default 10) |
-| `RATE_LIMIT_PER_MINUTE` | General rate limit (default 60) |
-| `RATE_LIMIT_LLM_PER_MINUTE` | LLM route rate limit (default 10) |
-| `FRONTEND_URL` | Used for dynamic OAuth redirect URIs (e.g. `https://you.netlify.app`) |
-| `GOOGLE_CLIENT_ID` | Production/Local Google Client ID |
-| `GITHUB_CLIENT_ID` | Production/Local GitHub Client ID |
-
----
 
 ## Current capabilities
 

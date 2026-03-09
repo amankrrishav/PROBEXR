@@ -8,30 +8,6 @@ Scalable async FastAPI backend for human-like summarization, TTS, chat, and flas
 - **Groq (free tier):** [console.groq.com/keys](https://console.groq.com/keys) — set `GROQ_API_KEY` for high-quality human-like summaries.
 - **OAuth (free):** Google and GitHub OAuth are free to set up for personal/dev projects.
 
-## Run (first time)
-
-1. **Create a venv and install deps**:
-   ```bash
-   cd backend
-   python3 -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
-   ```
-
-2. **Configure environment:**
-   ```bash
-   cp .env.example .env
-   # Edit .env and set your SECRET_KEY and OAuth IDs.
-   ```
-
-3. **Database & Migrations**:
-   - Local: Defaults to SQLite.
-   - Run: `python -m alembic upgrade head`
-
-4. **Start**:
-   ```bash
-   uvicorn app.main:app --reload
-   ```
 
 ## Production Deployment (Render)
 
