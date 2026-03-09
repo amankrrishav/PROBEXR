@@ -15,14 +15,7 @@ React + Vite frontend. Structure matches backend: config, services (API), hooks,
 - **src/hooks/useAuth.js** — Central state management for user sessions and profile updates.
 - **src/features/auth/** — AuthModal, SocialCallback, and AccountSettings components.
 
-## Run
 
-```bash
-npm install
-npm run dev
-```
-
-Uses `VITE_API_URL` (default `http://localhost:8000`) to talk to the backend.
 
 ## Production Deployment (Netlify)
 
