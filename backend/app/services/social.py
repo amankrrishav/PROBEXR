@@ -1,12 +1,10 @@
 import httpx
-from typing import Any, Optional
+from typing import Any
 from app.config import get_config
-
-cfg = get_config()
 
 async def get_google_user_info(code: str, redirect_uri: str) -> dict[str, Any]:
     """Exchange Google OAuth2 code for user profile info."""
-    # This expects GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in config
+    cfg = get_config()
     token_url = "https://oauth2.googleapis.com/token"
     data = {
         "code": code,
@@ -30,6 +28,7 @@ async def get_google_user_info(code: str, redirect_uri: str) -> dict[str, Any]:
 
 async def get_github_user_info(code: str) -> dict[str, Any]:
     """Exchange GitHub OAuth2 code for user profile info."""
+    cfg = get_config()
     token_url = "https://github.com/login/oauth/access_token"
     headers = {"Accept": "application/json"}
     data = {
