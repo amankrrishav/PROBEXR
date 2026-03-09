@@ -18,7 +18,7 @@ from sqlmodel import SQLModel
 
 import app.models  # noqa: F401 — register all models on metadata
 from app.db import get_session
-from app.main import fastapi_app
+from app.main import app as fastapi_app
 from app.middleware import set_rate_limiter
 
 

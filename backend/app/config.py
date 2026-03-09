@@ -24,7 +24,7 @@ class AppConfig:
 
     def __init__(self) -> None:
         # App
-        self.app_name = _env("APP_NAME", "ReadPulse") or "ReadPulse"
+        self.app_name = _env("APP_NAME", "PROBEfy") or "PROBEfy"
         self.debug = (_env("DEBUG", "0") or "0").lower() in ("1", "true", "yes")
         self.environment = _env("ENVIRONMENT", "development") or "development"
 
@@ -52,7 +52,7 @@ class AppConfig:
         self.min_words = int(_env("SUMMARIZE_MIN_WORDS", "30") or "30")
         self.target_min_words = int(_env("SUMMARIZE_TARGET_MIN_WORDS", "80") or "80")
         self.target_max_words = int(_env("SUMMARIZE_TARGET_MAX_WORDS", "300") or "300")
-        self.database_url = _env("DATABASE_URL", "sqlite:///./readpulse.db") or "sqlite:///./readpulse.db"
+        self.database_url = _env("DATABASE_URL", "sqlite:///./probefy.db") or "sqlite:///./probefy.db"
 
         self.app_version = _env("APP_VERSION", "1.0.0") or "1.0.0"
 

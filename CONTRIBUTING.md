@@ -1,13 +1,13 @@
-# Contributing to ReadPulse
+# Contributing to PROBEXR
 
-ReadPulse is **100% free and open-source**. This doc explains the project structure and how to add features.
+PROBEXR is **100% free and open-source**. This doc explains the project structure and how to add features.
 
 ---
 
 ## Repo layout
 
 ```
-readpulse/
+probexr/
 ├── backend/          # FastAPI app (async, PostgreSQL-ready)
 │   ├── app/
 │   │   ├── main.py       # Mount routers, lifespan (Redis/DB init)

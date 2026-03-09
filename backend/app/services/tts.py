@@ -51,7 +51,7 @@ async def generate_audio_summary(
 
     # 3. STUB: simulate a successful TTS response
     # Replace this block with real provider calls in the production milestone.
-    fake_url = f"https://storage.readpulse.local/audio/{uuid.uuid4()}.mp3"
+    fake_url = f"https://storage.probexr.local/audio/{uuid.uuid4()}.mp3"
 
     audio_record = AudioSummary(
         user_id=user_id,

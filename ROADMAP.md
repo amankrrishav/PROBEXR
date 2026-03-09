@@ -1,6 +1,6 @@
-# ReadPulse Roadmap
+# PROBEXR Roadmap
 
-ReadPulse is **100% free and open-source**. This doc outlines completed work and upcoming phases.
+PROBEXR is **100% free and open-source**. This doc outlines completed work and upcoming phases.
 
 ---
 
