@@ -6,19 +6,13 @@ import { getAnalytics } from "../../services/api";
 function useAnimatedValue(target, duration = 900) {
     const [value, setValue] = useState(target || 0);
     const raf = useRef(null);
-
     useEffect(() => {
-        if (!target) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect
-            setValue(0);
-            return;
-        }
+        if (!target) { setValue(0); return; }
         const start = performance.now();
-        const from = 0;
         function tick(now) {
             const t = Math.min((now - start) / duration, 1);
-            const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
-            setValue(Math.round(from + (target - from) * eased));
+            const eased = 1 - Math.pow(1 - t, 3);
+            setValue(Math.round(target * eased));
             if (t < 1) raf.current = requestAnimationFrame(tick);
         }
         raf.current = requestAnimationFrame(tick);
@@ -27,12 +21,11 @@ function useAnimatedValue(target, duration = 900) {
     return value;
 }
 
-function AnimNum({ value, suffix = "" }) {
+function AnimNum({ value }) {
     const n = useAnimatedValue(value);
-    return <>{n.toLocaleString()}{suffix}</>;
+    return <>{n.toLocaleString()}</>;
 }
 
-// ─── Format helpers ──────────────────────────────────────────────────
 function fmtTime(s) {
     if (!s) return "0m";
     if (s < 60) return `${s}s`;
@@ -41,27 +34,23 @@ function fmtTime(s) {
     return m ? `${h}h ${m}m` : `${h}h`;
 }
 
-// ─── Contribution Heatmap (GitHub-style) ─────────────────────────────
+// ─── Heatmap ─────────────────────────────────────────────────────────
 function Heatmap({ data }) {
-    const [hoveredDay, setHoveredDay] = useState(null);
+    const [hovered, setHovered] = useState(null);
     if (!data?.length) return null;
 
     const max = Math.max(1, ...data.map(d => d.count));
-
-    const fill = (c) => {
-        if (c === 0) return "fill-[#ebedf0] dark:fill-[#161b22]";
+    const fillColor = (c) => {
+        if (c === 0) return "var(--bg-elevated)";
         const r = c / max;
-        if (r <= 0.25) return "fill-[#9be9a8] dark:fill-[#0e4429]";
-        if (r <= 0.5) return "fill-[#40c463] dark:fill-[#006d32]";
-        if (r <= 0.75) return "fill-[#30a14e] dark:fill-[#26a641]";
-        return "fill-[#216e39] dark:fill-[#39d353]";
+        if (r <= 0.25) return "rgba(108,99,255,0.2)";
+        if (r <= 0.5) return "rgba(108,99,255,0.4)";
+        if (r <= 0.75) return "rgba(108,99,255,0.65)";
+        return "var(--accent)";
     };
 
-    // Build weeks
     const weeks = [];
     for (let i = 0; i < data.length; i += 7) weeks.push(data.slice(i, i + 7));
-
-    // Month labels
     const months = [];
     let prev = "";
     weeks.forEach((w, i) => {
@@ -70,103 +59,81 @@ function Heatmap({ data }) {
         if (m !== prev) { months.push({ m, x: i }); prev = m; }
     });
 
-    const cellSize = 11, gap = 3;
+    const cell = 11, gap = 3;
 
     return (
-        <div className="relative">
-            <svg
-                width={weeks.length * (cellSize + gap) + 32}
-                height={7 * (cellSize + gap) + 28}
-                className="overflow-visible"
-            >
-                {/* Month labels */}
+        <div className="relative" style={{ overflowX: "auto" }}>
+            <svg width={weeks.length * (cell + gap) + 32} height={7 * (cell + gap) + 28}>
                 {months.map((m, i) => (
-                    <text
-                        key={i}
-                        x={m.x * (cellSize + gap) + 32}
-                        y={10}
-                        className="fill-gray-400 dark:fill-gray-500"
-                        fontSize={10}
-                        fontFamily="system-ui, -apple-system, sans-serif"
-                    >
+                    <text key={i} x={m.x * (cell + gap) + 32} y={10}
+                        fill="var(--text-tertiary)" fontSize={10} fontFamily="'Geist Mono', monospace">
                         {m.m}
                     </text>
                 ))}
-                {/* Day labels */}
                 {["Mon", "Wed", "Fri"].map((d, i) => (
-                    <text
-                        key={d}
-                        x={0}
-                        y={20 + ([1, 3, 5][i]) * (cellSize + gap) + 9}
-                        className="fill-gray-400 dark:fill-gray-500"
-                        fontSize={9}
-                        fontFamily="system-ui, -apple-system, sans-serif"
-                    >
+                    <text key={d} x={0} y={20 + [1, 3, 5][i] * (cell + gap) + 9}
+                        fill="var(--text-tertiary)" fontSize={9} fontFamily="'Geist Mono', monospace">
                         {d}
                     </text>
                 ))}
-                {/* Cells */}
                 {weeks.map((week, wi) =>
                     week.map((day, di) => (
-                        <rect
-                            key={`${wi}-${di}`}
-                            x={wi * (cellSize + gap) + 32}
-                            y={di * (cellSize + gap) + 18}
-                            width={cellSize}
-                            height={cellSize}
-                            rx={2}
-                            className={`${fill(day.count)} transition-all duration-150 ${hoveredDay === `${wi}-${di}` ? "stroke-gray-400 dark:stroke-gray-500 stroke-1" : ""}`}
-                            onMouseEnter={() => setHoveredDay(`${wi}-${di}`)}
-                            onMouseLeave={() => setHoveredDay(null)}
+                        <rect key={`${wi}-${di}`}
+                            x={wi * (cell + gap) + 32}
+                            y={di * (cell + gap) + 18}
+                            width={cell} height={cell} rx={2}
+                            fill={fillColor(day.count)}
+                            stroke={hovered === `${wi}-${di}` ? "var(--border-active)" : "none"}
+                            strokeWidth={1}
+                            style={{ transition: "fill 150ms, stroke 150ms", cursor: "pointer" }}
+                            onMouseEnter={() => setHovered(`${wi}-${di}`)}
+                            onMouseLeave={() => setHovered(null)}
                         >
                             <title>{`${day.date} — ${day.count} document${day.count !== 1 ? "s" : ""}`}</title>
                         </rect>
                     ))
                 )}
             </svg>
-            {/* Legend */}
-            <div className="flex items-center gap-1.5 mt-2 justify-end pr-1">
-                <span className="text-[10px] text-gray-400 dark:text-gray-500 mr-0.5">Less</span>
-                {[0, 0.25, 0.5, 0.75, 1].map((r, i) => {
-                    const cls = r === 0
-                        ? "bg-[#ebedf0] dark:bg-[#161b22]"
-                        : r <= 0.25 ? "bg-[#9be9a8] dark:bg-[#0e4429]"
-                            : r <= 0.5 ? "bg-[#40c463] dark:bg-[#006d32]"
-                                : r <= 0.75 ? "bg-[#30a14e] dark:bg-[#26a641]"
-                                    : "bg-[#216e39] dark:bg-[#39d353]";
-                    return <div key={i} className={`w-[11px] h-[11px] rounded-sm ${cls}`} />;
-                })}
-                <span className="text-[10px] text-gray-400 dark:text-gray-500 ml-0.5">More</span>
+            <div className="flex items-center gap-1.5 mt-2 justify-end">
+                <span className="font-mono" style={{ fontSize: 10, color: "var(--text-tertiary)" }}>Less</span>
+                {[0, 0.25, 0.5, 0.75, 1].map((_, i) => (
+                    <div key={i} style={{
+                        width: 11, height: 11, borderRadius: 2,
+                        background: i === 0 ? "var(--bg-elevated)"
+                            : i === 1 ? "rgba(108,99,255,0.2)"
+                            : i === 2 ? "rgba(108,99,255,0.4)"
+                            : i === 3 ? "rgba(108,99,255,0.65)" : "var(--accent)",
+                    }} />
+                ))}
+                <span className="font-mono" style={{ fontSize: 10, color: "var(--text-tertiary)" }}>More</span>
             </div>
         </div>
     );
 }
 
-// ─── Top Sources ─────────────────────────────────────────────────────
+// ─── Sources bar chart ───────────────────────────────────────────────
 function Sources({ domains }) {
     if (!domains?.length) return null;
     const max = Math.max(1, ...domains.map(d => d.count));
 
     return (
-        <div className="space-y-3.5">
+        <div className="flex flex-col gap-4">
             {domains.map((d, i) => (
-                <div key={i} className="group">
+                <div key={i}>
                     <div className="flex items-baseline justify-between mb-1.5">
-                        <span className="text-[13px] font-medium text-gray-700 dark:text-gray-300 truncate mr-3">
+                        <span className="font-body truncate" style={{ fontSize: 13, fontWeight: 500, color: "var(--text-primary)" }}>
                             {d.domain}
                         </span>
-                        <span className="text-[11px] tabular-nums text-gray-400 dark:text-gray-500 shrink-0">
+                        <span className="font-mono" style={{ fontSize: 11, color: "var(--text-tertiary)" }}>
                             {d.count}
                         </span>
                     </div>
-                    <div className="h-[3px] rounded-full bg-gray-100 dark:bg-gray-800/80 overflow-hidden">
-                        <div
-                            className="h-full rounded-full transition-all duration-[1.2s] ease-out"
-                            style={{
-                                width: `${(d.count / max) * 100}%`,
-                                background: `linear-gradient(90deg, #818cf8, #a78bfa)`,
-                            }}
-                        />
+                    <div className="compression-bar">
+                        <div className="fill" style={{
+                            width: `${(d.count / max) * 100}%`,
+                            background: "var(--gradient-hero)",
+                            transition: "width 1.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                        }} />
                     </div>
                 </div>
             ))}
@@ -183,7 +150,6 @@ export default function AnalyticsDashboard() {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [entered, setEntered] = useState(false);
 
     const load = useCallback(async () => {
         setLoading(true); setError(null);
@@ -193,42 +159,46 @@ export default function AnalyticsDashboard() {
     }, []);
 
     useEffect(() => { if (user) load(); }, [user, load]);
-    useEffect(() => { if (data) { const t = setTimeout(() => setEntered(true), 60); return () => clearTimeout(t); } }, [data]);
 
-    /* ── Auth gate ── */
+    // Auth gate
     if (!user) return (
-        <div className="max-w-2xl mx-auto pt-8">
-            <h1 className="text-[28px] font-semibold tracking-tight mb-2">Analytics</h1>
-            <p className="text-[15px] text-gray-500 dark:text-gray-400 mb-10">
+        <div className="flex flex-col items-center justify-center text-center" style={{ padding: "80px 32px" }}>
+            <div style={{
+                width: 64, height: 64, borderRadius: 16,
+                background: "var(--bg-elevated)", border: "1px solid var(--border)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 28, marginBottom: 24,
+            }}>◈</div>
+            <h3 className="font-body" style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)", marginBottom: 8 }}>
+                Sign in to view Analytics
+            </h3>
+            <p className="font-body" style={{ fontSize: 13, color: "var(--text-tertiary)", maxWidth: 320 }}>
                 Track your reading habits and measure progress.
             </p>
-            <div className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#111] p-10 text-center">
-                <p className="text-[15px] font-medium mb-1">Sign in to view analytics</p>
-                <p className="text-sm text-gray-400">Your reading data will appear here.</p>
-            </div>
         </div>
     );
 
-    /* ── Loading skeleton ── */
+    // Loading skeleton
     if (loading && !data) return (
-        <div className="max-w-4xl mx-auto pt-8">
-            <div className="h-7 w-28 rounded-md bg-gray-200 dark:bg-gray-800 mb-8 animate-pulse" />
-            <div className="grid grid-cols-4 gap-5 mb-10">
+        <div className="animate-in">
+            <div className="grid grid-cols-4 gap-4" style={{ marginBottom: 32 }}>
                 {[...Array(4)].map((_, i) => (
-                    <div key={i} className="h-20 rounded-xl bg-gray-100 dark:bg-gray-800/50 animate-pulse" />
+                    <div key={i} className="skeleton" style={{ height: 96, borderRadius: "var(--radius-card)" }} />
                 ))}
             </div>
-            <div className="h-44 rounded-xl bg-gray-100 dark:bg-gray-800/50 animate-pulse" />
+            <div className="skeleton" style={{ height: 200, borderRadius: "var(--radius-card)" }} />
         </div>
     );
 
-    /* ── Error ── */
+    // Error
     if (error) return (
-        <div className="max-w-2xl mx-auto pt-8">
-            <h1 className="text-[28px] font-semibold tracking-tight mb-6">Analytics</h1>
-            <div className="rounded-xl border border-red-200 dark:border-red-900/40 bg-red-50 dark:bg-red-950/10 p-5">
-                <p className="text-sm text-red-600 dark:text-red-400 mb-2">{error}</p>
-                <button onClick={load} className="text-xs underline text-red-500">Retry</button>
+        <div className="animate-in">
+            <div style={{
+                padding: "20px 24px", borderRadius: "var(--radius-card)",
+                background: "rgba(255,107,107,0.08)", border: "1px solid rgba(255,107,107,0.2)",
+            }}>
+                <p className="font-body" style={{ fontSize: 13, color: "var(--accent-warn)", marginBottom: 8 }}>{error}</p>
+                <button onClick={load} className="btn-ghost" style={{ color: "var(--accent)" }}>Retry</button>
             </div>
         </div>
     );
@@ -239,91 +209,75 @@ export default function AnalyticsDashboard() {
     const streak = data.streak || 0;
     const hasDocs = (s.total_documents || 0) > 0;
 
-    /* ── Main layout ── */
+    const STAT_CARDS = [
+        { label: "Summaries", value: s.total_documents || 0, useAnim: true, sub: `${(s.total_words || 0).toLocaleString()} words processed` },
+        { label: "Time Saved", value: fmtTime(s.time_saved_seconds), useAnim: false, sub: "by summarizing" },
+        { label: "Flashcards", value: s.total_flashcards || 0, useAnim: true, sub: `${s.total_flashcard_sets || 0} sets` },
+        { label: "Conversations", value: s.total_chat_sessions || 0, useAnim: true, sub: `${s.total_chat_messages || 0} messages` },
+    ];
+
     return (
-        <div className={`max-w-4xl mx-auto pt-4 pb-16 transition-all duration-700 ${entered ? "opacity-100" : "opacity-0 translate-y-3"}`}>
-
-            {/* ── Header row ── */}
-            <div className="flex items-start justify-between mb-10">
-                <div>
-                    <h1 className="text-[28px] font-semibold tracking-tight mb-1">Analytics</h1>
-                    <p className="text-[14px] text-gray-400 dark:text-gray-500">
-                        {hasDocs
-                            ? `${s.total_documents} document${s.total_documents !== 1 ? "s" : ""} · ${s.total_words?.toLocaleString()} words processed`
-                            : "Start reading to see your analytics"}
-                    </p>
+        <div className="animate-in">
+            {/* Streak badge */}
+            {streak > 0 && (
+                <div className="flex items-center gap-2 mb-6" style={{
+                    display: "inline-flex", padding: "8px 16px",
+                    borderRadius: "var(--radius-btn)",
+                    background: "rgba(255,179,71,0.1)", border: "1px solid rgba(255,179,71,0.2)",
+                }}>
+                    <span style={{ fontSize: 16 }}>🔥</span>
+                    <span className="font-body" style={{ fontSize: 14, fontWeight: 600, color: "var(--accent-amber)" }}>
+                        {streak} day streak
+                    </span>
                 </div>
-                {streak > 0 && (
-                    <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-orange-50 dark:bg-orange-950/20 border border-orange-200/60 dark:border-orange-800/30">
-                        <span className="text-lg leading-none">🔥</span>
-                        <div className="leading-tight">
-                            <span className="text-[15px] font-semibold text-orange-600 dark:text-orange-400">{streak}</span>
-                            <span className="text-[11px] text-orange-500/70 dark:text-orange-400/60 ml-1">day streak</span>
-                        </div>
-                    </div>
-                )}
-            </div>
+            )}
 
-            {/* ── Stat pills ── */}
+            {/* Stat Cards */}
             {hasDocs && (
-                <div className="grid grid-cols-4 gap-4 mb-10">
-                    {[
-                        { label: "Time Saved", val: fmtTime(s.time_saved_seconds), sub: "by summarizing" },
-                        { label: "Flashcards", val: s.total_flashcards || 0, num: true, sub: `${s.total_flashcard_sets || 0} sets` },
-                        { label: "Conversations", val: s.total_chat_sessions || 0, num: true, sub: `${s.total_chat_messages || 0} messages` },
-                        { label: "Documents", val: s.total_documents || 0, num: true, sub: `${s.total_words?.toLocaleString() || 0} words` },
-                    ].map((item, i) => (
-                        <div
-                            key={i}
-                            className={`rounded-xl border border-gray-200/80 dark:border-gray-800/80 bg-white dark:bg-[#111] px-5 py-4 transition-all duration-500 ${entered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"}`}
-                            style={{ transitionDelay: `${i * 80 + 100}ms` }}
-                        >
-                            <div className="text-[22px] font-semibold tracking-tight leading-tight mb-0.5">
-                                {item.num ? <AnimNum value={item.val} /> : item.val}
+                <div className="grid grid-cols-4 gap-4" style={{ marginBottom: 32 }}>
+                    {STAT_CARDS.map((item, i) => (
+                        <div key={i} className="stat-card animate-in" style={{ animationDelay: `${i * 80}ms` }}>
+                            <div className="stat-value">
+                                {item.useAnim ? <AnimNum value={item.value} /> : item.value}
                             </div>
-                            <div className="text-[12px] font-medium text-gray-500 dark:text-gray-400">{item.label}</div>
-                            <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{item.sub}</div>
+                            <div className="stat-label">{item.label}</div>
+                            <div className="font-mono" style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 4 }}>
+                                {item.sub}
+                            </div>
                         </div>
                     ))}
                 </div>
             )}
 
-            {/* ── Activity graph ── */}
-            <div className={`mb-10 transition-all duration-600 ${entered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"}`} style={{ transitionDelay: "420ms" }}>
-                <div className="flex items-baseline justify-between mb-4">
-                    <h2 className="text-[13px] font-medium text-gray-500 dark:text-gray-400">
-                        Activity
-                    </h2>
-                    <button
-                        onClick={load}
-                        disabled={loading}
-                        className="text-[11px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition"
-                    >
+            {/* Activity Heatmap */}
+            <div className="card" style={{ padding: 24, marginBottom: 24 }}>
+                <div className="flex items-baseline justify-between" style={{ marginBottom: 16 }}>
+                    <p className="section-header" style={{ margin: 0, padding: 0 }}>Activity</p>
+                    <button onClick={load} disabled={loading} className="btn-ghost" style={{ fontSize: 12 }}>
                         {loading ? "…" : "Refresh"}
                     </button>
                 </div>
-                <div className="rounded-xl border border-gray-200/80 dark:border-gray-800/80 bg-white dark:bg-[#111] px-5 py-4 overflow-x-auto">
-                    <Heatmap data={data.activity_heatmap} />
-                </div>
+                <Heatmap data={data.activity_heatmap} />
             </div>
 
-            {/* ── Bottom row: Sources ── */}
+            {/* Top Sources */}
             {data.top_domains?.length > 0 && (
-                <div className={`transition-all duration-600 ${entered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3"}`} style={{ transitionDelay: "540ms" }}>
-                    <h2 className="text-[13px] font-medium text-gray-500 dark:text-gray-400 mb-4">
-                        Top Sources
-                    </h2>
-                    <div className="rounded-xl border border-gray-200/80 dark:border-gray-800/80 bg-white dark:bg-[#111] px-5 py-5">
-                        <Sources domains={data.top_domains} />
-                    </div>
+                <div className="card" style={{ padding: 24, marginBottom: 24 }}>
+                    <p className="section-header" style={{ marginBottom: 16, padding: 0 }}>Top Sources</p>
+                    <Sources domains={data.top_domains} />
                 </div>
             )}
 
-            {/* ── Empty state ── */}
+            {/* Empty state */}
             {!hasDocs && (
-                <div className="mt-4 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 px-8 py-10 text-center">
-                    <p className="text-[15px] font-medium mb-1">No reading data yet</p>
-                    <p className="text-[13px] text-gray-400 dark:text-gray-500">
+                <div style={{
+                    padding: "48px 32px", borderRadius: "var(--radius-card)",
+                    border: "2px dashed var(--border)", textAlign: "center",
+                }}>
+                    <p className="font-body" style={{ fontSize: 15, fontWeight: 500, color: "var(--text-secondary)", marginBottom: 4 }}>
+                        No reading data yet
+                    </p>
+                    <p className="font-body" style={{ fontSize: 13, color: "var(--text-tertiary)" }}>
                         Summarize an article or paste a URL to start tracking your progress.
                     </p>
                 </div>
