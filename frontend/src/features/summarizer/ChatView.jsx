@@ -11,10 +11,7 @@ export default function ChatView({ documentId }) {
     const messagesEndRef = useRef(null);
     const abortRef = useRef(null);
 
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    };
-
+    const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     useEffect(() => { scrollToBottom(); }, [messages, streamingContent]);
 
     function cancelChatStream() {
@@ -22,9 +19,7 @@ export default function ChatView({ documentId }) {
         if (streamingContent) {
             setMessages((prev) => [...prev, { role: "assistant", content: streamingContent + " [stopped]" }]);
         }
-        setStreaming(false);
-        setStreamingContent("");
-        setLoading(false);
+        setStreaming(false); setStreamingContent(""); setLoading(false);
     }
 
     async function handleSend(e) {
@@ -32,17 +27,13 @@ export default function ChatView({ documentId }) {
         if (!input.trim() || loading || streaming || !documentId) return;
 
         const userMessage = input.trim();
-        setInput("");
-        setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+        setInput(""); setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
         setLoading(true);
 
-        // Streaming first
         const controller = new AbortController();
         abortRef.current = controller;
-        setStreaming(true);
-        setLoading(false);
-        let streamedContent = "";
-        let streamSucceeded = false;
+        setStreaming(true); setLoading(false);
+        let streamedContent = ""; let streamSucceeded = false;
 
         try {
             await sendChatMessageStream(
@@ -60,7 +51,6 @@ export default function ChatView({ documentId }) {
             if (streamSucceeded) return;
         } catch { /* fall through */ }
 
-        // Fallback
         setStreaming(false); setStreamingContent(""); setLoading(true); abortRef.current = null;
         try {
             const response = await sendChatMessage(documentId, userMessage, sessionId);
@@ -68,23 +58,19 @@ export default function ChatView({ documentId }) {
             setMessages((prev) => [...prev, { role: "assistant", content: response.content }]);
         } catch (err) {
             setMessages((prev) => [...prev, { role: "assistant", content: `Error: ${err.message}` }]);
-        } finally {
-            setLoading(false);
-        }
+        } finally { setLoading(false); }
     }
 
     const isBusy = loading || streaming;
 
     return (
-        <div className="border-t border-gray-100 dark:border-gray-800/60 pt-4 mt-4">
-            <h3 className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">
-                Ask about this text
-            </h3>
+        <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16, marginTop: 16 }}>
+            <p className="section-header" style={{ marginBottom: 12 }}>Ask about this text</p>
 
             {/* Messages */}
-            <div className="flex flex-col gap-2.5 max-h-[280px] overflow-y-auto mb-3 pr-1">
+            <div className="flex flex-col gap-2.5" style={{ maxHeight: 280, overflowY: "auto", marginBottom: 12 }}>
                 {messages.length === 0 && !streaming ? (
-                    <p className="text-[12px] text-gray-400 dark:text-gray-500 italic py-2">
+                    <p className="font-body" style={{ fontSize: 12, color: "var(--text-tertiary)", fontStyle: "italic", padding: "8px 0" }}>
                         Ask a question about the document…
                     </p>
                 ) : (
@@ -92,18 +78,30 @@ export default function ChatView({ documentId }) {
                         {messages.map((msg, idx) => (
                             <div
                                 key={idx}
-                                className={`px-3.5 py-2.5 rounded-xl text-[13px] leading-relaxed max-w-[85%] ${msg.role === "user"
-                                    ? "bg-gray-100 dark:bg-gray-800/60 text-gray-800 dark:text-gray-200 self-end ml-auto"
-                                    : "bg-gray-900 dark:bg-white text-white dark:text-gray-900 self-start"
-                                    }`}
+                                className="font-body"
+                                style={{
+                                    padding: "10px 14px", borderRadius: 12, fontSize: 13, lineHeight: 1.6,
+                                    maxWidth: "85%",
+                                    ...(msg.role === "user"
+                                        ? { background: "var(--bg-elevated)", color: "var(--text-primary)", alignSelf: "flex-end", marginLeft: "auto" }
+                                        : { background: "var(--accent)", color: "white", alignSelf: "flex-start" }
+                                    ),
+                                }}
                             >
                                 {msg.content}
                             </div>
                         ))}
                         {streaming && streamingContent && (
-                            <div className="px-3.5 py-2.5 rounded-xl text-[13px] leading-relaxed max-w-[85%] bg-gray-900 dark:bg-white text-white dark:text-gray-900 self-start">
+                            <div className="font-body" style={{
+                                padding: "10px 14px", borderRadius: 12, fontSize: 13, lineHeight: 1.6,
+                                maxWidth: "85%", background: "var(--accent)", color: "white", alignSelf: "flex-start",
+                            }}>
                                 {streamingContent}
-                                <span className="inline-block w-[5px] h-[14px] bg-gray-400 dark:bg-gray-600 animate-pulse ml-0.5 align-text-bottom rounded-sm" />
+                                <span style={{
+                                    display: "inline-block", width: 5, height: 14, marginLeft: 2,
+                                    background: "rgba(255,255,255,0.5)", borderRadius: 1,
+                                    animation: "pulse 1s infinite", verticalAlign: "text-bottom",
+                                }} />
                             </div>
                         )}
                     </>
@@ -118,27 +116,36 @@ export default function ChatView({ documentId }) {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     placeholder="Type a question…"
-                    className="flex-1 bg-gray-50 dark:bg-gray-800/40 border border-gray-200/80 dark:border-gray-800/80 rounded-xl px-3.5 py-2 text-[13px] outline-none placeholder:text-gray-300 dark:placeholder:text-gray-600 focus:border-gray-400 dark:focus:border-gray-600 transition"
+                    className="font-body"
+                    style={{
+                        flex: 1, background: "var(--bg-input)", border: "1px solid var(--border)",
+                        borderRadius: "var(--radius-input)", padding: "10px 14px",
+                        fontSize: 13, color: "var(--text-primary)", outline: "none",
+                        transition: "border-color var(--duration-base) var(--ease)",
+                    }}
+                    onFocus={(e) => e.target.style.borderColor = "var(--border-active)"}
+                    onBlur={(e) => e.target.style.borderColor = "var(--border)"}
                     disabled={isBusy || !documentId}
                 />
                 {streaming ? (
-                    <button
-                        type="button"
-                        onClick={cancelChatStream}
-                        className="text-[12px] font-medium px-3 py-2 rounded-xl text-red-500 border border-red-200 dark:border-red-800/40 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
-                    >
+                    <button type="button" onClick={cancelChatStream} className="btn-ghost" style={{ color: "var(--accent-warn)" }}>
                         Stop
                     </button>
                 ) : (
                     <button
                         type="submit"
                         disabled={loading || !input.trim() || !documentId}
-                        className="text-[12px] font-medium px-4 py-2 rounded-xl bg-gray-900 dark:bg-white text-white dark:text-black disabled:opacity-30 hover:opacity-90 transition"
+                        className="btn-primary"
+                        style={{ padding: "10px 20px" }}
                     >
                         {loading ? "…" : "Send"}
                     </button>
                 )}
             </form>
+
+            <style>{`
+                input::placeholder { color: var(--text-tertiary); }
+            `}</style>
         </div>
     );
 }

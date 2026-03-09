@@ -1,13 +1,8 @@
 import { useSummarizerContext } from "../../contexts/SummarizerContext.jsx";
 
 const MODE_LABELS = {
-  paragraph: "Paragraph",
-  bullets: "Bullets",
-  key_sentences: "Key Sentences",
-  abstract: "Abstract",
-  tldr: "TL;DR",
-  outline: "Outline",
-  executive: "Executive",
+  paragraph: "Paragraph", bullets: "Bullets", key_sentences: "Key Sentences",
+  abstract: "Abstract", tldr: "TL;DR", outline: "Outline", executive: "Executive",
 };
 
 export default function SummaryHistory() {
@@ -16,43 +11,45 @@ export default function SummaryHistory() {
   if (!history || history.length === 0) return null;
 
   return (
-    <div className="rounded-2xl border border-gray-200/80 dark:border-gray-800/80 bg-white dark:bg-[#111] overflow-hidden">
-      <div className="px-5 py-3 border-b border-gray-100 dark:border-gray-800/60">
-        <h4 className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
-          Recent Summaries
-        </h4>
+    <div className="card" style={{ overflow: "hidden" }}>
+      <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)" }}>
+        <p className="section-header" style={{ margin: 0, padding: 0 }}>Recent Summaries</p>
       </div>
-      <div className="divide-y divide-gray-100 dark:divide-gray-800/60">
+      <div>
         {history.map((entry, i) => {
           const time = entry.timestamp
             ? new Date(entry.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
             : "";
           const preview = entry.inputText
-            ? (entry.inputText.length > 60 ? entry.inputText.slice(0, 60) + "…" : entry.inputText)
+            ? (entry.inputText.length > 55 ? entry.inputText.slice(0, 55) + "…" : entry.inputText)
             : "—";
           const mode = MODE_LABELS[entry.mode] || entry.mode;
-          const length = entry.length || "standard";
 
           return (
             <button
               key={i}
               onClick={() => restoreFromHistory(entry)}
-              className="w-full text-left px-5 py-3 hover:bg-gray-50 dark:hover:bg-white/[0.02] transition group"
+              className="w-full text-left flex items-center gap-3"
+              style={{
+                padding: "12px 20px",
+                borderBottom: i < history.length - 1 ? "1px solid var(--border)" : "none",
+                background: "transparent",
+                transition: "background var(--duration-fast) var(--ease)",
+                border: "none", cursor: "pointer",
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = "var(--bg-elevated)"}
+              onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
             >
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[11px] text-gray-400 dark:text-gray-500 tabular-nums">{time}</span>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400">
-                    {mode}
-                  </span>
-                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 capitalize">
-                    {length}
-                  </span>
-                </div>
+              <span style={{ color: "var(--text-tertiary)", fontSize: 14 }}>○</span>
+              <div className="flex-1 min-w-0">
+                <p className="truncate font-body" style={{ fontSize: 12, color: "var(--text-secondary)", margin: 0 }}>
+                  {preview}
+                </p>
               </div>
-              <p className="text-[12px] text-gray-500 dark:text-gray-400 truncate group-hover:text-gray-700 dark:group-hover:text-gray-300 transition">
-                {preview}
-              </p>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="chip" style={{ fontSize: 10 }}>{mode}</span>
+                <span className="font-mono" style={{ fontSize: 10, color: "var(--text-tertiary)" }}>{time}</span>
+              </div>
             </button>
           );
         })}

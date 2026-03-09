@@ -1,13 +1,14 @@
 /**
- * App — thin shell: composes config, hooks, and features (like backend main.py).
- * Add new features: new hook + feature folder, then wire here.
+ * App — Shell: Sidebar + routed content area with page transitions.
+ * Uses the design system CSS variables for all theming.
  */
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { config } from "./config.js";
 import { useAppContext } from "./contexts/AppContext.jsx";
 import { useSummarizerContext } from "./contexts/SummarizerContext.jsx";
 import { Sidebar } from "./features/layout";
-import { Editor, OutputCard, SynthesisWorkspace, SummaryHistory } from "./features/summarizer";
+import { Editor, OutputCard, SummaryHistory } from "./features/summarizer";
+import { SynthesisWorkspace } from "./features/summarizer";
 import { AuthModal, SocialCallback } from "./features/auth";
 import { AnalyticsDashboard } from "./features/analytics";
 
@@ -18,11 +19,12 @@ function isBrowser() {
 }
 
 export default function App() {
-  const { auth } = useAppContext();
+  const { auth, dark } = useAppContext();
   const summarizer = useSummarizerContext();
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState("signup");
+  const [pageKey, setPageKey] = useState(0); // for page transitions
 
   // Simple routing for auth callbacks
   const pathname = window.location.pathname;
@@ -33,22 +35,25 @@ export default function App() {
 
   const [hasUsedFeatureOnce, setHasUsedFeatureOnce] = useState(() => {
     if (!isBrowser()) return false;
-    try {
-      return window.localStorage.getItem(USAGE_KEY) === "true";
-    } catch {
-      return false;
-    }
+    try { return window.localStorage.getItem(USAGE_KEY) === "true"; } catch { return false; }
   });
   const [snackbar, setSnackbar] = useState(null);
   const [activeTab, setActiveTab] = useState("summarize");
 
+  // Apply dark/light class to root element
+  useEffect(() => {
+    document.documentElement.classList.toggle("light", !dark);
+  }, [dark]);
+
+  // Trigger page transition on tab change
+  const handleSetActiveTab = useCallback((tab) => {
+    setActiveTab(tab);
+    setPageKey((k) => k + 1);
+  }, []);
+
   function markFeatureUsedOnce() {
     if (!isBrowser()) return;
-    try {
-      window.localStorage.setItem(USAGE_KEY, "true");
-    } catch {
-      // ignore
-    }
+    try { window.localStorage.setItem(USAGE_KEY, "true"); } catch { /* ignore */ }
   }
 
   function handleOpenAuth(mode = "signup") {
@@ -56,15 +61,9 @@ export default function App() {
     setAuthModalOpen(true);
   }
 
-  function handleCloseAuth() {
-    setAuthModalOpen(false);
-  }
-
   function showSnackbar(message) {
     setSnackbar(message);
-    window.setTimeout(() => {
-      setSnackbar(null);
-    }, 2500);
+    window.setTimeout(() => setSnackbar(null), 2500);
   }
 
   function handleLogout() {
@@ -79,12 +78,10 @@ export default function App() {
       summarizer.onSummarize();
       return;
     }
-
     if (!auth.isAuthenticated) {
       handleOpenAuth("signup");
       return;
     }
-
     summarizer.onSummarize();
   }, [hasUsedFeatureOnce, auth.isAuthenticated, summarizer]);
 
@@ -93,63 +90,100 @@ export default function App() {
       <SocialCallback
         provider={authProvider}
         onResult={(success) => {
-          window.setTimeout(() => {
-            window.location.href = "/";
-          }, success ? 500 : 2000);
+          window.setTimeout(() => { window.location.href = "/"; }, success ? 500 : 2000);
         }}
       />
     );
   }
 
+  // Page titles
+  const PAGE_META = {
+    summarize:  { title: "Single Document", subtitle: "Summarize any text with AI precision" },
+    synthesize: { title: "Multi-Doc Synthesis", subtitle: "Compare and merge multiple documents" },
+    analytics:  { title: "Analytics", subtitle: "Your summarization insights and history" },
+  };
+  const meta = PAGE_META[activeTab] || PAGE_META.summarize;
+
   return (
-    <div className="h-screen flex bg-[#F8F7F4] text-[#1A1A2E] dark:bg-[#0a0a0a] dark:text-white transition-colors duration-300">
+    <div className="flex min-h-screen" style={{ background: "var(--bg-base)", color: "var(--text-primary)" }}>
       <Sidebar
         appName={config.appName}
         onOpenAuth={handleOpenAuth}
         onLogout={handleLogout}
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={handleSetActiveTab}
       />
-      <main className="flex-1 overflow-y-auto">
-        <div
-          className={`transition-all duration-500 ${activeTab === 'summarize' && summarizer.hasSummary
-            ? "grid grid-cols-2 gap-10 px-14 py-14"
-            : activeTab === "analytics"
-              ? "max-w-5xl mx-auto px-12 py-12"
-              : "max-w-2xl mx-auto px-8 py-16"
-            }`}
-        >
+
+      <main className="flex-1 min-w-0 overflow-y-auto" style={{ minHeight: "100vh" }}>
+        {/* Page content with transition */}
+        <div key={pageKey} className="page-enter" style={{ padding: activeTab === "summarize" && summarizer.hasSummary ? "32px 40px" : "48px 40px" }}>
+
           {activeTab === "summarize" ? (
             <>
-              <Editor
-                onSummarize={handleSummarizeWithGate}
-                handleKeyDown={(e) => {
-                  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                    e.preventDefault();
-                    handleSummarizeWithGate();
-                  }
-                }}
-              />
-              {summarizer.hasSummary && (
-                <div className="space-y-4">
-                  <OutputCard />
-                  <SummaryHistory />
+              {/* Two-panel layout when summary exists */}
+              {summarizer.hasSummary ? (
+                <div className="flex gap-8" style={{ minHeight: "calc(100vh - 64px)" }}>
+                  {/* Left — Input (45%) */}
+                  <div className="w-[45%] shrink-0" style={{ maxHeight: "calc(100vh - 64px)", overflowY: "auto" }}>
+                    <Editor
+                      onSummarize={handleSummarizeWithGate}
+                      handleKeyDown={(e) => {
+                        if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                          e.preventDefault();
+                          handleSummarizeWithGate();
+                        }
+                      }}
+                    />
+                  </div>
+                  {/* Right — Output (55%) */}
+                  <div className="flex-1 min-w-0" style={{ maxHeight: "calc(100vh - 64px)", overflowY: "auto" }}>
+                    <OutputCard />
+                    <div style={{ marginTop: 16 }}>
+                      <SummaryHistory />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* Single column before summary */
+                <div style={{ maxWidth: 720, margin: "0 auto" }}>
+                  <Editor
+                    onSummarize={handleSummarizeWithGate}
+                    handleKeyDown={(e) => {
+                      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                        e.preventDefault();
+                        handleSummarizeWithGate();
+                      }
+                    }}
+                  />
                 </div>
               )}
             </>
           ) : activeTab === "analytics" ? (
-            <AnalyticsDashboard />
+            <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+              <div style={{ marginBottom: 32 }}>
+                <h1 className="font-display" style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)" }}>{meta.title}</h1>
+                <p className="font-body" style={{ fontSize: 14, color: "var(--text-secondary)", marginTop: 4 }}>{meta.subtitle}</p>
+              </div>
+              <AnalyticsDashboard />
+            </div>
           ) : (
-            <SynthesisWorkspace />
+            <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+              <div style={{ marginBottom: 32 }}>
+                <h1 className="font-display" style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)" }}>{meta.title}</h1>
+                <p className="font-body" style={{ fontSize: 14, color: "var(--text-secondary)", marginTop: 4 }}>{meta.subtitle}</p>
+              </div>
+              <SynthesisWorkspace />
+            </div>
           )}
         </div>
       </main>
 
+      {/* Auth Modal */}
       <AuthModal
         open={authModalOpen}
         mode={authModalMode}
         onModeChange={setAuthModalMode}
-        onClose={handleCloseAuth}
+        onClose={() => setAuthModalOpen(false)}
         onLogin={auth.login}
         onRegister={auth.register}
         submitting={auth.submitting}
@@ -157,9 +191,15 @@ export default function App() {
         onSuccess={showSnackbar}
       />
 
+      {/* Snackbar */}
       {snackbar && (
         <div className="pointer-events-none fixed inset-x-0 bottom-5 z-40 flex justify-center">
-          <div className="pointer-events-auto rounded-full bg-black px-4 py-2 text-xs text-white shadow-lg dark:bg-white dark:text-black">
+          <div className="pointer-events-auto animate-in" style={{
+            padding: "10px 20px", borderRadius: "var(--radius-btn)",
+            background: "var(--bg-overlay)", border: "1px solid var(--border)",
+            fontSize: 13, fontWeight: 500, color: "var(--text-primary)",
+            boxShadow: "var(--shadow-lg)",
+          }}>
             {snackbar}
           </div>
         </div>
