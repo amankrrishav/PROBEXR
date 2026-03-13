@@ -3,7 +3,7 @@ import { generateFlashcards } from "../../services/api";
 import { getBaseUrl } from "../../services/client";
 import { useSummarizerContext } from "../../contexts/SummarizerContext.jsx";
 
-// ─── Browser SpeechSynthesis TTS ──────────────────────────────────────
+// ── Browser SpeechSynthesis TTS ──
 function useTTS(text) {
     const [ttsState, setTtsState] = useState("idle");
     const utterRef = useRef(null);
@@ -59,7 +59,7 @@ function TTSButton({ summaryText }) {
         return (
             <div className="flex items-center gap-1">
                 <button onClick={pause} className="btn-ghost" style={{ fontSize: 12 }}>⏸ Pause</button>
-                <button onClick={stop} className="btn-ghost" style={{ fontSize: 12, color: "var(--accent-warn)" }}>✕</button>
+                <button onClick={stop} className="btn-ghost" style={{ fontSize: 12, color: "var(--rose)" }}>✕</button>
             </div>
         );
     }
@@ -68,14 +68,14 @@ function TTSButton({ summaryText }) {
         return (
             <div className="flex items-center gap-1">
                 <button onClick={resume} className="btn-ghost" style={{ fontSize: 12 }}>▶ Resume</button>
-                <button onClick={stop} className="btn-ghost" style={{ fontSize: 12, color: "var(--accent-warn)" }}>✕</button>
+                <button onClick={stop} className="btn-ghost" style={{ fontSize: 12, color: "var(--rose)" }}>✕</button>
             </div>
         );
     }
     return null;
 }
 
-// ─── DocumentActions ─────────────────────────────────────────────────
+// ── DocumentActions ──
 export default function DocumentActions({ documentId }) {
     const { summaryText } = useSummarizerContext();
     const [loadingCards, setLoadingCards] = useState(false);
@@ -108,11 +108,11 @@ export default function DocumentActions({ documentId }) {
     }
 
     return (
-        <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16, marginTop: 16 }}>
+        <div style={{ borderTop: "1px solid var(--border-dim)", paddingTop: 16, marginTop: 16 }}>
             <p className="section-header" style={{ marginBottom: 12 }}>Tools</p>
 
             {error && (
-                <p className="font-body" style={{ fontSize: 11, color: "var(--accent-warn)", marginBottom: 8 }}>{error}</p>
+                <p className="font-body" style={{ fontSize: 11, color: "var(--rose)", marginBottom: 8 }}>{error}</p>
             )}
 
             <div className="flex items-center gap-2 flex-wrap">
@@ -125,7 +125,7 @@ export default function DocumentActions({ documentId }) {
                     </button>
                 ) : (
                     <div className="flex items-center gap-2">
-                        <span className="chip chip-teal" style={{ fontSize: 11 }}>Flashcards ready</span>
+                        <span className="chip chip-sage" style={{ fontSize: 11 }}>Flashcards ready</span>
                         <button onClick={handleExportCSV} disabled={loadingExport}
                             className="btn-ghost" style={{ fontSize: 12 }}>
                             {loadingExport ? "Downloading…" : "⬇ Download CSV"}

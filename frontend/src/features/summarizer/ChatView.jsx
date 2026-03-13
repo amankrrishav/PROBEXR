@@ -64,13 +64,13 @@ export default function ChatView({ documentId }) {
     const isBusy = loading || streaming;
 
     return (
-        <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16, marginTop: 16 }}>
+        <div style={{ borderTop: "1px solid var(--border-dim)", paddingTop: 16, marginTop: 16 }}>
             <p className="section-header" style={{ marginBottom: 12 }}>Ask about this text</p>
 
             {/* Messages */}
-            <div className="flex flex-col gap-2.5" style={{ maxHeight: 280, overflowY: "auto", marginBottom: 12 }}>
+            <div className="flex flex-col gap-2" style={{ maxHeight: 280, overflowY: "auto", marginBottom: 12 }}>
                 {messages.length === 0 && !streaming ? (
-                    <p className="font-body" style={{ fontSize: 12, color: "var(--text-tertiary)", fontStyle: "italic", padding: "8px 0" }}>
+                    <p className="font-body" style={{ fontSize: 12, color: "var(--ink-tertiary)", fontStyle: "italic", padding: "8px 0" }}>
                         Ask a question about the document…
                     </p>
                 ) : (
@@ -83,8 +83,8 @@ export default function ChatView({ documentId }) {
                                     padding: "10px 14px", borderRadius: 12, fontSize: 13, lineHeight: 1.6,
                                     maxWidth: "85%",
                                     ...(msg.role === "user"
-                                        ? { background: "var(--bg-elevated)", color: "var(--text-primary)", alignSelf: "flex-end", marginLeft: "auto" }
-                                        : { background: "var(--accent)", color: "white", alignSelf: "flex-start" }
+                                        ? { background: "var(--bg-elevated)", color: "var(--ink-primary)", alignSelf: "flex-end", marginLeft: "auto" }
+                                        : { background: "var(--amber)", color: "#0B0906", alignSelf: "flex-start" }
                                     ),
                                 }}
                             >
@@ -94,13 +94,13 @@ export default function ChatView({ documentId }) {
                         {streaming && streamingContent && (
                             <div className="font-body" style={{
                                 padding: "10px 14px", borderRadius: 12, fontSize: 13, lineHeight: 1.6,
-                                maxWidth: "85%", background: "var(--accent)", color: "white", alignSelf: "flex-start",
+                                maxWidth: "85%", background: "var(--amber)", color: "#0B0906", alignSelf: "flex-start",
                             }}>
                                 {streamingContent}
                                 <span style={{
                                     display: "inline-block", width: 5, height: 14, marginLeft: 2,
-                                    background: "rgba(255,255,255,0.5)", borderRadius: 1,
-                                    animation: "pulse 1s infinite", verticalAlign: "text-bottom",
+                                    background: "rgba(11,9,6,0.4)", borderRadius: 1,
+                                    animation: "amberPulseDot 1s infinite", verticalAlign: "text-bottom",
                                 }} />
                             </div>
                         )}
@@ -118,17 +118,17 @@ export default function ChatView({ documentId }) {
                     placeholder="Type a question…"
                     className="font-body"
                     style={{
-                        flex: 1, background: "var(--bg-input)", border: "1px solid var(--border)",
+                        flex: 1, background: "var(--bg-input)", border: "1px solid var(--border-dim)",
                         borderRadius: "var(--radius-input)", padding: "10px 14px",
-                        fontSize: 13, color: "var(--text-primary)", outline: "none",
-                        transition: "border-color var(--duration-base) var(--ease)",
+                        fontSize: 13, color: "var(--ink-primary)", outline: "none",
+                        transition: "border-color var(--dur-base) var(--ease)",
                     }}
-                    onFocus={(e) => e.target.style.borderColor = "var(--border-active)"}
-                    onBlur={(e) => e.target.style.borderColor = "var(--border)"}
+                    onFocus={(e) => e.target.style.borderColor = "var(--border-lit)"}
+                    onBlur={(e) => e.target.style.borderColor = "var(--border-dim)"}
                     disabled={isBusy || !documentId}
                 />
                 {streaming ? (
-                    <button type="button" onClick={cancelChatStream} className="btn-ghost" style={{ color: "var(--accent-warn)" }}>
+                    <button type="button" onClick={cancelChatStream} className="btn-ghost" style={{ color: "var(--rose)" }}>
                         Stop
                     </button>
                 ) : (
@@ -142,10 +142,6 @@ export default function ChatView({ documentId }) {
                     </button>
                 )}
             </form>
-
-            <style>{`
-                input::placeholder { color: var(--text-tertiary); }
-            `}</style>
         </div>
     );
 }
