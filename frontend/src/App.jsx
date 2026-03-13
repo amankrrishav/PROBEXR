@@ -1,6 +1,6 @@
 /**
- * App — Shell: Sidebar + routed content area with page transitions.
- * Uses the design system CSS variables for all theming.
+ * App — Shell: Sidebar + centered editorial column with page transitions.
+ * "Warm Editorial Intelligence" design system.
  */
 import { useState, useCallback, useEffect } from "react";
 import { config } from "./config.js";
@@ -11,11 +11,24 @@ import { Editor, OutputCard, SummaryHistory } from "./features/summarizer";
 import { SynthesisWorkspace } from "./features/summarizer";
 import { AuthModal, SocialCallback } from "./features/auth";
 import { AnalyticsDashboard } from "./features/analytics";
+import CustomCursor from "./components/CustomCursor.jsx";
+import KeyboardShortcuts from "./components/KeyboardShortcuts.jsx";
 
 const USAGE_KEY = "probexr.hasUsedFeatureOnce";
 
 function isBrowser() {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+}
+
+/* ── Toast Component ── */
+function Toast({ message, onDone }) {
+  const [exiting, setExiting] = useState(false);
+  useEffect(() => {
+    const t1 = setTimeout(() => setExiting(true), 2000);
+    const t2 = setTimeout(() => onDone(), 2300);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, [onDone]);
+  return <div className={`toast${exiting ? " exiting" : ""}`}>{message}</div>;
 }
 
 export default function App() {
@@ -24,7 +37,7 @@ export default function App() {
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState("signup");
-  const [pageKey, setPageKey] = useState(0); // for page transitions
+  const [pageKey, setPageKey] = useState(0);
 
   // Simple routing for auth callbacks
   const pathname = window.location.pathname;
@@ -39,11 +52,66 @@ export default function App() {
   });
   const [snackbar, setSnackbar] = useState(null);
   const [activeTab, setActiveTab] = useState("summarize");
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [focusMode, setFocusMode] = useState(false);
 
   // Apply dark/light class to root element
   useEffect(() => {
     document.documentElement.classList.toggle("light", !dark);
   }, [dark]);
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    function handleKeyDown(e) {
+      const mod = e.metaKey || e.ctrlKey;
+
+      // ⌘/ — Keyboard shortcuts
+      if (mod && e.key === "/") {
+        e.preventDefault();
+        setShortcutsOpen(o => !o);
+        return;
+      }
+
+      // ⌘F — Focus mode
+      if (mod && e.key === "f" && activeTab === "summarize") {
+        e.preventDefault();
+        setFocusMode(f => !f);
+        return;
+      }
+
+      // ⌘K — New summary
+      if (mod && e.key === "k") {
+        e.preventDefault();
+        summarizer.reset();
+        setActiveTab("summarize");
+        return;
+      }
+
+      // ⌘+Shift+C — Clear input
+      if (mod && e.shiftKey && e.key === "C") {
+        e.preventDefault();
+        summarizer.setText("");
+        summarizer.setUrl("");
+        return;
+      }
+
+      // Escape — exit modals/focus mode
+      if (e.key === "Escape") {
+        setShortcutsOpen(false);
+        setFocusMode(false);
+        return;
+      }
+
+      // ⌘+Enter — Summarize
+      if (mod && e.key === "Enter") {
+        e.preventDefault();
+        handleSummarizeWithGate();
+        return;
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [activeTab, summarizer]);
 
   // Trigger page transition on tab change
   const handleSetActiveTab = useCallback((tab) => {
@@ -96,81 +164,79 @@ export default function App() {
     );
   }
 
-  // Page titles
-  const PAGE_META = {
-    summarize:  { title: "Single Document", subtitle: "Summarize any text with AI precision" },
-    synthesize: { title: "Multi-Doc Synthesis", subtitle: "Compare and merge multiple documents" },
-    analytics:  { title: "Analytics", subtitle: "Your summarization insights and history" },
-  };
-  const meta = PAGE_META[activeTab] || PAGE_META.summarize;
-
   return (
-    <div className="flex min-h-screen" style={{ background: "var(--bg-base)", color: "var(--text-primary)" }}>
-      <Sidebar
-        appName={config.appName}
-        onOpenAuth={handleOpenAuth}
-        onLogout={handleLogout}
-        activeTab={activeTab}
-        setActiveTab={handleSetActiveTab}
-      />
+    <div className={focusMode ? "focus-mode-active" : ""} style={{ display: "flex", minHeight: "100vh", background: "var(--bg-base)", color: "var(--ink-primary)" }}>
+      {/* Living background orbs */}
+      <div className="bg-orb-a anim-orbs" />
+      <div className="bg-orb-b anim-orbs" />
 
-      <main className="flex-1 min-w-0 overflow-y-auto" style={{ minHeight: "100vh" }}>
-        {/* Page content with transition */}
-        <div key={pageKey} className="page-enter" style={{ padding: activeTab === "summarize" && summarizer.hasSummary ? "32px 40px" : "48px 40px" }}>
+      {/* Custom cursor (desktop only) */}
+      <CustomCursor />
+
+      {/* Sidebar */}
+      <div className="focus-fade">
+        <Sidebar
+          appName={config.appName}
+          onOpenAuth={handleOpenAuth}
+          onLogout={handleLogout}
+          activeTab={activeTab}
+          setActiveTab={handleSetActiveTab}
+        />
+      </div>
+
+      {/* Main content */}
+      <main style={{ flex: 1, minWidth: 0, overflowY: "auto", minHeight: "100vh", position: "relative", zIndex: 1 }}>
+        <div key={pageKey} className="page-enter" style={{ padding: "48px 40px" }}>
 
           {activeTab === "summarize" ? (
-            <>
-              {/* Two-panel layout when summary exists */}
-              {summarizer.hasSummary ? (
-                <div className="flex gap-8" style={{ minHeight: "calc(100vh - 64px)" }}>
-                  {/* Left — Input (45%) */}
-                  <div className="w-[45%] shrink-0" style={{ maxHeight: "calc(100vh - 64px)", overflowY: "auto" }}>
-                    <Editor
-                      onSummarize={handleSummarizeWithGate}
-                      handleKeyDown={(e) => {
-                        if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                          e.preventDefault();
-                          handleSummarizeWithGate();
-                        }
-                      }}
-                    />
-                  </div>
-                  {/* Right — Output (55%) */}
-                  <div className="flex-1 min-w-0" style={{ maxHeight: "calc(100vh - 64px)", overflowY: "auto" }}>
-                    <OutputCard />
-                    <div style={{ marginTop: 16 }}>
-                      <SummaryHistory />
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                /* Single column before summary */
-                <div style={{ maxWidth: 720, margin: "0 auto" }}>
-                  <Editor
-                    onSummarize={handleSummarizeWithGate}
-                    handleKeyDown={(e) => {
-                      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                        e.preventDefault();
-                        handleSummarizeWithGate();
-                      }
-                    }}
-                  />
+            <div style={{ maxWidth: 720, margin: "0 auto" }}>
+              {/* Input Card */}
+              <Editor
+                onSummarize={handleSummarizeWithGate}
+                handleKeyDown={(e) => {
+                  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                    e.preventDefault();
+                    handleSummarizeWithGate();
+                  }
+                }}
+                focusMode={focusMode}
+              />
+
+              {/* Output Card (appears below input, animates in) */}
+              {summarizer.hasSummary && (
+                <div className="anim-output-reveal" style={{ marginTop: 32 }}>
+                  <OutputCard />
                 </div>
               )}
-            </>
+
+              {/* Summary History */}
+              {summarizer.hasSummary && (
+                <div style={{ marginTop: 16 }}>
+                  <SummaryHistory />
+                </div>
+              )}
+            </div>
           ) : activeTab === "analytics" ? (
             <div style={{ maxWidth: 1200, margin: "0 auto" }}>
               <div style={{ marginBottom: 32 }}>
-                <h1 className="font-display" style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)" }}>{meta.title}</h1>
-                <p className="font-body" style={{ fontSize: 14, color: "var(--text-secondary)", marginTop: 4 }}>{meta.subtitle}</p>
+                <h1 className="font-display" style={{ fontSize: 32, color: "var(--ink-primary)" }}>
+                  Analytics
+                </h1>
+                <p className="font-body" style={{ fontSize: 14, color: "var(--ink-secondary)", marginTop: 4 }}>
+                  Your summarization insights and history
+                </p>
               </div>
               <AnalyticsDashboard />
             </div>
           ) : (
-            <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+            <div style={{ maxWidth: 960, margin: "0 auto" }}>
               <div style={{ marginBottom: 32 }}>
-                <h1 className="font-display" style={{ fontSize: 28, fontWeight: 700, color: "var(--text-primary)" }}>{meta.title}</h1>
-                <p className="font-body" style={{ fontSize: 14, color: "var(--text-secondary)", marginTop: 4 }}>{meta.subtitle}</p>
+                <h1 className="font-display" style={{ fontSize: 32, color: "var(--ink-primary)" }}>
+                  Multi-Doc Synthesis
+                </h1>
+                <p className="font-body" style={{ fontSize: 14, color: "var(--ink-secondary)", marginTop: 4 }}>
+                  Compare and merge multiple documents
+                </p>
               </div>
               <SynthesisWorkspace />
             </div>
@@ -191,18 +257,15 @@ export default function App() {
         onSuccess={showSnackbar}
       />
 
-      {/* Snackbar */}
+      {/* Keyboard Shortcuts */}
+      <KeyboardShortcuts
+        open={shortcutsOpen}
+        onClose={() => setShortcutsOpen(false)}
+      />
+
+      {/* Snackbar / Toast */}
       {snackbar && (
-        <div className="pointer-events-none fixed inset-x-0 bottom-5 z-40 flex justify-center">
-          <div className="pointer-events-auto animate-in" style={{
-            padding: "10px 20px", borderRadius: "var(--radius-btn)",
-            background: "var(--bg-overlay)", border: "1px solid var(--border)",
-            fontSize: 13, fontWeight: 500, color: "var(--text-primary)",
-            boxShadow: "var(--shadow-lg)",
-          }}>
-            {snackbar}
-          </div>
-        </div>
+        <Toast message={snackbar} onDone={() => setSnackbar(null)} />
       )}
     </div>
   );

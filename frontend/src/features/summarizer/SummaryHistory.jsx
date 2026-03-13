@@ -12,7 +12,7 @@ export default function SummaryHistory() {
 
   return (
     <div className="card" style={{ overflow: "hidden" }}>
-      <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)" }}>
+      <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border-dim)" }}>
         <p className="section-header" style={{ margin: 0, padding: 0 }}>Recent Summaries</p>
       </div>
       <div>
@@ -32,23 +32,30 @@ export default function SummaryHistory() {
               className="w-full text-left flex items-center gap-3"
               style={{
                 padding: "12px 20px",
-                borderBottom: i < history.length - 1 ? "1px solid var(--border)" : "none",
+                borderBottom: i < history.length - 1 ? "1px solid var(--border-dim)" : "none",
                 background: "transparent",
-                transition: "background var(--duration-fast) var(--ease)",
+                transition: "all var(--dur-fast) var(--ease)",
                 border: "none", cursor: "pointer",
+                color: "var(--ink-primary)",
               }}
-              onMouseEnter={(e) => e.currentTarget.style.background = "var(--bg-elevated)"}
-              onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "var(--bg-elevated)";
+                e.currentTarget.style.paddingLeft = "24px";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.paddingLeft = "20px";
+              }}
             >
-              <span style={{ color: "var(--text-tertiary)", fontSize: 14 }}>○</span>
-              <div className="flex-1 min-w-0">
-                <p className="truncate font-body" style={{ fontSize: 12, color: "var(--text-secondary)", margin: 0 }}>
+              <span style={{ color: "var(--ink-tertiary)", fontSize: 14 }}>○</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p className="truncate font-body" style={{ fontSize: 12, color: "var(--ink-secondary)", margin: 0 }}>
                   {preview}
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <span className="chip" style={{ fontSize: 10 }}>{mode}</span>
-                <span className="font-mono" style={{ fontSize: 10, color: "var(--text-tertiary)" }}>{time}</span>
+                <span className="chip chip-amber" style={{ fontSize: 10 }}>{mode}</span>
+                <span className="font-mono" style={{ fontSize: 10, color: "var(--ink-tertiary)" }}>{time}</span>
               </div>
             </button>
           );
