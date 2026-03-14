@@ -8,6 +8,7 @@ Provides:
 """
 import asyncio
 from typing import AsyncGenerator
+from datetime import datetime, timezone, timedelta
 
 import pytest
 import pytest_asyncio
@@ -20,6 +21,8 @@ import app.models  # noqa: F401 — register all models on metadata
 from app.db import get_session
 from app.main import app as fastapi_app
 from app.middleware import set_rate_limiter
+from app.config import get_config
+from jose import jwt as jose_jwt
 
 
 # ---- Disable rate limiting in tests ----
@@ -30,6 +33,11 @@ class _NoOpRateLimiter:
         return True
 
 set_rate_limiter(_NoOpRateLimiter())
+
+# ---- CSRF test token ----
+# All test clients will include this matching cookie + header pair
+# so the CSRFMiddleware allows requests through.
+_TEST_CSRF_TOKEN = "test-csrf-token-for-testing"
 
 
 # ---- In-memory async engine for testing ----
@@ -73,8 +81,20 @@ async def _setup_db():
 @pytest_asyncio.fixture
 async def client() -> AsyncGenerator[AsyncClient, None]:
     transport = ASGITransport(app=fastapi_app)
-    async with AsyncClient(transport=transport, base_url="http://test") as c:
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test/api/v1",
+        headers={"X-CSRF-Token": _TEST_CSRF_TOKEN},
+        cookies={"csrf_token": _TEST_CSRF_TOKEN},
+    ) as c:
         yield c
+
+
+def make_oauth_state(provider: str = "google") -> str:
+    """Create a valid JWT-signed OAuth state token for tests."""
+    cfg = get_config()
+    payload = {"provider": provider, "exp": datetime.now(timezone.utc) + timedelta(minutes=10)}
+    return jose_jwt.encode(payload, cfg.secret_key, algorithm=cfg.algorithm)
 
 
 @pytest_asyncio.fixture
@@ -118,7 +138,7 @@ async def document_id(authed_client: AsyncClient) -> int:
         "model interpretability, data privacy, and ethical deployment."
     )
     res = await authed_client.post(
-        "/api/ingest/text",
+        "/ingest/text",
         json={"text": sample_text, "title": "Test AI Article"},
     )
     assert res.status_code == 200

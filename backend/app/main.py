@@ -16,11 +16,14 @@ from sqlmodel import SQLModel
 from app.middleware import (
     LoggingMiddleware,
     RateLimitingMiddleware,
+    CSRFMiddleware,
     setup_logging,
     set_rate_limiter,
     InMemoryRateLimiter,
     RedisRateLimiter,
 )
+from app import http_client
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +97,9 @@ async def lifespan(app_inst: FastAPI):
             await conn.run_sync(SQLModel.metadata.create_all)
         logger.info("SQLite tables auto-created from models.")
 
+    # 8. Initialize global HTTP client
+    http_client.client = httpx.AsyncClient()
+
     yield
 
     # --- Shutdown ---
@@ -101,6 +107,9 @@ async def lifespan(app_inst: FastAPI):
     if redis_client:
         await redis_client.aclose()
         logger.info("Redis connection closed.")
+    if http_client.client:
+        await http_client.client.aclose()
+        logger.info("Global HTTP client closed.")
 
 app = FastAPI(
     title="PROBEfy",
@@ -138,9 +147,14 @@ async def global_exception_handler(request: Request, exc: Exception):
         headers["Access-Control-Allow-Origin"] = origin
         headers["Access-Control-Allow-Credentials"] = "true"
 
+    # Never leak internal error details to clients in production
+    content = {"detail": "Internal Server Error"}
+    if cfg.environment != "production":
+        content["error"] = str(exc)
+
     return JSONResponse(
         status_code=500,
-        content={"detail": "Internal Server Error", "error": str(exc)},
+        content=content,
         headers=headers,
     )
 
@@ -148,6 +162,7 @@ cfg = get_config()
 origins = [o.strip() for o in cfg.cors_origins.split(",") if o.strip()]
 
 app.add_middleware(LoggingMiddleware)
+app.add_middleware(CSRFMiddleware)
 app.add_middleware(RateLimitingMiddleware)
 
 app.add_middleware(
@@ -155,7 +170,7 @@ app.add_middleware(
     allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*", "X-CSRF-Token"],
 )
 
 # ----- Routers -----

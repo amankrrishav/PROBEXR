@@ -11,7 +11,7 @@ from httpx import AsyncClient
 @pytest.mark.asyncio
 async def test_list_flashcard_sets_empty(authed_client: AsyncClient):
     """New user has no flashcard sets."""
-    res = await authed_client.get("/api/flashcards/")
+    res = await authed_client.get("/flashcards/")
     assert res.status_code == 200
     data = res.json()
     assert data["flashcard_sets"] == []
@@ -22,7 +22,7 @@ async def test_list_flashcard_sets_empty(authed_client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_list_flashcard_sets_unauthenticated(client: AsyncClient):
-    res = await client.get("/api/flashcards/")
+    res = await client.get("/flashcards/")
     assert res.status_code == 401
 
 
@@ -31,7 +31,7 @@ async def test_list_flashcard_sets_unauthenticated(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_create_flashcards_unauthenticated(client: AsyncClient):
     res = await client.post(
-        "/api/flashcards/",
+        "/flashcards/",
         json={"document_id": 1, "count": 5},
     )
     assert res.status_code == 401
@@ -41,7 +41,7 @@ async def test_create_flashcards_unauthenticated(client: AsyncClient):
 async def test_create_flashcards_document_not_found(authed_client: AsyncClient):
     """Non-existent document returns error."""
     res = await authed_client.post(
-        "/api/flashcards/",
+        "/flashcards/",
         json={"document_id": 999999, "count": 5},
     )
     assert res.status_code == 400
@@ -51,7 +51,7 @@ async def test_create_flashcards_document_not_found(authed_client: AsyncClient):
 async def test_create_flashcards_invalid_count(authed_client: AsyncClient, document_id: int):
     """Count outside 1-50 range triggers validation."""
     res = await authed_client.post(
-        "/api/flashcards/",
+        "/flashcards/",
         json={"document_id": document_id, "count": 100},
     )
     assert res.status_code == 422
@@ -61,12 +61,12 @@ async def test_create_flashcards_invalid_count(authed_client: AsyncClient, docum
 
 @pytest.mark.asyncio
 async def test_export_flashcards_unauthenticated(client: AsyncClient):
-    res = await client.get("/api/flashcards/1/export")
+    res = await client.get("/flashcards/1/export")
     assert res.status_code == 401
 
 
 @pytest.mark.asyncio
 async def test_export_flashcards_not_found(authed_client: AsyncClient):
     """Non-existent flashcard set returns 404."""
-    res = await authed_client.get("/api/flashcards/999999/export")
+    res = await authed_client.get("/flashcards/999999/export")
     assert res.status_code == 404

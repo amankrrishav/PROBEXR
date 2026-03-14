@@ -5,6 +5,14 @@
  */
 import { config } from "../config.js";
 
+/**
+ * Read a cookie value by name. Used for CSRF dual-submit cookie pattern.
+ */
+function getCookie(name) {
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
 // In-flight refresh promise — prevents concurrent refresh calls
 let _refreshPromise = null;
 
@@ -54,8 +62,10 @@ export async function request(path, options = {}) {
 
   const url = `${getBaseUrl()}${path.startsWith("/") ? path : `/${path}`}`;
 
+  const csrfToken = getCookie("csrf_token");
   const headers = {
     "Content-Type": "application/json",
+    ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
     ...options.headers,
   };
   // Remove internal flag before passing to fetch
@@ -137,8 +147,10 @@ export async function streamRequest(path, options, onToken, onDone, onTakeaways,
   const controller = abortController || new AbortController();
   const url = `${getBaseUrl()}${path.startsWith("/") ? path : `/${path}`}`;
 
+  const csrfToken = getCookie("csrf_token");
   const headers = {
     "Content-Type": "application/json",
+    ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
     ...options.headers,
   };
 

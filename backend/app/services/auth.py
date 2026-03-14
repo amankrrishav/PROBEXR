@@ -258,9 +258,19 @@ def set_refresh_cookie(response: Response, token_str: str) -> None:
 
 
 def delete_auth_cookies(response: Response) -> None:
-    """Clear both access and refresh token cookies."""
-    response.delete_cookie("access_token", httponly=True, samesite="lax")
-    response.delete_cookie("refresh_token", httponly=True, samesite="lax", path="/auth")
+    """Clear both access and refresh token cookies.
+
+    Must use the same samesite/secure attributes that were used when setting
+    them, otherwise the browser will not remove them.
+    """
+    is_prod = cfg.environment == "production"
+    samesite_value = "none" if is_prod else "lax"
+    response.delete_cookie(
+        "access_token", httponly=True, samesite=samesite_value, secure=is_prod
+    )
+    response.delete_cookie(
+        "refresh_token", httponly=True, samesite=samesite_value, secure=is_prod, path="/auth"
+    )
 
 
 # -------------------------

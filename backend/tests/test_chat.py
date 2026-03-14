@@ -15,7 +15,7 @@ from httpx import AsyncClient
 @pytest.mark.asyncio
 async def test_chat_unauthenticated(client: AsyncClient):
     res = await client.post(
-        "/api/chat/",
+        "/chat/",
         json={"document_id": 1, "message": "Hello"},
     )
     assert res.status_code == 401
@@ -25,7 +25,7 @@ async def test_chat_unauthenticated(client: AsyncClient):
 async def test_chat_document_not_found(authed_client: AsyncClient):
     """Chat about a non-existent document returns 404."""
     res = await authed_client.post(
-        "/api/chat/",
+        "/chat/",
         json={"document_id": 999999, "message": "Hello"},
     )
     assert res.status_code == 404
@@ -35,7 +35,7 @@ async def test_chat_document_not_found(authed_client: AsyncClient):
 async def test_chat_missing_message(authed_client: AsyncClient, document_id: int):
     """Missing message field triggers validation error."""
     res = await authed_client.post(
-        "/api/chat/",
+        "/chat/",
         json={"document_id": document_id},
     )
     assert res.status_code == 422
@@ -45,7 +45,7 @@ async def test_chat_missing_message(authed_client: AsyncClient, document_id: int
 async def test_chat_invalid_session_id(authed_client: AsyncClient, document_id: int):
     """Non-existent session_id for the user returns error."""
     res = await authed_client.post(
-        "/api/chat/",
+        "/chat/",
         json={"document_id": document_id, "message": "Hello", "session_id": 999999},
     )
     # The service raises ValueError → router returns 404
@@ -57,7 +57,7 @@ async def test_chat_invalid_session_id(authed_client: AsyncClient, document_id: 
 @pytest.mark.asyncio
 async def test_list_chat_sessions_empty(authed_client: AsyncClient):
     """New user has no chat sessions."""
-    res = await authed_client.get("/api/chat/sessions")
+    res = await authed_client.get("/chat/sessions")
     assert res.status_code == 200
     data = res.json()
     assert data["sessions"] == []
@@ -66,7 +66,7 @@ async def test_list_chat_sessions_empty(authed_client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_list_chat_sessions_unauthenticated(client: AsyncClient):
-    res = await client.get("/api/chat/sessions")
+    res = await client.get("/chat/sessions")
     assert res.status_code == 401
 
 
@@ -75,11 +75,11 @@ async def test_list_chat_sessions_unauthenticated(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_list_session_messages_not_found(authed_client: AsyncClient):
     """Non-existent session returns 404."""
-    res = await authed_client.get("/api/chat/sessions/999999/messages")
+    res = await authed_client.get("/chat/sessions/999999/messages")
     assert res.status_code == 404
 
 
 @pytest.mark.asyncio
 async def test_list_session_messages_unauthenticated(client: AsyncClient):
-    res = await client.get("/api/chat/sessions/1/messages")
+    res = await client.get("/chat/sessions/1/messages")
     assert res.status_code == 401

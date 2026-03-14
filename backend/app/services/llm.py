@@ -13,6 +13,7 @@ from typing import AsyncIterator
 
 import httpx
 from app.config import get_config
+from app.http_client import get_http_client
 
 logger = logging.getLogger(__name__)
 
@@ -102,8 +103,8 @@ async def generate_full(
         t0 = time.monotonic()
         status_code = 0
         try:
-            async with httpx.AsyncClient(timeout=timeout) as client:
-                response = await client.post(url, json=payload, headers=headers)
+            client = get_http_client()
+            response = await client.post(url, json=payload, headers=headers, timeout=timeout)
             
             elapsed = time.monotonic() - t0
             status_code = response.status_code
@@ -188,28 +189,28 @@ async def generate_stream(
 
     t0 = time.monotonic()
     try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            async with client.stream("POST", url, json=payload, headers=headers) as response:
-                _handle_error_status(response)
-                async for line in response.aiter_lines():
-                    if not line.startswith("data: "):
-                        continue
-                    data_str = line[6:]
-                    if data_str.strip() == "[DONE]":
-                        break
-                    try:
-                        chunk = _json.loads(data_str)
-                        delta = (chunk.get("choices") or [{}])[0].get("delta", {})
-                        content = delta.get("content")
-                        if content:
-                            yield content
-                    except _json.JSONDecodeError:
-                        continue
+        client = get_http_client()
+        async with client.stream("POST", url, json=payload, headers=headers, timeout=timeout) as response:
+            _handle_error_status(response)
+            async for line in response.aiter_lines():
+                if not line.startswith("data: "):
+                    continue
+                data_str = line[6:]
+                if data_str.strip() == "[DONE]":
+                    break
+                try:
+                    chunk = _json.loads(data_str)
+                    delta = (chunk.get("choices") or [{}])[0].get("delta", {})
+                    content = delta.get("content")
+                    if content:
+                        yield content
+                except _json.JSONDecodeError:
+                    continue
         
-        elapsed = time.monotonic() - t0
-        LLM_LATENCY_SECONDS.labels(model=resolved_model, method="generate_stream").observe(elapsed)
-        LLM_CALLS_TOTAL.labels(model=resolved_model, method="generate_stream", status=200, result="success").inc()
-        logger.info("LLM stream completed", extra={"elapsed_s": round(elapsed, 2), "model": resolved_model})
+            elapsed = time.monotonic() - t0
+            LLM_LATENCY_SECONDS.labels(model=resolved_model, method="generate_stream").observe(elapsed)
+            LLM_CALLS_TOTAL.labels(model=resolved_model, method="generate_stream", status=200, result="success").inc()
+            logger.info("LLM stream completed", extra={"elapsed_s": round(elapsed, 2), "model": resolved_model})
 
     except Exception as e:
         LLM_CALLS_TOTAL.labels(
