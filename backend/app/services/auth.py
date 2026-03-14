@@ -22,7 +22,7 @@ SECRET_KEY = cfg.SECRET_KEY
 ALGORITHM = cfg.ALGORITHM
 
 
-async def create_magic_link_token(email: str) -> str:
+def create_magic_link_token(email: str) -> str:
     """
     Create a short-lived token for magic link authentication.
     """

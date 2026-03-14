@@ -97,7 +97,7 @@ async def get_dashboard(user_id: int, session: AsyncSession) -> dict:
     # ---- 5. Top domains ----
     domain_counter: Counter = Counter()
     for d in docs:
-        if d.url and d.url != "pasted_text":
+        if d.url and not d.url.startswith("pasted_text"):
             try:
                 parsed = urlparse(d.url)
                 host = parsed.hostname or ""
@@ -109,7 +109,7 @@ async def get_dashboard(user_id: int, session: AsyncSession) -> dict:
             except Exception:
                 pass
     # Add pasted text count separately
-    pasted_count = sum(1 for d in docs if d.url == "pasted_text")
+    pasted_count = sum(1 for d in docs if d.url and d.url.startswith("pasted_text"))
 
     top_domains = [
         {"domain": domain, "count": count}

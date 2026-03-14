@@ -22,7 +22,7 @@ class AppConfig(BaseSettings):
     )
 
     # ── App ──────────────────────────────────────────────────────
-    app_name: str = "PROBEfy"
+    app_name: str = "PROBEXR"
     debug: bool = False
     environment: str = "development"
     app_version: str = "1.0.0"
