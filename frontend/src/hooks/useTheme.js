@@ -1,35 +1,45 @@
 /**
- * Theme state and persistence — keeps App thin. Add other app-wide hooks here.
+ * Theme state and persistence — uses probexr_theme key.
+ * Falls back to prefers-color-scheme if no stored preference.
  */
 import { useEffect, useState } from "react";
 
-const STORAGE_KEY = "theme";
+const STORAGE_KEY = "probexr_theme";
+
+function getInitialDark() {
+  if (typeof window === "undefined") return false;
+  const stored = localStorage.getItem(STORAGE_KEY);
+  if (stored === "dark") return true;
+  if (stored === "light") return false;
+  // Fall back to system preference
+  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
+}
 
 export function useTheme() {
-  const [dark, setDark] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem(STORAGE_KEY) === "dark";
-    }
-    return false;
-  });
+  const [dark, setDark] = useState(getInitialDark);
 
   useEffect(() => {
     if (dark) {
       document.documentElement.classList.add("dark");
+      document.documentElement.classList.remove("light");
     } else {
       document.documentElement.classList.remove("dark");
+      document.documentElement.classList.add("light");
     }
   }, [dark]);
 
   function toggleTheme() {
-    if (dark) {
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem(STORAGE_KEY, "light");
-    } else {
+    const next = !dark;
+    if (next) {
       document.documentElement.classList.add("dark");
+      document.documentElement.classList.remove("light");
       localStorage.setItem(STORAGE_KEY, "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      document.documentElement.classList.add("light");
+      localStorage.setItem(STORAGE_KEY, "light");
     }
-    setDark(!dark);
+    setDark(next);
   }
 
   return { dark, toggleTheme };

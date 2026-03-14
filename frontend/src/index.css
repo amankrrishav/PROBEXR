@@ -830,7 +830,7 @@ a:hover {
   opacity: 0;
 }
 .advanced-content.open {
-  max-height: 300px;
+  max-height: 800px;
   opacity: 1;
 }
 
@@ -1047,4 +1047,25 @@ a:hover {
 @keyframes countUp {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Shake animation for form validation (A3/A4) */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+
+/* Mode selector grid on desktop (A2) */
+@media (min-width: 1024px) {
+  .mode-selector-wrap .mode-selector {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    overflow-x: visible;
+  }
+  .mode-fade-mask {
+    display: none !important;
+  }
 }

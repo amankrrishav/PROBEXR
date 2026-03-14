@@ -1,6 +1,8 @@
 /**
  * App — Shell: Sidebar + centered editorial column with page transitions.
  * "Warm Editorial Intelligence" design system.
+ * C3: Keyboard shortcuts, ? tooltip
+ * B3/B4: History integration via AppContext
  */
 import { useState, useCallback, useEffect } from "react";
 import { config } from "./config.js";
@@ -32,7 +34,7 @@ function Toast({ message, onDone }) {
 }
 
 export default function App() {
-  const { auth, dark } = useAppContext();
+  const { auth, dark, summaryHistory } = useAppContext();
   const summarizer = useSummarizerContext();
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -60,7 +62,7 @@ export default function App() {
     document.documentElement.classList.toggle("light", !dark);
   }, [dark]);
 
-  // Global keyboard shortcuts
+  // C3: Global keyboard shortcuts
   useEffect(() => {
     function handleKeyDown(e) {
       const mod = e.metaKey || e.ctrlKey;
@@ -79,7 +81,7 @@ export default function App() {
         return;
       }
 
-      // ⌘K — New summary
+      // ⌘K — New summary (B11)
       if (mod && e.key === "k") {
         e.preventDefault();
         summarizer.reset();
@@ -102,7 +104,7 @@ export default function App() {
         return;
       }
 
-      // ⌘+Enter — Summarize
+      // ⌘+Enter — Summarize (C3)
       if (mod && e.key === "Enter") {
         e.preventDefault();
         handleSummarizeWithGate();
@@ -143,15 +145,39 @@ export default function App() {
     if (!hasUsedFeatureOnce) {
       setHasUsedFeatureOnce(true);
       markFeatureUsedOnce();
-      summarizer.onSummarize();
+      doSummarize();
       return;
     }
     if (!auth.isAuthenticated) {
       handleOpenAuth("signup");
       return;
     }
-    summarizer.onSummarize();
+    doSummarize();
   }, [hasUsedFeatureOnce, auth.isAuthenticated, summarizer]);
+
+  // B3/B4: Wrap onSummarize to also add to persistent history
+  function doSummarize() {
+    summarizer.onSummarize();
+    // Add to persistent history after a delay (give time for summary to complete)
+    // The actual persistence happens via a listener in the summarizer hook
+  }
+
+  // B3/B4: Watch for successful summaries and add to persistent history
+  useEffect(() => {
+    if (summarizer.summarizeStatus === "success" && summarizer.summaryText) {
+      summaryHistory.addEntry({
+        inputText: summarizer.text,
+        summaryText: summarizer.summaryText,
+        mode: summarizer.summaryMode,
+        lengthSetting: summarizer.summaryLength,
+        inputWordCount: summarizer.wordCount,
+        isUrl: summarizer.isUrlMode,
+        focusArea: summarizer.focusArea,
+        outputLanguage: summarizer.outputLanguage,
+        customInstructions: summarizer.customInstructions,
+      });
+    }
+  }, [summarizer.summarizeStatus]);
 
   if (isCallback) {
     return (
@@ -257,11 +283,38 @@ export default function App() {
         onSuccess={showSnackbar}
       />
 
-      {/* Keyboard Shortcuts */}
+      {/* C3: Keyboard Shortcuts */}
       <KeyboardShortcuts
         open={shortcutsOpen}
         onClose={() => setShortcutsOpen(false)}
       />
+
+      {/* C3: ? icon for shortcuts tooltip */}
+      <button
+        onClick={() => setShortcutsOpen(true)}
+        style={{
+          position: "fixed", bottom: 24, right: 24,
+          width: 36, height: 36, borderRadius: "50%",
+          background: "var(--bg-surface)", border: "1px solid var(--border-dim)",
+          color: "var(--ink-tertiary)", fontSize: 16,
+          cursor: "pointer", zIndex: 50,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          boxShadow: "var(--shadow-sm)",
+          transition: "all var(--dur-fast) var(--ease)",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.borderColor = "var(--amber)";
+          e.currentTarget.style.color = "var(--amber)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = "var(--border-dim)";
+          e.currentTarget.style.color = "var(--ink-tertiary)";
+        }}
+        title="Keyboard shortcuts (⌘/)"
+        aria-label="Show keyboard shortcuts"
+      >
+        ?
+      </button>
 
       {/* Snackbar / Toast */}
       {snackbar && (

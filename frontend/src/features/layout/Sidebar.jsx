@@ -1,39 +1,78 @@
-import { useState } from "react";
+/**
+ * Sidebar — Main navigation with provider status, persistent history, theme toggle.
+ * B1: useProviderStatus for live/degraded/offline indicator
+ * B2: "Beta" badge on Multi-Doc Synthesis
+ * B4: Persistent recent history from useSummaryHistory with delete/clear
+ * B12: Display saved user name + avatar from localStorage
+ */
+import { useState, useEffect } from "react";
 import { useAppContext } from "../../contexts/AppContext.jsx";
 import { useSummarizerContext } from "../../contexts/SummarizerContext.jsx";
 import { AccountSettings } from "../auth";
 
+const USER_STORAGE_KEY = "probexr_user";
+
 const NAV_ITEMS = [
   { id: "summarize",  icon: "✦", label: "Single Document" },
-  { id: "synthesize", icon: "⊞", label: "Multi-Doc Synthesis" },
+  { id: "synthesize", icon: "⊞", label: "Multi-Doc Synthesis", beta: true },
   { id: "analytics",  icon: "◈", label: "Analytics" },
 ];
 
+function loadSavedUser() {
+  try {
+    const raw = localStorage.getItem(USER_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function relativeTime(timestamp) {
+  if (!timestamp) return "";
+  const now = Date.now();
+  const t = new Date(timestamp).getTime();
+  const diff = Math.floor((now - t) / 1000);
+  if (diff < 60) return "now";
+  if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
+function getStatusDotStyle(status) {
+  switch (status) {
+    case "live":
+      return { background: "var(--sage)", animation: "pulseDot 2s infinite" };
+    case "degraded":
+      return { background: "#E8C840" };
+    case "offline":
+      return { background: "var(--rose)" };
+    default:
+      return { background: "var(--ink-tertiary)" };
+  }
+}
+
 export default function Sidebar({ appName, onOpenAuth, onLogout, activeTab, setActiveTab }) {
-  const { dark, toggleTheme, backendMode, auth } = useAppContext();
+  const { dark, toggleTheme, providerStatus, summaryHistory, auth } = useAppContext();
   const { user } = auth;
-  const { reset, history, restoreFromHistory } = useSummarizerContext();
+  const { reset, restoreFromHistory } = useSummarizerContext();
   const [accountOpen, setAccountOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [hoveredEntry, setHoveredEntry] = useState(null);
 
-  const initial = user?.full_name
-    ? user.full_name.charAt(0).toUpperCase()
-    : user?.email
-      ? user.email.charAt(0).toUpperCase()
-      : null;
+  // Saved user data from localStorage
+  const [savedUser, setSavedUser] = useState(loadSavedUser);
 
-  function formatTime(timestamp) {
-    if (!timestamp) return "";
-    const now = Date.now();
-    const t = new Date(timestamp).getTime();
-    const diff = Math.floor((now - t) / 1000);
-    if (diff < 60) return "now";
-    if (diff < 3600) return `${Math.floor(diff / 60)}m`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
-    return `${Math.floor(diff / 86400)}d`;
-  }
+  // Re-read localStorage when settings panel closes
+  useEffect(() => {
+    if (!settingsOpen) setSavedUser(loadSavedUser());
+  }, [settingsOpen]);
+
+  const displayName = user?.full_name || savedUser?.full_name || user?.email?.split("@")[0] || "";
+  const displayEmail = user?.email || savedUser?.email || "";
+  const displayAvatar = user?.avatar_url || savedUser?.avatar_url || "";
+  const initial = displayName ? displayName.charAt(0).toUpperCase() : displayEmail ? displayEmail.charAt(0).toUpperCase() : null;
+
+  const { history: localHistory, removeEntry, clearAll } = summaryHistory;
 
   const sidebarContent = (
     <div className="flex flex-col h-full" style={{
@@ -51,14 +90,19 @@ export default function Sidebar({ appName, onOpenAuth, onLogout, activeTab, setA
         }}>
           {appName ?? "PROBEXR"}
         </h1>
-        {backendMode && (
-          <div className="flex items-center gap-2" style={{ marginTop: 8 }}>
-            <div className="pulse-dot live" />
-            <span className="font-mono" style={{ fontSize: 11, color: "var(--ink-tertiary)" }}>
-              Live · {backendMode}
-            </span>
-          </div>
-        )}
+        {/* Provider status (B1) */}
+        <div className="flex items-center gap-2" style={{ marginTop: 8 }}>
+          <div
+            className="pulse-dot"
+            style={{
+              width: 6, height: 6, borderRadius: "50%",
+              ...getStatusDotStyle(providerStatus.status),
+            }}
+          />
+          <span className="font-mono" style={{ fontSize: 11, color: "var(--ink-tertiary)" }}>
+            {providerStatus.label || "Checking..."}
+          </span>
+        </div>
       </div>
 
       {/* ── New Summary CTA ── */}
@@ -67,6 +111,8 @@ export default function Sidebar({ appName, onOpenAuth, onLogout, activeTab, setA
           onClick={() => { setActiveTab("summarize"); reset(); setMobileOpen(false); }}
           className="btn-primary w-full"
           style={{ height: 44, fontSize: 14 }}
+          disabled={providerStatus.status === "offline"}
+          title={providerStatus.status === "offline" ? "Provider unavailable" : ""}
         >
           <span>✦</span>
           New Summary
@@ -114,13 +160,30 @@ export default function Sidebar({ appName, onOpenAuth, onLogout, activeTab, setA
                   {item.icon}
                 </span>
                 {item.label}
+                {/* Beta badge (B2) */}
+                {item.beta && (
+                  <span style={{
+                    marginLeft: "auto",
+                    padding: "2px 6px",
+                    borderRadius: 4,
+                    background: "var(--amber-dim)",
+                    color: "var(--amber)",
+                    fontSize: 9,
+                    fontWeight: 700,
+                    fontFamily: "'Commit Mono', monospace",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                  }}>
+                    Beta
+                  </span>
+                )}
               </button>
             );
           })}
         </nav>
       </div>
 
-      {/* ── History ── */}
+      {/* ── History (B4) ── */}
       <div style={{ padding: "16px 12px 0", flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
         <button
           onClick={() => setHistoryOpen(!historyOpen)}
@@ -135,46 +198,100 @@ export default function Sidebar({ appName, onOpenAuth, onLogout, activeTab, setA
         </button>
         {historyOpen && (
           <div style={{ flex: 1, overflowY: "auto", paddingBottom: 8 }}>
-            {(!history || history.length === 0) ? (
+            {(!localHistory || localHistory.length === 0) ? (
               <p className="font-body" style={{ fontSize: 12, color: "var(--ink-tertiary)", padding: "8px 12px" }}>
                 No summaries yet
               </p>
             ) : (
-              history.map((entry, i) => {
-                const time = formatTime(entry.timestamp);
-                const preview = entry.inputText
-                  ? (entry.inputText.length > 32 ? entry.inputText.slice(0, 32) + "…" : entry.inputText)
-                  : "—";
-                return (
-                  <div
-                    key={i}
-                    className="flex items-start gap-2"
-                    style={{
-                      padding: "8px 12px", borderRadius: "var(--radius-btn)",
-                      transition: "all var(--dur-fast) var(--ease)",
-                      cursor: "pointer",
-                      animation: `staggerItem 300ms var(--spring) forwards`,
-                      animationDelay: `${i * 60}ms`,
-                      opacity: 0,
-                    }}
-                    onClick={() => restoreFromHistory(entry)}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "var(--bg-elevated)";
-                      e.currentTarget.style.paddingLeft = "16px";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "transparent";
-                      e.currentTarget.style.paddingLeft = "12px";
-                    }}
-                  >
-                    <span style={{ color: "var(--ink-tertiary)", fontSize: 10, marginTop: 4 }}>○</span>
-                    <div className="min-w-0" style={{ flex: 1 }}>
-                      <p className="truncate font-body" style={{ fontSize: 13, color: "var(--ink-secondary)", margin: 0 }}>{preview}</p>
+              <>
+                {localHistory.map((entry, i) => {
+                  const time = relativeTime(entry.timestamp);
+                  const preview = entry.title || (entry.inputText
+                    ? (entry.inputText.length > 32 ? entry.inputText.slice(0, 32) + "…" : entry.inputText)
+                    : "—");
+                  const isHovered = hoveredEntry === entry.id;
+                  return (
+                    <div
+                      key={entry.id || i}
+                      className="flex items-start gap-2"
+                      style={{
+                        padding: "8px 12px", borderRadius: "var(--radius-btn)",
+                        transition: "all var(--dur-fast) var(--ease)",
+                        cursor: "pointer",
+                        animation: `staggerItem 300ms var(--spring) forwards`,
+                        animationDelay: `${i * 60}ms`,
+                        opacity: 0,
+                        position: "relative",
+                      }}
+                      onClick={() => {
+                        restoreFromHistory(entry);
+                        setActiveTab("summarize");
+                        setMobileOpen(false);
+                      }}
+                      onMouseEnter={(e) => {
+                        setHoveredEntry(entry.id);
+                        e.currentTarget.style.background = "var(--bg-elevated)";
+                        e.currentTarget.style.paddingLeft = "16px";
+                      }}
+                      onMouseLeave={(e) => {
+                        setHoveredEntry(null);
+                        e.currentTarget.style.background = "transparent";
+                        e.currentTarget.style.paddingLeft = "12px";
+                      }}
+                    >
+                      <span style={{ color: "var(--ink-tertiary)", fontSize: 10, marginTop: 4 }}>
+                        {entry.isUrl ? "🔗" : "○"}
+                      </span>
+                      <div className="min-w-0" style={{ flex: 1 }}>
+                        <p className="truncate font-body" style={{ fontSize: 13, color: "var(--ink-secondary)", margin: 0 }}>
+                          {preview}
+                        </p>
+                        <div className="flex items-center gap-2" style={{ marginTop: 2 }}>
+                          <span className="chip" style={{ padding: "1px 5px", fontSize: 9 }}>
+                            {entry.mode || "paragraph"}
+                          </span>
+                          <span className="font-mono" style={{ fontSize: 10, color: "var(--ink-tertiary)" }}>
+                            {time}
+                          </span>
+                        </div>
+                      </div>
+                      {/* Delete button (hover-revealed) */}
+                      {isHovered && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); removeEntry(entry.id); }}
+                          style={{
+                            border: "none", background: "none", cursor: "pointer",
+                            color: "var(--ink-tertiary)", fontSize: 12, padding: "2px 4px",
+                            borderRadius: 4, flexShrink: 0,
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.color = "var(--rose)"}
+                          onMouseLeave={(e) => e.currentTarget.style.color = "var(--ink-tertiary)"}
+                          aria-label="Delete entry"
+                        >
+                          ×
+                        </button>
+                      )}
                     </div>
-                    <span className="font-mono" style={{ fontSize: 11, color: "var(--ink-tertiary)", flexShrink: 0 }}>{time}</span>
-                  </div>
-                );
-              })
+                  );
+                })}
+                {/* Clear all */}
+                <button
+                  onClick={clearAll}
+                  className="font-mono"
+                  style={{
+                    display: "block", width: "100%",
+                    padding: "8px 12px", marginTop: 4,
+                    fontSize: 10, color: "var(--ink-tertiary)",
+                    background: "none", border: "none", cursor: "pointer",
+                    textAlign: "left",
+                    transition: "color 150ms ease",
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.color = "var(--rose)"}
+                  onMouseLeave={(e) => e.currentTarget.style.color = "var(--ink-tertiary)"}
+                >
+                  Clear all
+                </button>
+              </>
             )}
           </div>
         )}
@@ -182,12 +299,13 @@ export default function Sidebar({ appName, onOpenAuth, onLogout, activeTab, setA
 
       {/* ── Bottom ── */}
       <div style={{ borderTop: "1px solid var(--border-dim)", padding: "12px 16px" }}>
-        {/* Theme toggle */}
+        {/* Theme toggle (B5) */}
         <div className="flex items-center justify-between mb-3">
           <span className="font-body" style={{ fontSize: 12, color: "var(--ink-secondary)" }}>Theme</span>
           <button
             onClick={toggleTheme}
             className="relative"
+            aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
             style={{
               width: 52, height: 28, borderRadius: 14,
               background: dark ? "var(--bg-elevated)" : "var(--amber)",
@@ -209,12 +327,12 @@ export default function Sidebar({ appName, onOpenAuth, onLogout, activeTab, setA
           </button>
         </div>
 
-        {/* QuillBot whisper */}
+        {/* Whisper */}
         <p className="font-mono" style={{
           fontSize: 10, color: "var(--ink-tertiary)", marginBottom: 12,
           opacity: 0.6,
         }}>
-          ✦ Free forever · No ads · QuillBot Pro: $19.95/mo
+          ✦ Free forever · No ads
         </p>
 
         {/* User area */}
@@ -232,20 +350,31 @@ export default function Sidebar({ appName, onOpenAuth, onLogout, activeTab, setA
               onMouseEnter={(e) => e.currentTarget.style.background = "var(--bg-elevated)"}
               onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
             >
+              {/* Avatar or initials */}
               <div style={{
                 width: 32, height: 32, borderRadius: 8,
-                background: "var(--gradient-cta)",
+                overflow: "hidden",
+                background: displayAvatar ? "var(--bg-elevated)" : "var(--gradient-cta)",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: 13, fontWeight: 700, color: "#0B0906",
               }}>
-                {initial}
+                {displayAvatar ? (
+                  <img
+                    src={displayAvatar}
+                    alt=""
+                    style={{ width: 32, height: 32, objectFit: "cover" }}
+                    onError={(e) => { e.target.style.display = "none"; }}
+                  />
+                ) : (
+                  initial
+                )}
               </div>
               <div className="min-w-0" style={{ flex: 1 }}>
                 <p className="truncate font-body" style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-primary)", margin: 0 }}>
-                  {user.full_name || user.email?.split("@")[0]}
+                  {displayName || displayEmail?.split("@")[0]}
                 </p>
                 <p className="truncate font-mono" style={{ fontSize: 10, color: "var(--ink-tertiary)", margin: 0, marginTop: 2 }}>
-                  {user.email}
+                  {displayEmail}
                 </p>
               </div>
             </button>

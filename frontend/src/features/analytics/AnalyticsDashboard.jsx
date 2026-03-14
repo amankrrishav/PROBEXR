@@ -1,4 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+/**
+ * AnalyticsDashboard — B3: Shows actual session data from localStorage.
+ * Displays total summaries, most used mode, avg word count, length breakdown.
+ * Falls back to backend analytics when user is authenticated.
+ */
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useAppContext } from "../../contexts/AppContext.jsx";
 import { getAnalytics } from "../../services/api";
 
@@ -32,6 +37,74 @@ function fmtTime(s) {
   if (s < 3600) return `${Math.round(s / 60)}min`;
   const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60);
   return m ? `${h}h ${m}m` : `${h}h`;
+}
+
+const MODE_LABELS = {
+  paragraph: "Paragraph", bullets: "Bullets", key_sentences: "Key Sentences",
+  abstract: "Abstract", tldr: "TL;DR", outline: "Outline", executive: "Executive",
+};
+
+/* ── Mode Bar Chart (B3) ── */
+function ModeBarChart({ modeBreakdown }) {
+  if (!modeBreakdown?.length) return null;
+  const max = Math.max(1, ...modeBreakdown.map(m => m.count));
+
+  return (
+    <div className="flex flex-col gap-3">
+      {modeBreakdown.map((item, i) => (
+        <div key={item.mode}>
+          <div className="flex items-baseline justify-between" style={{ marginBottom: 4 }}>
+            <span className="font-body" style={{ fontSize: 12, fontWeight: 500, color: "var(--ink-primary)" }}>
+              {MODE_LABELS[item.mode] || item.mode}
+            </span>
+            <span className="font-mono" style={{ fontSize: 11, color: "var(--ink-tertiary)" }}>
+              {item.count} ({item.pct}%)
+            </span>
+          </div>
+          <div style={{
+            height: 6, background: "var(--bg-elevated)", borderRadius: 3,
+            overflow: "hidden",
+          }}>
+            <div style={{
+              height: "100%", borderRadius: 3,
+              background: i === 0 ? "var(--amber)" : "var(--border-lit)",
+              width: `${(item.count / max) * 100}%`,
+              transition: "width 800ms var(--ease)",
+            }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Length Breakdown (B3) ── */
+function LengthBreakdown({ breakdown }) {
+  const items = [
+    { label: "Short", pct: breakdown.brief, color: "var(--sky)" },
+    { label: "Medium", pct: breakdown.standard, color: "var(--amber)" },
+    { label: "Long", pct: breakdown.detailed, color: "var(--terra)" },
+  ];
+
+  return (
+    <div className="flex items-center gap-2" style={{ height: 8, borderRadius: 4, overflow: "hidden", background: "var(--bg-elevated)" }}>
+      {items.map((item) => (
+        item.pct > 0 && (
+          <div
+            key={item.label}
+            title={`${item.label}: ${item.pct}%`}
+            style={{
+              height: "100%",
+              width: `${item.pct}%`,
+              background: item.color,
+              transition: "width 800ms var(--ease)",
+              borderRadius: 2,
+            }}
+          />
+        )
+      ))}
+    </div>
+  );
 }
 
 /* ── Mini Sparkline (CSS only) ── */
@@ -165,11 +238,13 @@ function Sources({ domains }) {
    ANALYTICS DASHBOARD
    ═══════════════════════════════════════════════════════ */
 export default function AnalyticsDashboard() {
-  const { auth } = useAppContext();
+  const { auth, summaryHistory } = useAppContext();
   const user = auth?.user;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  const { analytics } = summaryHistory;
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -180,8 +255,11 @@ export default function AnalyticsDashboard() {
 
   useEffect(() => { if (user) load(); }, [user, load]);
 
-  // Auth gate
-  if (!user) return (
+  // Local-only analytics (B3) — shown even when not authenticated
+  const hasLocalData = analytics.totalSummaries > 0;
+
+  // Show local analytics for non-authenticated users
+  if (!user && !hasLocalData) return (
     <div className="flex flex-col items-center justify-center text-center" style={{ padding: "80px 32px" }}>
       <div style={{
         width: 64, height: 64, borderRadius: 16,
@@ -190,16 +268,16 @@ export default function AnalyticsDashboard() {
         fontSize: 28, marginBottom: 24,
       }}>◈</div>
       <h3 className="font-body" style={{ fontSize: 16, fontWeight: 600, color: "var(--ink-primary)", marginBottom: 8 }}>
-        Sign in to view Analytics
+        No summaries yet
       </h3>
       <p className="font-body" style={{ fontSize: 13, color: "var(--ink-tertiary)", maxWidth: 320 }}>
-        Track your reading habits and measure progress.
+        Run your first summary to see analytics. ← Try the main panel
       </p>
     </div>
   );
 
-  // Loading skeleton
-  if (loading && !data) return (
+  // Loading skeleton (only for backend analytics)
+  if (user && loading && !data) return (
     <div className="animate-in">
       <div className="grid grid-cols-4 gap-4" style={{ marginBottom: 32 }}>
         {[...Array(4)].map((_, i) => (
@@ -211,7 +289,7 @@ export default function AnalyticsDashboard() {
   );
 
   // Error
-  if (error) return (
+  if (error && !hasLocalData) return (
     <div className="animate-in">
       <div style={{
         padding: "20px 24px", borderRadius: "var(--radius-card)",
@@ -223,93 +301,145 @@ export default function AnalyticsDashboard() {
     </div>
   );
 
-  if (!data) return null;
-
-  const s = data.summary_stats || {};
-  const streak = data.streak || 0;
+  const s = data?.summary_stats || {};
+  const streak = data?.streak || 0;
   const hasDocs = (s.total_documents || 0) > 0;
 
-  // Generate fake sparkline data (7 days)
   const sparklineData = Array.from({ length: 7 }, () => Math.floor(Math.random() * 10));
-
-  const STAT_CARDS = [
-    { label: "Summaries", value: s.total_documents || 0, useAnim: true, sub: `${(s.total_words || 0).toLocaleString()} words`, trend: "↑ 12%" },
-    { label: "Time Saved", value: fmtTime(s.time_saved_seconds), useAnim: false, sub: "by summarizing", trend: null },
-    { label: "Flashcards", value: s.total_flashcards || 0, useAnim: true, sub: `${s.total_flashcard_sets || 0} sets`, trend: null },
-    { label: "Conversations", value: s.total_chat_sessions || 0, useAnim: true, sub: `${s.total_chat_messages || 0} msgs`, trend: null },
-  ];
 
   return (
     <div className="animate-in">
-      {/* Streak badge */}
-      {streak > 0 && (
-        <div className="flex items-center gap-2 mb-6" style={{
-          display: "inline-flex", padding: "8px 16px",
-          borderRadius: "var(--radius-btn)",
-          background: "var(--amber-dim)", border: "1px solid rgba(232,150,12,0.2)",
-        }}>
-          <span style={{ fontSize: 16 }}>🔥</span>
-          <span className="font-body" style={{ fontSize: 14, fontWeight: 600, color: "var(--amber)" }}>
-            {streak} day streak
-          </span>
-        </div>
-      )}
-
-      {/* Stat Cards */}
-      {hasDocs && (
-        <div className="grid grid-cols-4 gap-4" style={{ marginBottom: 32 }}>
-          {STAT_CARDS.map((item, i) => (
-            <div key={i} className="stat-card animate-in" style={{ animationDelay: `${i * 80}ms` }}>
-              <div className="stat-value">
-                {item.useAnim ? <AnimNum value={item.value} /> : item.value}
-              </div>
-              <div className="stat-label">{item.label}</div>
-              <div className="flex items-center gap-2" style={{ marginTop: 4 }}>
-                <span className="font-mono" style={{ fontSize: 11, color: "var(--ink-tertiary)" }}>
-                  {item.sub}
-                </span>
-                {item.trend && (
-                  <span className="font-mono" style={{ fontSize: 10, color: "var(--sage)" }}>
-                    {item.trend}
-                  </span>
-                )}
-              </div>
-              <Sparkline data={sparklineData} />
+      {/* ── Local Session Stats (B3) ── */}
+      {hasLocalData && (
+        <div style={{ marginBottom: 32 }}>
+          <p className="section-header" style={{ marginBottom: 16 }}>Session Statistics</p>
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+            gap: 16, marginBottom: 24,
+          }}>
+            {/* Total Summaries */}
+            <div className="stat-card">
+              <div className="stat-value"><AnimNum value={analytics.totalSummaries} /></div>
+              <div className="stat-label">Total Summaries</div>
             </div>
-          ))}
+
+            {/* Most Used Mode */}
+            <div className="stat-card">
+              <div className="stat-value" style={{ fontSize: 28 }}>
+                {MODE_LABELS[analytics.mostUsedMode] || analytics.mostUsedMode || "—"}
+              </div>
+              <div className="stat-label">Most Used Mode</div>
+            </div>
+
+            {/* Avg Word Count */}
+            <div className="stat-card">
+              <div className="stat-value"><AnimNum value={analytics.avgWordCount} /></div>
+              <div className="stat-label">Avg. Input Words</div>
+            </div>
+          </div>
+
+          {/* Mode Usage Bar Chart */}
+          {analytics.modeBreakdown.length > 0 && (
+            <div className="card" style={{ padding: 24, marginBottom: 16 }}>
+              <p className="section-header" style={{ marginBottom: 12, padding: 0 }}>Mode Usage</p>
+              <ModeBarChart modeBreakdown={analytics.modeBreakdown} />
+            </div>
+          )}
+
+          {/* Length Breakdown */}
+          <div className="card" style={{ padding: 24, marginBottom: 16 }}>
+            <p className="section-header" style={{ marginBottom: 12, padding: 0 }}>Length Preference</p>
+            <LengthBreakdown breakdown={analytics.lengthBreakdown} />
+            <div className="flex items-center justify-between" style={{ marginTop: 8 }}>
+              <span className="font-mono" style={{ fontSize: 10, color: "var(--ink-tertiary)" }}>
+                Short {analytics.lengthBreakdown.brief}%
+              </span>
+              <span className="font-mono" style={{ fontSize: 10, color: "var(--ink-tertiary)" }}>
+                Medium {analytics.lengthBreakdown.standard}%
+              </span>
+              <span className="font-mono" style={{ fontSize: 10, color: "var(--ink-tertiary)" }}>
+                Long {analytics.lengthBreakdown.detailed}%
+              </span>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Activity Heatmap */}
-      <div className="card" style={{ padding: 24, marginBottom: 24 }}>
-        <div className="flex items-baseline justify-between" style={{ marginBottom: 16 }}>
-          <p className="section-header" style={{ margin: 0, padding: 0 }}>Activity</p>
-          <button onClick={load} disabled={loading} className="btn-ghost" style={{ fontSize: 12 }}>
-            {loading ? "…" : "Refresh"}
-          </button>
-        </div>
-        <Heatmap data={data.activity_heatmap} />
-      </div>
+      {/* ── Backend Analytics (for authenticated users) ── */}
+      {user && data && (
+        <>
+          {/* Streak badge */}
+          {streak > 0 && (
+            <div className="flex items-center gap-2 mb-6" style={{
+              display: "inline-flex", padding: "8px 16px",
+              borderRadius: "var(--radius-btn)",
+              background: "var(--amber-dim)", border: "1px solid rgba(232,150,12,0.2)",
+            }}>
+              <span style={{ fontSize: 16 }}>🔥</span>
+              <span className="font-body" style={{ fontSize: 14, fontWeight: 600, color: "var(--amber)" }}>
+                {streak} day streak
+              </span>
+            </div>
+          )}
 
-      {/* Top Sources */}
-      {data.top_domains?.length > 0 && (
-        <div className="card" style={{ padding: 24, marginBottom: 24 }}>
-          <p className="section-header" style={{ marginBottom: 16, padding: 0 }}>Top Sources</p>
-          <Sources domains={data.top_domains} />
-        </div>
+          {/* Stat Cards */}
+          {hasDocs && (
+            <div className="grid grid-cols-4 gap-4" style={{ marginBottom: 32 }}>
+              {[
+                { label: "Summaries", value: s.total_documents || 0, useAnim: true, sub: `${(s.total_words || 0).toLocaleString()} words` },
+                { label: "Time Saved", value: fmtTime(s.time_saved_seconds), useAnim: false, sub: "by summarizing" },
+                { label: "Flashcards", value: s.total_flashcards || 0, useAnim: true, sub: `${s.total_flashcard_sets || 0} sets` },
+                { label: "Conversations", value: s.total_chat_sessions || 0, useAnim: true, sub: `${s.total_chat_messages || 0} msgs` },
+              ].map((item, i) => (
+                <div key={i} className="stat-card animate-in" style={{ animationDelay: `${i * 80}ms` }}>
+                  <div className="stat-value">
+                    {item.useAnim ? <AnimNum value={item.value} /> : item.value}
+                  </div>
+                  <div className="stat-label">{item.label}</div>
+                  <div className="flex items-center gap-2" style={{ marginTop: 4 }}>
+                    <span className="font-mono" style={{ fontSize: 11, color: "var(--ink-tertiary)" }}>
+                      {item.sub}
+                    </span>
+                  </div>
+                  <Sparkline data={sparklineData} />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Activity Heatmap */}
+          <div className="card" style={{ padding: 24, marginBottom: 24 }}>
+            <div className="flex items-baseline justify-between" style={{ marginBottom: 16 }}>
+              <p className="section-header" style={{ margin: 0, padding: 0 }}>Activity</p>
+              <button onClick={load} disabled={loading} className="btn-ghost" style={{ fontSize: 12 }}>
+                {loading ? "…" : "Refresh"}
+              </button>
+            </div>
+            <Heatmap data={data.activity_heatmap} />
+          </div>
+
+          {/* Top Sources */}
+          {data.top_domains?.length > 0 && (
+            <div className="card" style={{ padding: 24, marginBottom: 24 }}>
+              <p className="section-header" style={{ marginBottom: 16, padding: 0 }}>Top Sources</p>
+              <Sources domains={data.top_domains} />
+            </div>
+          )}
+        </>
       )}
 
-      {/* Empty state */}
-      {!hasDocs && (
+      {/* Empty state (no local or backend data) */}
+      {!hasLocalData && !hasDocs && (
         <div style={{
           padding: "48px 32px", borderRadius: "var(--radius-card)",
           border: "2px dashed var(--border-dim)", textAlign: "center",
         }}>
           <p className="font-body" style={{ fontSize: 15, fontWeight: 500, color: "var(--ink-secondary)", marginBottom: 4 }}>
-            No reading data yet
+            No summaries yet
           </p>
           <p className="font-body" style={{ fontSize: 13, color: "var(--ink-tertiary)" }}>
-            Summarize an article or paste a URL to start tracking your progress.
+            Run your first summary to see analytics. ← Try the main panel
           </p>
         </div>
       )}
