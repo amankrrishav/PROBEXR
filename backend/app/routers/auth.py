@@ -34,7 +34,7 @@ from app.services.social import get_google_user_info, get_github_user_info
 from app.services.email import send_magic_link_email
 from app.config import get_config
 from fastapi.responses import RedirectResponse
-from jose import jwt
+import jwt
 from datetime import timedelta
 
 

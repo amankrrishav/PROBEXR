@@ -22,7 +22,7 @@ from app.db import get_session
 from app.main import app as fastapi_app
 from app.middleware import set_rate_limiter
 from app.config import get_config
-from jose import jwt as jose_jwt
+import jwt as jose_jwt
 
 
 # ---- Disable rate limiting in tests ----

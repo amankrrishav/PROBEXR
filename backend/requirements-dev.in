@@ -1,0 +1,13 @@
+# Dev & testing dependencies — install with:
+#   pip-compile requirements-dev.in -o requirements-dev.txt
+#   pip install -r requirements-dev.txt
+
+-r requirements.in
+
+# ── Testing ──
+pytest>=8.0.0
+pytest-asyncio>=0.23.5
+
+# ── Linting & Type Checking ──
+mypy>=1.8.0
+# PyJWT ships with inline type stubs — no separate types package needed
