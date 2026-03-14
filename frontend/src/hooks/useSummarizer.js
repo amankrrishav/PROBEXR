@@ -1,15 +1,21 @@
 /**
- * Summarizer feature state and logic.
- * v3: Mode (7 formats), Tone (5 styles), Keywords, Advanced Options,
- * localStorage-persisted history, length→prompt mapping.
+ * Summarizer feature — composition hook.
+ *
+ * Composes three focused sub-hooks and wires the cross-cutting
+ * handleSummarize / reset / restoreFromHistory logic.
+ *
+ * Public API is identical to the previous monolith so no consumer changes needed.
  */
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useCallback } from "react";
 import { config } from "../config.js";
 import { summarizeText, summarizeTextStream, ingestUrl, ingestText } from "../services/api.js";
+import { useSummarizerState } from "./useSummarizerState.js";
+import { useStreaming } from "./useStreaming.js";
+import { useSummaryHistory } from "./useSummaryHistory.js";
 
 const MIN_WORDS = config.summarizer.minWords;
-const LOADING_MESSAGES = config.loadingMessages;
 
+// ── Constants (re-exported for UI components) ──
 const MODES = [
   { value: "paragraph", label: "Paragraph", icon: "¶" },
   { value: "bullets", label: "Bullets", icon: "•" },
@@ -39,132 +45,87 @@ const LANGUAGES = ["English", "Spanish", "French", "Hindi", "Japanese"];
 export { MODES, TONES, LENGTH_PROMPTS, LANGUAGES };
 
 export function useSummarizer() {
-  const [text, setText] = useState(() => localStorage.getItem("rp_text") || "");
-  const [loading, setLoading] = useState(false);
-  const [loadingStep, setLoadingStep] = useState(0);
-  const [error, setError] = useState(null);
-  const [hasSummary, setHasSummary] = useState(() => localStorage.getItem("rp_hasSummary") === "true");
-  const [summaryText, setSummaryText] = useState(() => localStorage.getItem("rp_summaryText") || "");
-  const [quality, setQuality] = useState("full");
-  const [isUrlMode, setIsUrlMode] = useState(false);
-  const [url, setUrl] = useState("");
-  const [documentId, setDocumentId] = useState(() => {
-    const saved = localStorage.getItem("rp_documentId");
-    return saved ? parseInt(saved, 10) : null;
-  });
-  const [isRestored, setIsRestored] = useState(() => localStorage.getItem("rp_hasSummary") === "true");
+  // ── Sub-hooks ──
+  const state = useSummarizerState();
+  const stream = useStreaming();
+  const { history, addEntry } = useSummaryHistory();
 
-  // Streaming state
-  const [streaming, setStreaming] = useState(false);
-  const [streamingText, setStreamingText] = useState("");
-  const abortControllerRef = useRef(null);
-
-  // Mode, Tone, Keywords
-  const [summaryLength, setSummaryLength] = useState("standard");
-  const [summaryMode, setSummaryMode] = useState("paragraph");
-  const [summaryTone, setSummaryTone] = useState("neutral");
-  const [focusKeywords, setFocusKeywords] = useState([]);
-  const [history, setHistory] = useState([]);
-  const [summaryMeta, setSummaryMeta] = useState(null);
-  const [keyTakeaways, setKeyTakeaways] = useState(null);
-
-  // Advanced options (B10)
-  const [focusArea, setFocusArea] = useState("");
-  const [outputLanguage, setOutputLanguage] = useState("English");
-  const [customInstructions, setCustomInstructions] = useState("");
-
-  // Success/error flash states (C1)
-  const [summarizeStatus, setSummarizeStatus] = useState("idle"); // 'idle' | 'success' | 'error'
-
-  // Textarea ref for focus (B11)
-  const textareaRef = useRef(null);
-
-  const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
-  const charCount = text.length;
-
+  // ── Cancel streaming (flush partial text) ──
   const cancelStreaming = useCallback(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
+    stream.cancelStreaming();
+    state.setLoading(false);
+    if (stream.streamingText) {
+      state.setSummaryText(stream.streamingText);
+      state.setHasSummary(true);
     }
-    setStreaming(false);
-    setLoading(false);
-    if (streamingText) {
-      setSummaryText(streamingText);
-      setHasSummary(true);
-    }
-  }, [streamingText]);
+  }, [stream, state]);
 
-  // Add to in-memory history
+  // ── Add to history (bridge old shape → addEntry) ──
   const addToHistory = useCallback((entry) => {
-    setHistory(prev => {
-      const next = [entry, ...prev].slice(0, 5);
-      return next;
+    addEntry({
+      inputText: entry.inputText,
+      summaryText: entry.summaryText,
+      mode: entry.mode,
+      lengthSetting: entry.length,
+      inputWordCount: entry.inputText ? entry.inputText.split(/\s+/).length : 0,
+      timestamp: entry.timestamp,
     });
-  }, []);
+  }, [addEntry]);
 
-  // Restore from history
+  // ── Restore from history ──
   const restoreFromHistory = useCallback((entry) => {
-    setSummaryText(entry.summaryText || "");
-    setText(entry.inputText || "");
-    setSummaryMeta(entry.meta || null);
-    setKeyTakeaways(entry.takeaways || []);
-    setSummaryMode(entry.mode || "paragraph");
-    setSummaryLength(entry.length || entry.lengthSetting || "standard");
-    setHasSummary(true);
-    setIsRestored(true);
-  }, []);
+    state.setSummaryText(entry.summaryText || "");
+    state.setText(entry.inputText || "");
+    state.setSummaryMeta(entry.meta || null);
+    state.setKeyTakeaways(entry.takeaways || []);
+    state.setSummaryMode(entry.mode || "paragraph");
+    state.setSummaryLength(entry.lengthSetting || entry.length || "standard");
+    state.setHasSummary(true);
+    state.setIsRestored(true);
+  }, [state]);
 
-  // Reset advanced options
-  const resetAdvanced = useCallback(() => {
-    setFocusArea("");
-    setOutputLanguage("English");
-    setCustomInstructions("");
-    setFocusKeywords([]);
-    setSummaryTone("neutral");
-  }, []);
-
+  // ── Main summarize action ──
   const handleSummarize = useCallback(async () => {
-    if (loading || streaming) return;
-    if (!isUrlMode && wordCount < MIN_WORDS) {
-      setError(`Minimum ${MIN_WORDS} words required.`);
+    if (state.loading || stream.streaming) return;
+    if (!state.isUrlMode && state.wordCount < MIN_WORDS) {
+      state.setError(`Minimum ${MIN_WORDS} words required.`);
       return;
     }
-    if (isUrlMode && !url.trim()) {
-      setError("Please enter a valid URL.");
+    if (state.isUrlMode && !state.url.trim()) {
+      state.setError("Please enter a valid URL.");
       return;
     }
-    if (isUrlMode) {
+    if (state.isUrlMode) {
       try {
-        new URL(url.trim());
+        new URL(state.url.trim());
       } catch {
-        setError("Please enter a valid URL (e.g. https://example.com).");
+        state.setError("Please enter a valid URL (e.g. https://example.com).");
         return;
       }
     }
 
     try {
-      setError(null);
-      setLoading(true);
-      setHasSummary(false);
-      setDocumentId(null);
-      setSummaryText("");
-      setStreamingText("");
-      setSummaryMeta(null);
-      setKeyTakeaways(null);
-      setSummarizeStatus("idle");
+      state.setError(null);
+      state.setLoading(true);
+      state.setHasSummary(false);
+      state.setDocumentId(null);
+      state.setSummaryText("");
+      stream.setStreamingText("");
+      state.setSummaryMeta(null);
+      state.setKeyTakeaways(null);
+      state.setSummarizeStatus("idle");
 
-      let textToSummarize = text;
+      let textToSummarize = state.text;
 
-      if (isUrlMode) {
-        const doc = await ingestUrl(url.trim());
+      if (state.isUrlMode) {
+        const doc = await ingestUrl(state.url.trim());
         textToSummarize = doc.cleaned_content;
-        setText(textToSummarize);
-        setDocumentId(doc.id);
+        state.setText(textToSummarize);
+        state.setDocumentId(doc.id);
       } else {
         try {
           const doc = await ingestText(textToSummarize);
-          setDocumentId(doc.id);
+          state.setDocumentId(doc.id);
         } catch (err) {
           console.warn("Could not save document, advanced features disabled:", err.message);
         }
@@ -172,10 +133,10 @@ export function useSummarizer() {
 
       // Streaming first
       const controller = new AbortController();
-      abortControllerRef.current = controller;
-      setStreaming(true);
-      setHasSummary(true);
-      setLoading(false);
+      stream.abortControllerRef.current = controller;
+      stream.setStreaming(true);
+      state.setHasSummary(true);
+      state.setLoading(false);
 
       let streamSucceeded = false;
       let streamedContent = "";
@@ -183,53 +144,48 @@ export function useSummarizer() {
       try {
         await summarizeTextStream(
           textToSummarize,
-          summaryLength,
-          // onToken
+          state.summaryLength,
           (token) => {
             streamedContent += token;
-            setStreamingText(streamedContent);
+            stream.setStreamingText(streamedContent);
           },
-          // onDone
           (metadata) => {
             streamSucceeded = true;
-            setSummaryText(streamedContent);
-            setStreamingText("");
-            setStreaming(false);
-            setIsRestored(false);
-            abortControllerRef.current = null;
-            setSummarizeStatus("success");
-            setTimeout(() => setSummarizeStatus("idle"), 600);
+            state.setSummaryText(streamedContent);
+            stream.setStreamingText("");
+            stream.setStreaming(false);
+            state.setIsRestored(false);
+            stream.abortControllerRef.current = null;
+            state.setSummarizeStatus("success");
+            setTimeout(() => state.setSummarizeStatus("idle"), 600);
 
             if (metadata) {
-              setSummaryMeta(metadata);
-              setQuality(metadata.quality || "full");
+              state.setSummaryMeta(metadata);
+              state.setQuality(metadata.quality || "full");
             }
 
-            // Add to in-memory history
             addToHistory({
               summaryText: streamedContent,
               inputText: textToSummarize.slice(0, 200),
               meta: metadata,
               takeaways: null,
-              mode: summaryMode,
-              length: summaryLength,
+              mode: state.summaryMode,
+              length: state.summaryLength,
               timestamp: new Date().toISOString(),
             });
           },
-          // onTakeaways
           (takeaways) => {
             if (Array.isArray(takeaways)) {
-              setKeyTakeaways(takeaways);
+              state.setKeyTakeaways(takeaways);
             }
           },
-          // onError
           (errMsg) => {
             console.warn("Streaming failed, falling back:", errMsg);
           },
           controller,
-          summaryMode,
-          summaryTone,
-          focusKeywords,
+          state.summaryMode,
+          state.summaryTone,
+          state.focusKeywords,
         );
 
         if (streamSucceeded) return;
@@ -238,125 +194,101 @@ export function useSummarizer() {
       }
 
       // Fallback: non-streaming
-      setStreaming(false);
-      setStreamingText("");
-      setHasSummary(false);
-      setLoading(true);
-      abortControllerRef.current = null;
+      stream.setStreaming(false);
+      stream.setStreamingText("");
+      state.setHasSummary(false);
+      state.setLoading(true);
+      stream.abortControllerRef.current = null;
 
-      const result = await summarizeText(textToSummarize, summaryLength, summaryMode, summaryTone, focusKeywords);
-      setSummaryText(result.summary);
-      setQuality(result.quality || "full");
-      setHasSummary(true);
-      setIsRestored(false);
-      setSummaryMeta(result);
-      setKeyTakeaways(result.key_takeaways || []);
-      setSummarizeStatus("success");
-      setTimeout(() => setSummarizeStatus("idle"), 600);
+      const result = await summarizeText(textToSummarize, state.summaryLength, state.summaryMode, state.summaryTone, state.focusKeywords);
+      state.setSummaryText(result.summary);
+      state.setQuality(result.quality || "full");
+      state.setHasSummary(true);
+      state.setIsRestored(false);
+      state.setSummaryMeta(result);
+      state.setKeyTakeaways(result.key_takeaways || []);
+      state.setSummarizeStatus("success");
+      setTimeout(() => state.setSummarizeStatus("idle"), 600);
 
       addToHistory({
         summaryText: result.summary,
         inputText: textToSummarize.slice(0, 200),
         meta: result,
         takeaways: result.key_takeaways || [],
-        mode: summaryMode,
-        length: summaryLength,
+        mode: state.summaryMode,
+        length: state.summaryLength,
         timestamp: new Date().toISOString(),
       });
 
     } catch (err) {
-      setError(err.message || "Failed to connect to backend.");
-      setStreaming(false);
-      setStreamingText("");
-      setSummarizeStatus("error");
-      setTimeout(() => setSummarizeStatus("idle"), 2000);
+      state.setError(err.message || "Failed to connect to backend.");
+      stream.setStreaming(false);
+      stream.setStreamingText("");
+      state.setSummarizeStatus("error");
+      setTimeout(() => state.setSummarizeStatus("idle"), 2000);
     } finally {
-      setLoading(false);
-      abortControllerRef.current = null;
+      state.setLoading(false);
+      stream.abortControllerRef.current = null;
     }
-  }, [loading, streaming, isUrlMode, wordCount, text, url, summaryLength, summaryMode, summaryTone, focusKeywords, addToHistory]);
+  }, [state, stream, addToHistory]);
 
-  // Sync state to localStorage
-  useEffect(() => {
-    localStorage.setItem("rp_text", text);
-    localStorage.setItem("rp_hasSummary", hasSummary ? "true" : "false");
-    localStorage.setItem("rp_summaryText", summaryText);
-    if (documentId) {
-      localStorage.setItem("rp_documentId", documentId.toString());
-    } else {
-      localStorage.removeItem("rp_documentId");
-    }
-  }, [text, hasSummary, summaryText, documentId]);
-
-  // B11: Full reset
+  // ── Full reset ──
   const reset = useCallback(() => {
     cancelStreaming();
-    setHasSummary(false);
-    setSummaryText("");
-    setStreamingText("");
-    setText("");
-    setUrl("");
-    setDocumentId(null);
-    setError(null);
-    setStreaming(false);
-    setSummaryMeta(null);
-    setKeyTakeaways(null);
-    setSummaryMode("paragraph");
-    setSummaryLength("standard");
-    setFocusArea("");
-    setOutputLanguage("English");
-    setCustomInstructions("");
-    setFocusKeywords([]);
-    setSummaryTone("neutral");
-    setIsUrlMode(false);
-    setSummarizeStatus("idle");
-    // Focus textarea after react renders
-    setTimeout(() => textareaRef.current?.focus(), 50);
-  }, [cancelStreaming]);
+    state.setHasSummary(false);
+    state.setSummaryText("");
+    stream.setStreamingText("");
+    state.setText("");
+    state.setUrl("");
+    state.setDocumentId(null);
+    state.setError(null);
+    stream.setStreaming(false);
+    state.setSummaryMeta(null);
+    state.setKeyTakeaways(null);
+    state.setSummaryMode("paragraph");
+    state.setSummaryLength("standard");
+    state.setFocusArea("");
+    state.setOutputLanguage("English");
+    state.setCustomInstructions("");
+    state.setFocusKeywords([]);
+    state.setSummaryTone("neutral");
+    state.setIsUrlMode(false);
+    state.setSummarizeStatus("idle");
+    setTimeout(() => state.textareaRef.current?.focus(), 50);
+  }, [cancelStreaming, state, stream]);
 
-  // Rotate loading message
-  useEffect(() => {
-    if (!loading) return;
-    setLoadingStep(0);
-    let step = 0;
-    const interval = setInterval(() => {
-      step = (step + 1) % LOADING_MESSAGES.length;
-      setLoadingStep(step);
-    }, 900);
-    return () => clearInterval(interval);
-  }, [loading]);
-
+  // ── Return identical public API ──
   return {
-    text, setText,
-    loading,
-    loadingMessage: LOADING_MESSAGES[loadingStep],
-    error, setError,
-    wordCount, charCount,
-    hasSummary, summaryText, quality,
-    isUrlMode, setIsUrlMode,
-    url, setUrl,
-    documentId,
-    isRestored,
+    text: state.text, setText: state.setText,
+    loading: state.loading,
+    loadingMessage: state.loadingMessage,
+    error: state.error, setError: state.setError,
+    wordCount: state.wordCount, charCount: state.charCount,
+    hasSummary: state.hasSummary, summaryText: state.summaryText, quality: state.quality,
+    isUrlMode: state.isUrlMode, setIsUrlMode: state.setIsUrlMode,
+    url: state.url, setUrl: state.setUrl,
+    documentId: state.documentId,
+    isRestored: state.isRestored,
     // Streaming
-    streaming, streamingText, cancelStreaming,
+    streaming: stream.streaming, streamingText: stream.streamingText, cancelStreaming,
     // Mode, Tone, Keywords
-    summaryLength, setSummaryLength,
-    summaryMode, setSummaryMode,
-    summaryTone, setSummaryTone,
-    focusKeywords, setFocusKeywords,
+    summaryLength: state.summaryLength, setSummaryLength: state.setSummaryLength,
+    summaryMode: state.summaryMode, setSummaryMode: state.setSummaryMode,
+    summaryTone: state.summaryTone, setSummaryTone: state.setSummaryTone,
+    focusKeywords: state.focusKeywords, setFocusKeywords: state.setFocusKeywords,
     // History (in-memory)
     history, restoreFromHistory,
     // Metadata
-    summaryMeta, keyTakeaways,
-    // Advanced options (B10)
-    focusArea, setFocusArea,
-    outputLanguage, setOutputLanguage,
-    customInstructions, setCustomInstructions,
-    resetAdvanced,
-    // Status flash (C1)
-    summarizeStatus,
-    // Textarea ref (B11)
-    textareaRef,
+    summaryMeta: state.summaryMeta, keyTakeaways: state.keyTakeaways,
+    // Advanced options
+    focusArea: state.focusArea, setFocusArea: state.setFocusArea,
+    outputLanguage: state.outputLanguage, setOutputLanguage: state.setOutputLanguage,
+    customInstructions: state.customInstructions, setCustomInstructions: state.setCustomInstructions,
+    resetAdvanced: state.resetAdvanced,
+    // Status flash
+    summarizeStatus: state.summarizeStatus,
+    // Textarea ref
+    textareaRef: state.textareaRef,
     onSummarize: handleSummarize,
     reset,
   };
