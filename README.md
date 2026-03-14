@@ -35,7 +35,8 @@ PROBEXR is a full-stack article summarizer and learning platform: paste text or 
 - **Serverless/cloud-friendly:** Minimal deps (FastAPI, httpx, pydantic, uvicorn). No PyTorch, no local LLM. Deploy on Railway, Render, Fly, or serverless (e.g. Mangum for AWS Lambda).  
 - **$0 modes:** No API key → extractive summarization (sentence selection). Groq or OpenRouter free tier → human-like LLM summaries. No credit card or monthly spend required.
 - **Provider-agnostic:** Set one of `GROQ_API_KEY`, `OPENAI_API_KEY`, or `OPENROUTER_API_KEY`; provider and default model are auto-detected.  
-- **Auth:** Email/password + Social (Google/GitHub) with dynamic redirect URI support. JWT (HttpOnly cookies), Argon2 password hashing.
+- **Auth:** Email/password + Social (Google/GitHub) with dynamic redirect URI support. JWT (HttpOnly cookies), Argon2 password hashing. Secure by default with CSRF middleware and OAuth state validation.
+- **CI/CD pipeline:** Automated GitHub Actions pipeline for testing (pytest, vitest) and linting (mypy, eslint) on push/PR.
 
 ---
 
@@ -69,10 +70,11 @@ backend/
 │   ├── config.py         # Env-based config (DB, Redis, LLM, pool settings)
 │   ├── db.py             # Async engine (asyncpg/aiosqlite), session factory
 │   ├── deps.py           # Auth + DB session dependencies (AsyncSession)
-│   ├── middleware.py      # Logging + rate limiting (Redis / in-memory fallback)
+│   ├── http_client.py    # Global shared httpx.AsyncClient (connection pooling)
+│   ├── middleware.py      # CSRF + Logging + rate limiting (Redis / in-memory fallback)
 │   ├── schemas/          # Request/response models (e.g. TextRequest)
 │   ├── routers/          # Route modules (summarize, auth, chat, ingest, flashcards, tts, synthesis, streaming, social)
-│   └── services/         # Business logic (summarizer, llm, auth, social, chat, etc.)
+│   └── services/         # Business logic (summarizer, llm, auth, social, email, chat, etc.)
 ├── alembic/              # Database migrations (env-driven URL)
 ├── requirements.txt      # Dependencies
 ├── .env.example          # Environment variables template
@@ -90,6 +92,7 @@ backend/
 - **SSE Streaming** for real-time token delivery
 - **Auth (email/password)** with HttpOnly JWT cookies
 - Clear errors (validation, timeout, rate limit, API key)
-- **Frictionless Auth** (Google / GitHub / Magic Links)
+- **Frictionless Auth** (Google / GitHub / Magic Links via SMTP)
 - **Profile Customization** (Full Name, Avatar URL)
-- **Secure Sessions** with HttpOnly JWT cookies
+- **Secure Sessions** with HttpOnly JWT cookies and CSRF protection
+- **Automated CI** with GitHub Actions Pipeline

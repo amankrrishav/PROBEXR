@@ -1,6 +1,6 @@
-# ReadPulse Backend
+# PROBEXR Backend
 
-Scalable async FastAPI backend for human-like summarization, TTS, chat, and flashcards. PostgreSQL-ready with Redis rate limiting. Includes premium **Auth UX** (Google, GitHub, Magic Links).
+Scalable async FastAPI backend for human-like summarization, TTS, chat, and flashcards. PostgreSQL-ready with Redis rate limiting. Includes premium **Auth UX** (Google, GitHub, Magic Links via SMTP).
 
 ## Cost: $0 options (no need to spend $5–10/month)
 
@@ -29,5 +29,10 @@ Scalable async FastAPI backend for human-like summarization, TTS, chat, and flas
 | `FRONTEND_URL` | **CRITICAL:** Your frontend domain for OAuth redirects. |
 | `GOOGLE_CLIENT_ID` | Your Google OAuth Client ID. |
 | `GITHUB_CLIENT_ID` | Your GitHub OAuth Client ID. |
+| `SMTP_HOST`       | SMTP server (e.g., smtp.sendgrid.net) for Magic Links. |
+| `SMTP_PORT`       | SMTP port (usually 587 or 465). |
+| `SMTP_USER`       | SMTP username (e.g., apikey). |
+| `SMTP_PASSWORD`   | SMTP password. |
+| `SMTP_FROM_EMAIL` | Sender address (e.g., noreply@yourdomain.com). |
 | `DATABASE_URL` | `sqlite:///` or `postgresql://`. |
 | `REDIS_URL` | For rate limiting (optional). |
