@@ -1,7 +1,7 @@
 /**
  * Summarizer feature state and logic.
- * v2: Mode (7 formats), Tone (5 styles), Keywords, History (last 5).
- * Clean streaming — no JSON separator filtering needed.
+ * v3: Mode (7 formats), Tone (5 styles), Keywords, Advanced Options,
+ * localStorage-persisted history, length→prompt mapping.
  */
 import { useEffect, useState, useCallback, useRef } from "react";
 import { config } from "../config.js";
@@ -28,7 +28,15 @@ const TONES = [
   { value: "technical", label: "Technical" },
 ];
 
-export { MODES, TONES };
+const LENGTH_PROMPTS = {
+  brief: "Respond in 2–3 sentences maximum.",
+  standard: "Respond in a single well-structured paragraph.",
+  detailed: "Respond in 3–5 detailed paragraphs.",
+};
+
+const LANGUAGES = ["English", "Spanish", "French", "Hindi", "Japanese"];
+
+export { MODES, TONES, LENGTH_PROMPTS, LANGUAGES };
 
 export function useSummarizer() {
   const [text, setText] = useState(() => localStorage.getItem("rp_text") || "");
@@ -51,7 +59,7 @@ export function useSummarizer() {
   const [streamingText, setStreamingText] = useState("");
   const abortControllerRef = useRef(null);
 
-  // v2: Mode, Tone, Keywords, History
+  // Mode, Tone, Keywords
   const [summaryLength, setSummaryLength] = useState("standard");
   const [summaryMode, setSummaryMode] = useState("paragraph");
   const [summaryTone, setSummaryTone] = useState("neutral");
@@ -59,6 +67,17 @@ export function useSummarizer() {
   const [history, setHistory] = useState([]);
   const [summaryMeta, setSummaryMeta] = useState(null);
   const [keyTakeaways, setKeyTakeaways] = useState(null);
+
+  // Advanced options (B10)
+  const [focusArea, setFocusArea] = useState("");
+  const [outputLanguage, setOutputLanguage] = useState("English");
+  const [customInstructions, setCustomInstructions] = useState("");
+
+  // Success/error flash states (C1)
+  const [summarizeStatus, setSummarizeStatus] = useState("idle"); // 'idle' | 'success' | 'error'
+
+  // Textarea ref for focus (B11)
+  const textareaRef = useRef(null);
 
   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
   const charCount = text.length;
@@ -76,7 +95,7 @@ export function useSummarizer() {
     }
   }, [streamingText]);
 
-  // Add to history
+  // Add to in-memory history
   const addToHistory = useCallback((entry) => {
     setHistory(prev => {
       const next = [entry, ...prev].slice(0, 5);
@@ -86,14 +105,23 @@ export function useSummarizer() {
 
   // Restore from history
   const restoreFromHistory = useCallback((entry) => {
-    setSummaryText(entry.summaryText);
+    setSummaryText(entry.summaryText || "");
     setText(entry.inputText || "");
     setSummaryMeta(entry.meta || null);
     setKeyTakeaways(entry.takeaways || []);
     setSummaryMode(entry.mode || "paragraph");
-    setSummaryLength(entry.length || "standard");
+    setSummaryLength(entry.length || entry.lengthSetting || "standard");
     setHasSummary(true);
     setIsRestored(true);
+  }, []);
+
+  // Reset advanced options
+  const resetAdvanced = useCallback(() => {
+    setFocusArea("");
+    setOutputLanguage("English");
+    setCustomInstructions("");
+    setFocusKeywords([]);
+    setSummaryTone("neutral");
   }, []);
 
   const handleSummarize = useCallback(async () => {
@@ -106,6 +134,14 @@ export function useSummarizer() {
       setError("Please enter a valid URL.");
       return;
     }
+    if (isUrlMode) {
+      try {
+        new URL(url.trim());
+      } catch {
+        setError("Please enter a valid URL (e.g. https://example.com).");
+        return;
+      }
+    }
 
     try {
       setError(null);
@@ -116,6 +152,7 @@ export function useSummarizer() {
       setStreamingText("");
       setSummaryMeta(null);
       setKeyTakeaways(null);
+      setSummarizeStatus("idle");
 
       let textToSummarize = text;
 
@@ -160,18 +197,20 @@ export function useSummarizer() {
             setStreaming(false);
             setIsRestored(false);
             abortControllerRef.current = null;
+            setSummarizeStatus("success");
+            setTimeout(() => setSummarizeStatus("idle"), 600);
 
             if (metadata) {
               setSummaryMeta(metadata);
               setQuality(metadata.quality || "full");
             }
 
-            // Add to history
+            // Add to in-memory history
             addToHistory({
               summaryText: streamedContent,
               inputText: textToSummarize.slice(0, 200),
               meta: metadata,
-              takeaways: null, // will be set separately
+              takeaways: null,
               mode: summaryMode,
               length: summaryLength,
               timestamp: new Date().toISOString(),
@@ -212,6 +251,8 @@ export function useSummarizer() {
       setIsRestored(false);
       setSummaryMeta(result);
       setKeyTakeaways(result.key_takeaways || []);
+      setSummarizeStatus("success");
+      setTimeout(() => setSummarizeStatus("idle"), 600);
 
       addToHistory({
         summaryText: result.summary,
@@ -227,6 +268,8 @@ export function useSummarizer() {
       setError(err.message || "Failed to connect to backend.");
       setStreaming(false);
       setStreamingText("");
+      setSummarizeStatus("error");
+      setTimeout(() => setSummarizeStatus("idle"), 2000);
     } finally {
       setLoading(false);
       abortControllerRef.current = null;
@@ -245,6 +288,7 @@ export function useSummarizer() {
     }
   }, [text, hasSummary, summaryText, documentId]);
 
+  // B11: Full reset
   const reset = useCallback(() => {
     cancelStreaming();
     setHasSummary(false);
@@ -257,6 +301,17 @@ export function useSummarizer() {
     setStreaming(false);
     setSummaryMeta(null);
     setKeyTakeaways(null);
+    setSummaryMode("paragraph");
+    setSummaryLength("standard");
+    setFocusArea("");
+    setOutputLanguage("English");
+    setCustomInstructions("");
+    setFocusKeywords([]);
+    setSummaryTone("neutral");
+    setIsUrlMode(false);
+    setSummarizeStatus("idle");
+    // Focus textarea after react renders
+    setTimeout(() => textareaRef.current?.focus(), 50);
   }, [cancelStreaming]);
 
   // Rotate loading message
@@ -275,7 +330,7 @@ export function useSummarizer() {
     text, setText,
     loading,
     loadingMessage: LOADING_MESSAGES[loadingStep],
-    error,
+    error, setError,
     wordCount, charCount,
     hasSummary, summaryText, quality,
     isUrlMode, setIsUrlMode,
@@ -284,15 +339,24 @@ export function useSummarizer() {
     isRestored,
     // Streaming
     streaming, streamingText, cancelStreaming,
-    // v2: Mode, Tone, Keywords
+    // Mode, Tone, Keywords
     summaryLength, setSummaryLength,
     summaryMode, setSummaryMode,
     summaryTone, setSummaryTone,
     focusKeywords, setFocusKeywords,
-    // v2: History
+    // History (in-memory)
     history, restoreFromHistory,
     // Metadata
     summaryMeta, keyTakeaways,
+    // Advanced options (B10)
+    focusArea, setFocusArea,
+    outputLanguage, setOutputLanguage,
+    customInstructions, setCustomInstructions,
+    resetAdvanced,
+    // Status flash (C1)
+    summarizeStatus,
+    // Textarea ref (B11)
+    textareaRef,
     onSummarize: handleSummarize,
     reset,
   };

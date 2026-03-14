@@ -1,6 +1,18 @@
+/**
+ * Editor — Main input component.
+ * A2: Mode pill scroll fix, fade mask, grid on desktop
+ * B6: Load sample with confirm dialog, toggle to "Clear sample"  
+ * B7: Word count with limit warnings
+ * B8: Length selector with visual active state
+ * B9: URL tab validation, loading state, error
+ * B10: Advanced options — focus area, language, custom instructions
+ * B11: New Summary fully resets + focuses textarea
+ * C1: Summarize button loading/success/error states
+ */
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useSummarizerContext } from "../../contexts/SummarizerContext.jsx";
-import { MODES, TONES } from "../../hooks/useSummarizer.js";
+import { useAppContext } from "../../contexts/AppContext.jsx";
+import { MODES, TONES, LANGUAGES } from "../../hooks/useSummarizer.js";
 
 const LENGTH_OPTIONS = [
   { value: "brief", label: "Short" },
@@ -29,7 +41,7 @@ However, this rapid advancement has also raised significant concerns. Issues of 
 
 Looking forward, the field faces critical decisions about safety, alignment, and regulation. Researchers are increasingly focused on developing AI systems that are not only capable but also trustworthy, transparent, and aligned with human values. The next decade will likely determine whether AI becomes a tool for broad human flourishing or a source of deepening inequality and existential risk.`;
 
-/* ── Intelligence Score Calculation (pure JS heuristic) ── */
+/* ── Intelligence Score Calculation ── */
 function getIntelligenceScore(text) {
   if (!text || text.trim().split(/\s+/).length < 50) return null;
   const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
@@ -43,12 +55,20 @@ function getIntelligenceScore(text) {
   return { level: "simple", color: "var(--sage)", label: "Readable by most", pos: 15 };
 }
 
-/* ── Word Count Color ── */
+/* ── Word Count Color (B7) ── */
 function getWordCountColor(count) {
   if (count === 0) return "var(--ink-tertiary)";
+  if (count > 10000) return "var(--rose)";
+  if (count > 8000) return "var(--amber)";
   if (count <= 50) return "var(--amber)";
   if (count <= 500) return "var(--sage)";
   return "var(--ink-secondary)";
+}
+
+function getWordCountTooltip(count) {
+  if (count > 10000) return "Over 10,000 word limit";
+  if (count > 8000) return "Approaching limit";
+  return null;
 }
 
 export default function Editor({ onSummarize, handleKeyDown, focusMode }) {
@@ -58,16 +78,24 @@ export default function Editor({ onSummarize, handleKeyDown, focusMode }) {
     streaming, cancelStreaming, summaryLength, setSummaryLength,
     summaryMode, setSummaryMode, summaryTone, setSummaryTone,
     focusKeywords, setFocusKeywords,
+    focusArea, setFocusArea, outputLanguage, setOutputLanguage,
+    customInstructions, setCustomInstructions, resetAdvanced,
+    summarizeStatus, textareaRef,
   } = useSummarizerContext();
+
+  const { providerStatus, summaryHistory } = useAppContext();
 
   const [keywordInput, setKeywordInput] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [textareaFocused, setTextareaFocused] = useState(false);
-  const [prevWordCount, setPrevWordCount] = useState(0);
   const [tiltMode, setTiltMode] = useState(null);
   const [loadingPhase, setLoadingPhase] = useState(0);
   const [modeTooltip, setModeTooltip] = useState(null);
-  const textareaRef = useRef(null);
+  const [isSampleLoaded, setIsSampleLoaded] = useState(false);
+  const [urlError, setUrlError] = useState(null);
+  const [modeScrollFaded, setModeScrollFaded] = useState(true);
+  const modeScrollRef = useRef(null);
+
   const isBusy = loading || streaming;
   const isMac = typeof navigator !== "undefined" && /Mac/i.test(navigator.userAgent);
 
@@ -85,18 +113,26 @@ export default function Editor({ onSummarize, handleKeyDown, focusMode }) {
     return () => clearInterval(interval);
   }, [isBusy]);
 
-  // Track word count changes for flip animation
-  useEffect(() => {
-    setPrevWordCount(wordCount);
-  }, [wordCount]);
-
   // Auto-grow textarea
   useEffect(() => {
-    const ta = textareaRef.current;
+    const ta = textareaRef?.current;
     if (!ta) return;
     ta.style.height = "auto";
     ta.style.height = Math.min(ta.scrollHeight, window.innerHeight * 0.6) + "px";
+  }, [text, textareaRef]);
+
+  // Track sample text state
+  useEffect(() => {
+    setIsSampleLoaded(text === SAMPLE_TEXT);
   }, [text]);
+
+  // Mode scroll fade mask (A2)
+  function handleModeScroll() {
+    const el = modeScrollRef.current;
+    if (!el) return;
+    const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 2;
+    setModeScrollFaded(!atEnd);
+  }
 
   const intelligenceScore = useMemo(() => getIntelligenceScore(text), [text]);
 
@@ -110,13 +146,28 @@ export default function Editor({ onSummarize, handleKeyDown, focusMode }) {
   function handleRemoveKeyword(idx) {
     setFocusKeywords(focusKeywords.filter((_, i) => i !== idx));
   }
+
+  // B6: Load sample with confirm
   function handleLoadSample() {
+    if (text.trim() && text !== SAMPLE_TEXT) {
+      if (!window.confirm("This will replace your current text. Continue?")) return;
+    }
     setText(SAMPLE_TEXT);
     setIsUrlMode(false);
+    setIsSampleLoaded(true);
   }
+
+  // B6: Clear sample
+  function handleClearSample() {
+    setText("");
+    setUrl("");
+    setIsSampleLoaded(false);
+  }
+
   function handleClear() {
     setText("");
     setUrl("");
+    setIsSampleLoaded(false);
   }
 
   function handleModeSelect(mode) {
@@ -125,8 +176,72 @@ export default function Editor({ onSummarize, handleKeyDown, focusMode }) {
     setTimeout(() => setTiltMode(null), 300);
   }
 
+  // URL validation on blur (B9)
+  function handleUrlBlur() {
+    if (url.trim()) {
+      try {
+        new URL(url.trim());
+        setUrlError(null);
+      } catch {
+        setUrlError("Please enter a valid URL (e.g. https://example.com)");
+      }
+    } else {
+      setUrlError(null);
+    }
+  }
+
+  // Enhanced summarize (C1 + B3/B4 history)
+  function handleSummarizeClick() {
+    // B9: URL validation before submit
+    if (isUrlMode && url.trim()) {
+      try {
+        new URL(url.trim());
+      } catch {
+        setUrlError("Please enter a valid URL (e.g. https://example.com)");
+        return;
+      }
+    }
+    onSummarize();
+  }
+
   // Compute the active tone segment index for the sliding pill
   const toneIndex = TONES.findIndex(t => t.value === summaryTone);
+  const wordCountTooltip = getWordCountTooltip(wordCount);
+
+  // Button label (C1)
+  function getSummarizeButtonContent() {
+    if (loading) {
+      return (
+        <>
+          <span style={{
+            width: 14, height: 14,
+            border: "2px solid rgba(11,9,6,0.3)",
+            borderTopColor: "#0B0906",
+            borderRadius: "50%",
+            animation: "spin 600ms linear infinite",
+            display: "inline-block",
+          }} />
+          Summarizing...
+        </>
+      );
+    }
+    if (streaming) return "Streaming…";
+    if (summarizeStatus === "success") return <>✓ Done</>;
+    if (summarizeStatus === "error") return <>✗ Failed</>;
+    if (hasSummary) return <>Regenerate ↺</>;
+    return <>Summarize →</>;
+  }
+
+  function getSummarizeButtonStyle() {
+    const base = { height: 44, minWidth: 150, fontSize: 16 };
+    if (summarizeStatus === "success") {
+      return { ...base, background: "var(--sage)", boxShadow: "0 0 12px rgba(110,186,127,0.3)" };
+    }
+    if (summarizeStatus === "error") {
+      return { ...base, background: "var(--rose)", boxShadow: "0 0 12px rgba(224,92,92,0.3)" };
+    }
+    return base;
+  }
 
   return (
     <div>
@@ -145,14 +260,24 @@ export default function Editor({ onSummarize, handleKeyDown, focusMode }) {
         </div>
       )}
 
-      {/* ── Error ── */}
+      {/* ── Error (C1) ── */}
       {error && (
         <div className="flex items-center gap-2 animate-in" style={{
           padding: "12px 16px", borderRadius: "var(--radius-btn)", marginBottom: 16,
           background: "rgba(224,92,92,0.08)", border: "1px solid rgba(224,92,92,0.2)",
           fontSize: 13, color: "var(--rose)",
+          justifyContent: "space-between",
         }}>
-          <span>⚠</span> {error}
+          <div className="flex items-center gap-2">
+            <span>⚠</span> {error}
+          </div>
+          <button
+            onClick={handleSummarizeClick}
+            className="btn-ghost"
+            style={{ fontSize: 12, color: "var(--amber)", flexShrink: 0 }}
+          >
+            Retry
+          </button>
         </div>
       )}
 
@@ -196,37 +321,54 @@ export default function Editor({ onSummarize, handleKeyDown, focusMode }) {
 
             <div style={{ flex: 1 }} />
 
+            {/* B6: Load sample / Clear sample toggle */}
             {!isUrlMode && !text && (
               <button onClick={handleLoadSample} className="btn-ghost" style={{ fontSize: 12, color: "var(--amber)" }}>
                 Load sample
               </button>
             )}
-            {(text || url) && (
+            {!isUrlMode && isSampleLoaded && (
+              <button onClick={handleClearSample} className="btn-ghost" style={{ fontSize: 12, color: "var(--amber)" }}>
+                Clear sample
+              </button>
+            )}
+            {(text && !isSampleLoaded) || url ? (
               <button onClick={handleClear} className="btn-ghost" style={{ fontSize: 12 }}>
                 Clear
               </button>
-            )}
+            ) : null}
           </div>
         )}
 
         {/* Input area */}
         <div style={{ padding: hasSummary ? "16px 24px" : "0" }}>
           {isUrlMode && !hasSummary ? (
-            <div className="flex items-center gap-3" style={{ padding: "20px 24px" }}>
-              <span style={{ color: "var(--ink-tertiary)", fontSize: 18 }}>🌐</span>
-              <input
-                type="url"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="https://example.com/article"
-                className="font-body"
-                style={{
-                  flex: 1, background: "transparent", border: "none", outline: "none",
-                  fontSize: 15, color: "var(--ink-primary)", padding: "8px 0",
-                }}
-                autoFocus
-              />
+            <div style={{ padding: "20px 24px" }}>
+              <div className="flex items-center gap-3">
+                <span style={{ color: "var(--ink-tertiary)", fontSize: 18 }}>🌐</span>
+                <input
+                  type="url"
+                  value={url}
+                  onChange={(e) => { setUrl(e.target.value); setUrlError(null); }}
+                  onKeyDown={handleKeyDown}
+                  onBlur={handleUrlBlur}
+                  placeholder="https://example.com/article"
+                  className="font-body"
+                  style={{
+                    flex: 1, background: "transparent",
+                    border: "none", outline: "none",
+                    fontSize: 15, color: "var(--ink-primary)", padding: "8px 0",
+                    borderBottom: urlError ? "1px solid var(--rose)" : "none",
+                  }}
+                  autoFocus
+                  aria-label="URL to summarize"
+                />
+              </div>
+              {urlError && (
+                <p className="font-mono" style={{ fontSize: 11, color: "var(--rose)", marginTop: 6 }}>
+                  {urlError}
+                </p>
+              )}
             </div>
           ) : (
             <div className={`relative ${focusMode ? "focus-target" : ""}`}>
@@ -249,6 +391,7 @@ export default function Editor({ onSummarize, handleKeyDown, focusMode }) {
                   padding: "20px 24px",
                   display: "block",
                 }}
+                aria-label="Text input"
               />
             </div>
           )}
@@ -275,41 +418,59 @@ export default function Editor({ onSummarize, handleKeyDown, focusMode }) {
           </div>
         )}
 
-        {/* ── Mode Selector (only before summary) ── */}
+        {/* ── Mode Selector (A2: scroll fix + grid on desktop) ── */}
         {!hasSummary && (
           <div className="anim-modes" style={{ padding: "12px 24px" }}>
             <p className="section-header">Summary Mode</p>
-            <div className="mode-selector">
-              {MODES.map((m) => (
-                <button
-                  key={m.value}
-                  onClick={() => handleModeSelect(m.value)}
-                  className={`mode-card ${summaryMode === m.value ? "active" : ""} ${tiltMode === m.value ? "tilt" : ""}`}
-                  onMouseEnter={() => setModeTooltip(m.value)}
-                  onMouseLeave={() => setModeTooltip(null)}
-                >
-                  <span className="mode-icon">{MODE_ICONS[m.value] || m.icon}</span>
-                  <span className="mode-label">{m.label}</span>
-                  {/* Tooltip */}
-                  {modeTooltip === m.value && (
-                    <div className="tooltip visible" style={{ bottom: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)" }}>
-                      {MODE_TOOLTIPS[m.value]}
-                    </div>
-                  )}
-                </button>
-              ))}
+            <div
+              ref={modeScrollRef}
+              onScroll={handleModeScroll}
+              className="mode-selector-wrap"
+              style={{ position: "relative" }}
+            >
+              <div className="mode-selector">
+                {MODES.map((m) => (
+                  <button
+                    key={m.value}
+                    onClick={() => handleModeSelect(m.value)}
+                    className={`mode-card ${summaryMode === m.value ? "active" : ""} ${tiltMode === m.value ? "tilt" : ""}`}
+                    onMouseEnter={() => setModeTooltip(m.value)}
+                    onMouseLeave={() => setModeTooltip(null)}
+                    aria-label={`${m.label}: ${MODE_TOOLTIPS[m.value]}`}
+                  >
+                    <span className="mode-icon">{MODE_ICONS[m.value] || m.icon}</span>
+                    <span className="mode-label">{m.label}</span>
+                    {modeTooltip === m.value && (
+                      <div className="tooltip visible" style={{ bottom: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)" }}>
+                        {MODE_TOOLTIPS[m.value]}
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+              {/* Fade mask (A2) */}
+              {modeScrollFaded && (
+                <div className="mode-fade-mask" style={{
+                  position: "absolute", right: 0, top: 0, bottom: 0,
+                  width: 48,
+                  background: "linear-gradient(to right, transparent, var(--bg-surface))",
+                  pointerEvents: "none",
+                  zIndex: 2,
+                }} />
+              )}
             </div>
           </div>
         )}
 
-        {/* ── Advanced Options ── */}
+        {/* ── Advanced Options (B10) ── */}
         {!hasSummary && (
           <div style={{ padding: "4px 24px 16px" }}>
             <button
               onClick={() => setShowAdvanced(!showAdvanced)}
               className="advanced-toggle"
+              aria-expanded={showAdvanced}
             >
-              ⚙ Advanced options
+              ⚙ Advanced options {showAdvanced ? "▴" : "▾"}
             </button>
 
             <div className={`advanced-content ${showAdvanced ? "open" : ""}`}>
@@ -317,7 +478,6 @@ export default function Editor({ onSummarize, handleKeyDown, focusMode }) {
                 {/* Tone — Segmented Pill Control */}
                 <p className="section-header" style={{ marginBottom: 8 }}>Tone</p>
                 <div className="segmented-control" style={{ marginBottom: 16 }}>
-                  {/* Sliding pill */}
                   <div className="segmented-pill" style={{
                     width: `${100 / TONES.length}%`,
                     transform: `translateX(${toneIndex * 100}%)`,
@@ -333,6 +493,70 @@ export default function Editor({ onSummarize, handleKeyDown, focusMode }) {
                   ))}
                 </div>
 
+                {/* Focus Area (B10) */}
+                <p className="section-header" style={{ marginBottom: 8 }}>Focus Area</p>
+                <input
+                  type="text"
+                  value={focusArea}
+                  onChange={(e) => setFocusArea(e.target.value)}
+                  placeholder="Focus on a specific aspect, e.g. 'financial risks'"
+                  className="font-body"
+                  style={{
+                    width: "100%", padding: "8px 12px",
+                    borderRadius: "var(--radius-input)",
+                    background: "var(--bg-input)", border: "1px solid var(--border-dim)",
+                    color: "var(--ink-primary)", fontSize: 13, outline: "none",
+                    marginBottom: 16,
+                  }}
+                  aria-label="Focus area"
+                />
+
+                {/* Output Language (B10) */}
+                <p className="section-header" style={{ marginBottom: 8 }}>Output Language</p>
+                <select
+                  value={outputLanguage}
+                  onChange={(e) => setOutputLanguage(e.target.value)}
+                  className="font-body"
+                  style={{
+                    width: "100%", padding: "8px 12px",
+                    borderRadius: "var(--radius-input)",
+                    background: "var(--bg-input)", border: "1px solid var(--border-dim)",
+                    color: "var(--ink-primary)", fontSize: 13, outline: "none",
+                    marginBottom: 16, cursor: "pointer",
+                    appearance: "none",
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%235A5048' d='M3 4.5L6 8l3-3.5z'/%3E%3C/svg%3E")`,
+                    backgroundRepeat: "no-repeat",
+                    backgroundPosition: "right 12px center",
+                  }}
+                  aria-label="Output language"
+                >
+                  {LANGUAGES.map((lang) => (
+                    <option key={lang} value={lang}>{lang}</option>
+                  ))}
+                </select>
+
+                {/* Custom Instructions (B10) */}
+                <p className="section-header" style={{ marginBottom: 8 }}>
+                  Custom Instructions ({customInstructions.length}/200)
+                </p>
+                <textarea
+                  value={customInstructions}
+                  onChange={(e) => {
+                    if (e.target.value.length <= 200) setCustomInstructions(e.target.value);
+                  }}
+                  placeholder="Add custom instructions for the AI..."
+                  className="font-body"
+                  style={{
+                    width: "100%", padding: "8px 12px",
+                    borderRadius: "var(--radius-input)",
+                    background: "var(--bg-input)", border: "1px solid var(--border-dim)",
+                    color: "var(--ink-primary)", fontSize: 13, outline: "none",
+                    resize: "none", minHeight: 60, marginBottom: 16,
+                  }}
+                  maxLength={200}
+                  aria-label="Custom instructions"
+                />
+
                 {/* Focus Keywords */}
                 <p className="section-header" style={{ marginBottom: 8 }}>
                   Focus Keywords ({focusKeywords.length}/5)
@@ -340,7 +564,7 @@ export default function Editor({ onSummarize, handleKeyDown, focusMode }) {
                 <div className="flex items-center gap-2 flex-wrap" style={{
                   padding: "8px 12px", borderRadius: "var(--radius-input)",
                   background: "var(--bg-input)", border: "1px solid var(--border-dim)",
-                  minHeight: 36,
+                  minHeight: 36, marginBottom: 12,
                 }}>
                   {focusKeywords.map((kw, i) => (
                     <span key={i} className="keyword-chip">
@@ -351,6 +575,7 @@ export default function Editor({ onSummarize, handleKeyDown, focusMode }) {
                           background: "none", border: "none", cursor: "pointer",
                           color: "var(--rose)", fontSize: 12, padding: 0,
                         }}
+                        aria-label={`Remove keyword ${kw}`}
                       >×</button>
                     </span>
                   ))}
@@ -371,6 +596,20 @@ export default function Editor({ onSummarize, handleKeyDown, focusMode }) {
                     <span className="font-mono" style={{ fontSize: 11, color: "var(--ink-tertiary)" }}>Maximum keywords added</span>
                   )}
                 </div>
+
+                {/* Reset to defaults */}
+                <button
+                  onClick={resetAdvanced}
+                  className="font-mono"
+                  style={{
+                    background: "none", border: "none", cursor: "pointer",
+                    fontSize: 11, color: "var(--ink-tertiary)",
+                    textDecoration: "underline",
+                    padding: 0,
+                  }}
+                >
+                  Reset to defaults
+                </button>
               </div>
             </div>
           </div>
@@ -381,13 +620,18 @@ export default function Editor({ onSummarize, handleKeyDown, focusMode }) {
           padding: "12px 24px",
           borderTop: "1px solid var(--border-dim)",
         }}>
-          {/* Left: word count + shortcut */}
+          {/* Left: word count + shortcut (B7) */}
           <div className="flex items-center gap-4">
-            <span className="font-mono word-count-flip" key={wordCount} style={{
-              fontSize: 12,
-              color: getWordCountColor(wordCount),
-              transition: "color 300ms var(--ease)",
-            }}>
+            <span
+              className="font-mono word-count-flip"
+              key={wordCount}
+              title={wordCountTooltip || ""}
+              style={{
+                fontSize: 12,
+                color: getWordCountColor(wordCount),
+                transition: "color 300ms var(--ease)",
+              }}
+            >
               {wordCount.toLocaleString()} words
             </span>
             {!hasSummary && (
@@ -399,7 +643,7 @@ export default function Editor({ onSummarize, handleKeyDown, focusMode }) {
 
           {/* Right: length + action buttons */}
           <div className="flex items-center gap-3">
-            {/* Length selector */}
+            {/* Length selector (B8) */}
             {!hasSummary && (
               <div className="segmented-control">
                 {LENGTH_OPTIONS.map((opt) => (
@@ -407,6 +651,7 @@ export default function Editor({ onSummarize, handleKeyDown, focusMode }) {
                     key={opt.value}
                     onClick={() => setSummaryLength(opt.value)}
                     className={summaryLength === opt.value ? "active" : ""}
+                    aria-label={`Length: ${opt.label}`}
                   >
                     {opt.label}
                   </button>
@@ -421,29 +666,20 @@ export default function Editor({ onSummarize, handleKeyDown, focusMode }) {
               </button>
             )}
 
-            {/* Summarize button */}
+            {/* Summarize button (C1) */}
             <button
-              onClick={onSummarize}
-              disabled={isBusy}
+              onClick={handleSummarizeClick}
+              disabled={isBusy || providerStatus.status === "offline"}
               className="btn-primary"
-              style={{ height: 44, minWidth: 150, fontSize: 16 }}
+              style={getSummarizeButtonStyle()}
+              title={providerStatus.status === "offline" ? "Provider unavailable" : ""}
             >
-              {loading ? (
-                <>
-                  Distilling <span className="loading-dot" style={{ marginLeft: 4 }} />
-                </>
-              ) : streaming ? (
-                "Streaming…"
-              ) : hasSummary ? (
-                <>Regenerate ↺</>
-              ) : (
-                <>Summarize →</>
-              )}
+              {getSummarizeButtonContent()}
             </button>
           </div>
         </div>
 
-        {/* Loading status words (ACT 2 of summarize ritual) */}
+        {/* Loading status words */}
         {isBusy && (
           <div style={{ padding: "8px 24px 12px", textAlign: "center" }}>
             <span className="font-mono" style={{

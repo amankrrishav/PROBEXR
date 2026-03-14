@@ -1,3 +1,7 @@
+/**
+ * OutputCard — Summary output with toolbar and markdown rendering.
+ * C2: Copy with checkmark, download with timestamp, regenerate, markdown renderer.
+ */
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import TypingSummary from "./TypingSummary";
 import ChatView from "./ChatView";
@@ -224,6 +228,105 @@ function RefineDropdown({ onRefine }) {
   );
 }
 
+/* ── Minimal Markdown Renderer (C2) ── */
+function renderMarkdown(text) {
+  if (!text) return null;
+  const lines = text.split("\n");
+  const elements = [];
+  let inList = false;
+  let listItems = [];
+
+  function flushList() {
+    if (listItems.length > 0) {
+      elements.push(
+        <ul key={`ul-${elements.length}`} style={{ paddingLeft: 20, margin: "8px 0" }}>
+          {listItems.map((item, i) => (
+            <li key={i} style={{ marginBottom: 4 }}>{formatInline(item)}</li>
+          ))}
+        </ul>
+      );
+      listItems = [];
+    }
+    inList = false;
+  }
+
+  function formatInline(str) {
+    // Handle **bold** and *italic*
+    const parts = [];
+    let remaining = str;
+    let key = 0;
+    // Bold: **text**
+    const boldRegex = /\*\*(.+?)\*\*/g;
+    let lastIndex = 0;
+    let match;
+    const segments = [];
+    while ((match = boldRegex.exec(remaining)) !== null) {
+      if (match.index > lastIndex) {
+        segments.push({ type: "text", content: remaining.slice(lastIndex, match.index) });
+      }
+      segments.push({ type: "bold", content: match[1] });
+      lastIndex = match.index + match[0].length;
+    }
+    if (lastIndex < remaining.length) {
+      segments.push({ type: "text", content: remaining.slice(lastIndex) });
+    }
+
+    return segments.map((seg, i) => {
+      if (seg.type === "bold") {
+        return <strong key={i}>{formatItalic(seg.content)}</strong>;
+      }
+      return <span key={i}>{formatItalic(seg.content)}</span>;
+    });
+  }
+
+  function formatItalic(str) {
+    const parts = [];
+    const italicRegex = /\*(.+?)\*/g;
+    let lastIndex = 0;
+    let match;
+    while ((match = italicRegex.exec(str)) !== null) {
+      if (match.index > lastIndex) {
+        parts.push(str.slice(lastIndex, match.index));
+      }
+      parts.push(<em key={`i-${match.index}`}>{match[1]}</em>);
+      lastIndex = match.index + match[0].length;
+    }
+    if (lastIndex < str.length) {
+      parts.push(str.slice(lastIndex));
+    }
+    return parts.length > 0 ? parts : str;
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    // Bullet list
+    if (trimmed.startsWith("- ") || trimmed.startsWith("• ") || trimmed.startsWith("* ")) {
+      inList = true;
+      listItems.push(trimmed.slice(2));
+      continue;
+    }
+
+    // Non-list line — flush any pending list
+    if (inList) flushList();
+
+    if (!trimmed) {
+      elements.push(<br key={`br-${i}`} />);
+      continue;
+    }
+
+    elements.push(
+      <p key={i} style={{ margin: "0 0 8px" }}>
+        {formatInline(trimmed)}
+      </p>
+    );
+  }
+
+  if (inList) flushList();
+  return elements;
+}
+
 
 /* ═══════════════════════════════════════════════════════════════
    OUTPUT CARD — THE PAYOFF
@@ -236,7 +339,6 @@ export default function OutputCard() {
   } = useSummarizerContext();
 
   const [copied, setCopied] = useState(false);
-  const [showCopyToast, setShowCopyToast] = useState(false);
 
   const handleCopy = useCallback(async () => {
     try { await navigator.clipboard.writeText(summaryText); }
@@ -246,16 +348,16 @@ export default function OutputCard() {
       ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
     }
     setCopied(true);
-    setShowCopyToast(true);
-    setTimeout(() => setCopied(false), 2000);
-    setTimeout(() => setShowCopyToast(false), 2500);
+    setTimeout(() => setCopied(false), 1500);
   }, [summaryText]);
 
+  // C2: Download with timestamp filename
   function handleDownload() {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
     const blob = new Blob([summaryText], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url;
-    a.download = "summary.txt"; a.click();
+    a.download = `probexr-summary-${timestamp}.txt`; a.click();
     URL.revokeObjectURL(url);
   }
 
@@ -281,7 +383,6 @@ export default function OutputCard() {
   const themes = useMemo(() => {
     if (!keyTakeaways?.length) return [];
     return keyTakeaways.slice(0, 8).map(t => {
-      // Extract key phrase (first few words)
       const words = t.split(/\s+/).slice(0, 3).join(" ");
       return words;
     });
@@ -294,17 +395,20 @@ export default function OutputCard() {
         <h3 className="section-header" style={{ padding: 0, margin: 0 }}>Summary</h3>
         {showSummary && (
           <div className="flex items-center gap-1">
-            <button onClick={handleCopy} className="btn-ghost" style={{ fontSize: 12 }}>
-              {copied ? "✓ Copied!" : "📋 Copy"}
+            {/* C2: Copy with checkmark icon */}
+            <button onClick={handleCopy} className="btn-ghost" style={{ fontSize: 12 }} aria-label="Copy summary">
+              {copied ? "✓ Copied" : "📋 Copy"}
             </button>
-            <button onClick={handleDownload} className="btn-ghost" style={{ fontSize: 12 }}>
+            {/* C2: Download with timestamp */}
+            <button onClick={handleDownload} className="btn-ghost" style={{ fontSize: 12 }} aria-label="Download summary">
               ⬇ Download
             </button>
-            <button onClick={onSummarize} className="btn-ghost" style={{ fontSize: 12 }}>
+            {/* C2: Regenerate */}
+            <button onClick={onSummarize} className="btn-ghost" style={{ fontSize: 12 }} aria-label="Regenerate summary">
               🔁 Regenerate
             </button>
             <RefineDropdown onRefine={() => {}} />
-            <button onClick={reset} className="btn-ghost" style={{ fontSize: 12 }}>
+            <button onClick={reset} className="btn-ghost" style={{ fontSize: 12 }} aria-label="New summary">
               ✦ New
             </button>
           </div>
@@ -340,12 +444,19 @@ export default function OutputCard() {
         </div>
       )}
 
-      {/* ── Summary Content ── */}
+      {/* ── Summary Content (C2: markdown rendering) ── */}
       <div style={{ padding: "16px 24px 20px" }}>
         {showLoading ? (
           <LoadingState />
         ) : !summaryText && !streaming ? (
           <EmptyState />
+        ) : showSummary ? (
+          <div className="font-body" style={{
+            fontSize: 15, lineHeight: 1.75, color: "var(--ink-primary)",
+            userSelect: "text",
+          }}>
+            {renderMarkdown(summaryText)}
+          </div>
         ) : (
           <TypingSummary
             text={summaryText}
@@ -384,11 +495,6 @@ export default function OutputCard() {
           <DocumentActions documentId={documentId} />
           <ChatView documentId={documentId} />
         </div>
-      )}
-
-      {/* Copy Toast */}
-      {showCopyToast && (
-        <div className="toast">Copied to clipboard</div>
       )}
     </div>
   );
