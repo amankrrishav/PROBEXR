@@ -47,7 +47,7 @@ export async function getHealth() {
  * POST /api/ingest/url — { url } -> Document
  */
 export async function ingestUrl(url) {
-  return request("/api/ingest/url", {
+  return request("/ingest/url", {
     method: "POST",
     body: JSON.stringify({ url }),
   });
@@ -57,7 +57,7 @@ export async function ingestUrl(url) {
  * POST /api/ingest/text — { text, title } -> Document
  */
 export async function ingestText(text, title = "Pasted Text") {
-  return request("/api/ingest/text", {
+  return request("/ingest/text", {
     method: "POST",
     body: JSON.stringify({ text, title }),
   });
@@ -67,7 +67,7 @@ export async function ingestText(text, title = "Pasted Text") {
  * POST /api/synthesis/ — { document_ids, prompt } -> Synthesis
  */
 export async function synthesizeDocuments(documentIds, prompt = null) {
-  return request("/api/synthesis/", {
+  return request("/synthesis/", {
     method: "POST",
     body: JSON.stringify({ document_ids: documentIds, prompt }),
   });
@@ -81,7 +81,7 @@ export async function sendChatMessage(documentId, message, sessionId = null) {
   if (sessionId) {
     body.session_id = sessionId;
   }
-  return request("/api/chat/", {
+  return request("/chat/", {
     method: "POST",
     body: JSON.stringify(body),
   });
@@ -117,7 +117,7 @@ export function sendChatMessageStream(documentId, message, sessionId, onToken, o
  * POST /api/flashcards/ — { document_id, count } -> FlashcardSet
  */
 export async function generateFlashcards(documentId, count = 10) {
-  return request("/api/flashcards/", {
+  return request("/flashcards/", {
     method: "POST",
     body: JSON.stringify({ document_id: documentId, count }),
   });
@@ -127,7 +127,7 @@ export async function generateFlashcards(documentId, count = 10) {
  * POST /api/tts/ — { document_id, provider } -> AudioSummary
  */
 export async function generateAudioSummary(documentId, provider = "openai") {
-  return request("/api/tts/", {
+  return request("/tts/", {
     method: "POST",
     body: JSON.stringify({ document_id: documentId, provider }),
   });
@@ -137,7 +137,7 @@ export async function generateAudioSummary(documentId, provider = "openai") {
  * GET /api/tts/status — Check if TTS is available
  */
 export async function getTTSStatus() {
-  return request("/api/tts/status");
+  return request("/tts/status");
 }
 
 /**
@@ -146,7 +146,7 @@ export async function getTTSStatus() {
  * @param {number} perPage
  */
 export async function getDocuments(page = 1, perPage = 20) {
-  return request(`/api/documents/?page=${page}&per_page=${perPage}`);
+  return request(`/documents/?page=${page}&per_page=${perPage}`);
 }
 
 /**
@@ -154,7 +154,7 @@ export async function getDocuments(page = 1, perPage = 20) {
  * @param {number} documentId
  */
 export async function deleteDocument(documentId) {
-  return request(`/api/documents/${documentId}`, {
+  return request(`/documents/${documentId}`, {
     method: "DELETE",
   });
 }
@@ -163,5 +163,5 @@ export async function deleteDocument(documentId) {
  * GET /api/analytics/dashboard — Reading analytics for the authenticated user
  */
 export async function getAnalytics() {
-  return request("/api/analytics/dashboard");
+  return request("/analytics/dashboard");
 }

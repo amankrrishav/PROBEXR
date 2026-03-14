@@ -16,7 +16,7 @@ export default function CustomCursor() {
 
     // Hide default cursor
     document.body.style.cursor = "none";
-    setVisible(true);
+    requestAnimationFrame(() => setVisible(true));
 
     const move = (e) => {
       if (cursorRef.current) {

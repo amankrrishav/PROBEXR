@@ -8,10 +8,9 @@ export default function KeyThemesGraph({ themes, onThemeClick }) {
   const [hoveredNode, setHoveredNode] = useState(null);
   const [collapsed, setCollapsed] = useState(false);
 
-  if (!themes || themes.length === 0) return null;
-
   // Layout nodes in a circle/ellipse pattern
   const nodeData = useMemo(() => {
+    if (!themes || themes.length === 0) return [];
     const cx = 250, cy = 120;
     const rx = 180, ry = 70;
     return themes.slice(0, 8).map((theme, i) => {
@@ -28,6 +27,7 @@ export default function KeyThemesGraph({ themes, onThemeClick }) {
 
   // Create edges between adjacent themes (simple heuristic)
   const edges = useMemo(() => {
+    if (!nodeData || nodeData.length === 0) return [];
     const result = [];
     for (let i = 0; i < nodeData.length; i++) {
       const next = (i + 1) % nodeData.length;
@@ -40,6 +40,8 @@ export default function KeyThemesGraph({ themes, onThemeClick }) {
     }
     return result;
   }, [nodeData]);
+
+  if (!themes || themes.length === 0) return null;
 
   return (
     <div style={{ marginTop: 16 }}>

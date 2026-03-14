@@ -12,7 +12,10 @@ function useAnimatedValue(target, duration = 900) {
   const [value, setValue] = useState(target || 0);
   const raf = useRef(null);
   useEffect(() => {
-    if (!target) { setValue(0); return; }
+    if (!target) { 
+        requestAnimationFrame(() => setValue(0)); 
+        return; 
+    }
     const start = performance.now();
     function tick(now) {
       const t = Math.min((now - start) / duration, 1);

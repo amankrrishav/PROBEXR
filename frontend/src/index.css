@@ -1069,3 +1069,23 @@ a:hover {
     display: none !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   MARKDOWN RENDERER
+   ═══════════════════════════════════════════════════════════════ */
+.markdown-body p {
+  margin: 0 0 8px;
+}
+.markdown-body ul, .markdown-body ol {
+  padding-left: 20px;
+  margin: 0 0 8px 0;
+}
+.markdown-body li {
+  margin-bottom: 4px;
+}
+.markdown-body strong {
+  font-weight: bold;
+}
+.markdown-body em {
+  font-style: italic;
+}

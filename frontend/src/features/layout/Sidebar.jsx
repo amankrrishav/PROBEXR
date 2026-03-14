@@ -64,7 +64,10 @@ export default function Sidebar({ appName, onOpenAuth, onLogout, activeTab, setA
 
   // Re-read localStorage when settings panel closes
   useEffect(() => {
-    if (!settingsOpen) setSavedUser(loadSavedUser());
+    const timer = setTimeout(() => {
+      if (!settingsOpen) setSavedUser(loadSavedUser());
+    }, 0);
+    return () => clearTimeout(timer);
   }, [settingsOpen]);
 
   const displayName = user?.full_name || savedUser?.full_name || user?.email?.split("@")[0] || "";

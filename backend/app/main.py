@@ -159,14 +159,24 @@ app.add_middleware(
 )
 
 # ----- Routers -----
-app.include_router(health.router)
-app.include_router(summarize.router)
-app.include_router(auth.router)
-app.include_router(ingest.router, prefix="/api")
-app.include_router(synthesis.router, prefix="/api")
-app.include_router(chat.router, prefix="/api")
-app.include_router(flashcards.router, prefix="/api")
-app.include_router(tts.router, prefix="/api")
-app.include_router(documents.router, prefix="/api")
-app.include_router(analytics.router, prefix="/api")
-app.include_router(streaming.router)
+from fastapi import APIRouter
+
+v1_router = APIRouter(prefix="/api/v1")
+
+v1_router.include_router(health.router, tags=["Health"])
+v1_router.include_router(summarize.router, tags=["Summarization"])
+v1_router.include_router(auth.router, tags=["Authentication"])
+v1_router.include_router(ingest.router, tags=["Ingestion"])
+v1_router.include_router(synthesis.router, tags=["Synthesis"])
+v1_router.include_router(chat.router, tags=["Chat"])
+v1_router.include_router(flashcards.router, tags=["Flashcards"])
+v1_router.include_router(tts.router, tags=["TTS"])
+v1_router.include_router(documents.router, tags=["Documents"])
+v1_router.include_router(analytics.router, tags=["Analytics"])
+v1_router.include_router(streaming.router, tags=["Streaming"])
+
+# Observability
+from app.metrics import metrics_endpoint
+v1_router.add_api_route("/metrics", metrics_endpoint, tags=["Observability"], include_in_schema=False)
+
+app.include_router(v1_router)
