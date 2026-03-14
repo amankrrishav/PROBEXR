@@ -1,0 +1,342 @@
+/* ═══════════════════════════════════════════════════════════════
+   COMPONENTS — Cards, Buttons, Controls, Chips, Tooltips, etc.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── CARD ── */
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-dim);
+  border-radius: var(--radius-card);
+  transition: border-color var(--dur-base) var(--ease);
+}
+.card:hover {
+  border-color: var(--border-lit);
+}
+.card-focused {
+  border-color: rgba(232,150,12,0.4);
+}
+
+
+/* ── BUTTONS ── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: var(--gradient-cta);
+  color: #0B0906;
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  border: none;
+  border-radius: var(--radius-btn);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease);
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+}
+.btn-primary:hover {
+  box-shadow: var(--glow-amber);
+  transform: translateY(-1px);
+}
+.btn-primary:active {
+  transform: translateY(0) scale(0.98);
+}
+.btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Shine sweep on hover */
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -60%;
+  width: 40%;
+  height: 200%;
+  background: rgba(255,255,255,0.15);
+  transform: skewX(-20deg);
+  transition: left 0.4s ease;
+  pointer-events: none;
+}
+.btn-primary:hover::after {
+  left: 120%;
+}
+
+/* Ghost button */
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: transparent;
+  color: var(--ink-secondary);
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-weight: 500;
+  font-size: 13px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-btn);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease);
+}
+.btn-ghost:hover {
+  background: var(--bg-elevated);
+  color: var(--ink-primary);
+  border-color: var(--border-dim);
+}
+.btn-ghost:active {
+  transform: scale(0.97);
+}
+
+
+/* ── SEGMENTED CONTROL ── */
+.segmented-control {
+  display: flex;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-btn);
+  padding: 3px;
+  gap: 2px;
+  position: relative;
+}
+.segmented-control button {
+  flex: 1;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: 'Cabinet Grotesk', sans-serif;
+  color: var(--ink-secondary);
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all var(--dur-base) var(--ease);
+  white-space: nowrap;
+  position: relative;
+  z-index: 1;
+}
+.segmented-control button:hover {
+  color: var(--ink-primary);
+}
+.segmented-control button.active {
+  color: #0B0906;
+}
+
+/* Sliding pill background for active segment */
+.segmented-pill {
+  position: absolute;
+  top: 3px;
+  height: calc(100% - 6px);
+  background: var(--amber);
+  border-radius: 7px;
+  transition: transform var(--dur-base) var(--ease), width var(--dur-base) var(--ease);
+  z-index: 0;
+}
+
+
+/* ── MODE CARDS ── */
+.mode-selector {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 0;
+  scrollbar-width: none;
+}
+.mode-selector::-webkit-scrollbar { display: none; }
+
+.mode-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 96px;
+  min-width: 96px;
+  height: 80px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-dim);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease);
+  position: relative;
+}
+.mode-card:hover {
+  background: var(--bg-overlay);
+  border-color: var(--border-lit);
+}
+.mode-card:hover .mode-icon {
+  transform: translateY(-2px);
+}
+.mode-card.active {
+  background: var(--amber-dim);
+  border: 1.5px solid var(--amber);
+  box-shadow: var(--glow-amber);
+}
+.mode-card.active::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 12px;
+  bottom: 12px;
+  width: 3px;
+  background: var(--amber);
+  border-radius: 0 3px 3px 0;
+}
+.mode-icon {
+  font-size: 22px;
+  color: var(--ink-tertiary);
+  transition: all var(--dur-fast) var(--ease);
+  line-height: 1;
+}
+.mode-card.active .mode-icon {
+  color: var(--amber);
+}
+.mode-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-tertiary);
+  font-family: 'Cabinet Grotesk', sans-serif;
+  transition: color var(--dur-fast) var(--ease);
+}
+.mode-card.active .mode-label {
+  color: var(--amber);
+}
+
+
+/* ── CHIPS / TAGS ── */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-chip);
+  font-family: 'Commit Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-secondary);
+}
+.chip-amber {
+  background: var(--amber-dim);
+  color: var(--amber);
+}
+.chip-sage {
+  background: rgba(110,186,127,0.12);
+  color: var(--sage);
+}
+.chip-terra {
+  background: var(--terra-dim);
+  color: var(--terra);
+}
+.chip-sky {
+  background: rgba(91,155,213,0.12);
+  color: var(--sky);
+}
+
+/* Keyword tag chip */
+.keyword-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid var(--amber);
+  border-radius: var(--radius-chip);
+  font-family: 'Commit Mono', monospace;
+  font-size: 11px;
+  color: var(--amber);
+  animation: tagSlideIn 150ms var(--spring) forwards;
+}
+
+
+/* ── SECTION HEADER ── */
+.section-header {
+  font-family: 'Commit Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ink-tertiary);
+  padding: 0 0 8px 0;
+}
+
+
+/* ── TOOLTIP ── */
+.tooltip {
+  position: absolute;
+  padding: 6px 10px;
+  background: var(--bg-overlay);
+  color: var(--ink-primary);
+  font-family: 'Commit Mono', monospace;
+  font-size: 12px;
+  border-radius: var(--radius-chip);
+  box-shadow: var(--shadow-float);
+  white-space: nowrap;
+  z-index: 50;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+.tooltip.visible { opacity: 1; }
+
+
+/* ── SKELETON SHIMMER ── */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-elevated) 25%,
+    var(--bg-overlay) 50%,
+    var(--bg-elevated) 75%
+  );
+  background-size: 200% auto;
+  animation: shimmer 1.5s infinite linear;
+  border-radius: var(--radius-chip);
+}
+
+
+/* ── TOAST ── */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 12px 20px;
+  background: var(--bg-overlay);
+  border: 1px solid var(--amber);
+  border-radius: var(--radius-btn);
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--amber);
+  box-shadow: var(--glow-amber);
+  z-index: 100;
+  animation: toastSlideIn 200ms var(--spring) forwards;
+}
+.toast.exiting {
+  animation: toastSlideOut 200ms var(--ease) forwards;
+}
+
+
+/* ── PULSE DOT ── */
+.pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--sage);
+}
+.pulse-dot.live {
+  animation: pulseDot 2s infinite;
+}
+
+
+/* ── LOADING DOT ── */
+.loading-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--amber);
+  animation: amberPulseDot 1.2s ease-in-out infinite;
+}

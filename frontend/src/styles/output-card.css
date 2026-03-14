@@ -1,0 +1,76 @@
+/* ═══════════════════════════════════════════════════════════════
+   OUTPUT CARD — Stats, Compression Bar, Markdown
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── STAT CARD ── */
+.stat-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-dim);
+  border-radius: var(--radius-card);
+  padding: 24px;
+  transition: border-color var(--dur-base) var(--ease);
+}
+.stat-card:hover {
+  border-color: var(--border-lit);
+}
+.stat-card .stat-value {
+  font-family: 'Instrument Serif', Georgia, serif;
+  font-weight: 400;
+  font-size: 42px;
+  color: var(--amber);
+  line-height: 1;
+}
+.stat-card .stat-label {
+  font-family: 'Cabinet Grotesk', sans-serif;
+  font-size: 13px;
+  color: var(--ink-secondary);
+  margin-top: 8px;
+}
+
+
+/* ── COMPRESSION BAR ── */
+.compression-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+.compression-bar .fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 600ms var(--ease);
+}
+
+
+/* ── WORD STREAM ── */
+.word-stream-word {
+  display: inline;
+  animation: wordIn 200ms var(--ease) forwards;
+  opacity: 0;
+}
+
+
+/* ── WORD COUNT TICKER ── */
+.word-count-flip {
+  display: inline-block;
+  animation: flipDown 200ms var(--ease);
+}
+
+
+/* ── MARKDOWN RENDERER ── */
+.markdown-body p {
+  margin: 0 0 8px;
+}
+.markdown-body ul, .markdown-body ol {
+  padding-left: 20px;
+  margin: 0 0 8px 0;
+}
+.markdown-body li {
+  margin-bottom: 4px;
+}
+.markdown-body strong {
+  font-weight: bold;
+}
+.markdown-body em {
+  font-style: italic;
+}

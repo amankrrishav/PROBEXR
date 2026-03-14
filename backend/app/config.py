@@ -78,6 +78,10 @@ class AppConfig(BaseSettings):
     # ── Auth / JWT ───────────────────────────────────────────────
     secret_key: str = "dev-secret-change-this"
     algorithm: str = "HS256"
+    # RS256 readiness: set these + algorithm="RS256" to switch to asymmetric JWTs.
+    # Values are PEM-encoded keys (include \n literals or use multi-line env vars).
+    jwt_private_key: Optional[str] = None   # Used for signing (auth service only)
+    jwt_public_key: Optional[str] = None    # Used for verification (can be shared with other services)
 
     # ── Rate Limiting ────────────────────────────────────────────
     rate_limit_per_minute: int = 60
@@ -100,6 +104,28 @@ class AppConfig(BaseSettings):
     @property
     def ALGORITHM(self) -> str:  # noqa: N802
         return self.algorithm
+
+    @property
+    def signing_key(self) -> str:
+        """Key used for JWT signing — private key for RS256, secret_key for HS256."""
+        if self.algorithm.startswith("RS") or self.algorithm.startswith("ES"):
+            if not self.jwt_private_key:
+                raise RuntimeError(
+                    f"algorithm={self.algorithm} requires jwt_private_key to be set"
+                )
+            return self.jwt_private_key
+        return self.secret_key
+
+    @property
+    def verification_key(self) -> str:
+        """Key used for JWT verification — public key for RS256, secret_key for HS256."""
+        if self.algorithm.startswith("RS") or self.algorithm.startswith("ES"):
+            if not self.jwt_public_key:
+                raise RuntimeError(
+                    f"algorithm={self.algorithm} requires jwt_public_key to be set"
+                )
+            return self.jwt_public_key
+        return self.secret_key
 
     # ── Provider auto-detection ──────────────────────────────────
     @model_validator(mode="after")

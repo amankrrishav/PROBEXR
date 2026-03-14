@@ -29,8 +29,8 @@ import jwt as jose_jwt
 
 class _NoOpRateLimiter:
     """Rate limiter that always allows — prevents 429s in tests."""
-    async def check_and_increment(self, key: str, limit: int) -> bool:
-        return True
+    async def check_and_increment(self, key: str, limit: int) -> tuple[bool, int]:
+        return True, 0
 
 set_rate_limiter(_NoOpRateLimiter())
 

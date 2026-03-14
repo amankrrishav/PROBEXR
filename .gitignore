@@ -79,3 +79,8 @@ backend/app/logs/
 htmlcov/
 lint_output.txt
 .eslintcache
+
+# ===============================
+# Misc
+# ===============================
+api/

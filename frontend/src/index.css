@@ -1,7 +1,26 @@
 /* ═══════════════════════════════════════════════════════════════
    PROBEXR Design System — Warm Editorial Intelligence
    "Muji × iA Writer × Linear" — tactile, minimal, delightful
+
+   This file contains ONLY:
+     • CSS variables (dark + light themes)
+     • Base reset & typography
+     • Layout utilities
+     • Keyframe animations
+     • Responsive breakpoints
+     • Background orbs
+
+   Component-scoped styles live in src/styles/:
+     components.css  — cards, buttons, chips, tooltips, toasts
+     output-card.css — stat cards, compression bars, markdown
+     editor.css      — advanced options, intelligence meter
+     overlays.css    — modals, cursor, focus mode, theme graph
    ═══════════════════════════════════════════════════════════════ */
+
+@import './styles/components.css';
+@import './styles/output-card.css';
+@import './styles/editor.css';
+@import './styles/overlays.css';
 
 /* ── CSS Variables: Dark Theme (default) ── */
 :root {
@@ -253,389 +272,7 @@ a:hover {
 
 
 /* ═══════════════════════════════════════════════════════════════
-   CARD
-   ═══════════════════════════════════════════════════════════════ */
-.card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-dim);
-  border-radius: var(--radius-card);
-  transition: border-color var(--dur-base) var(--ease);
-}
-.card:hover {
-  border-color: var(--border-lit);
-}
-.card-focused {
-  border-color: rgba(232,150,12,0.4);
-}
-
-
-/* ═══════════════════════════════════════════════════════════════
-   BUTTONS
-   ═══════════════════════════════════════════════════════════════ */
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 12px 24px;
-  background: var(--gradient-cta);
-  color: #0B0906;
-  font-family: 'Cabinet Grotesk', sans-serif;
-  font-weight: 700;
-  font-size: 14px;
-  border: none;
-  border-radius: var(--radius-btn);
-  cursor: pointer;
-  transition: all var(--dur-fast) var(--ease);
-  box-shadow: var(--shadow-sm);
-  position: relative;
-  overflow: hidden;
-}
-.btn-primary:hover {
-  box-shadow: var(--glow-amber);
-  transform: translateY(-1px);
-}
-.btn-primary:active {
-  transform: translateY(0) scale(0.98);
-}
-.btn-primary:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-}
-
-/* Shine sweep on hover */
-.btn-primary::after {
-  content: '';
-  position: absolute;
-  top: -50%;
-  left: -60%;
-  width: 40%;
-  height: 200%;
-  background: rgba(255,255,255,0.15);
-  transform: skewX(-20deg);
-  transition: left 0.4s ease;
-  pointer-events: none;
-}
-.btn-primary:hover::after {
-  left: 120%;
-}
-
-/* Ghost button */
-.btn-ghost {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  background: transparent;
-  color: var(--ink-secondary);
-  font-family: 'Cabinet Grotesk', sans-serif;
-  font-weight: 500;
-  font-size: 13px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-btn);
-  cursor: pointer;
-  transition: all var(--dur-fast) var(--ease);
-}
-.btn-ghost:hover {
-  background: var(--bg-elevated);
-  color: var(--ink-primary);
-  border-color: var(--border-dim);
-}
-.btn-ghost:active {
-  transform: scale(0.97);
-}
-
-
-/* ═══════════════════════════════════════════════════════════════
-   SEGMENTED CONTROL
-   ═══════════════════════════════════════════════════════════════ */
-.segmented-control {
-  display: flex;
-  background: var(--bg-elevated);
-  border-radius: var(--radius-btn);
-  padding: 3px;
-  gap: 2px;
-  position: relative;
-}
-.segmented-control button {
-  flex: 1;
-  padding: 6px 12px;
-  font-size: 12px;
-  font-weight: 500;
-  font-family: 'Cabinet Grotesk', sans-serif;
-  color: var(--ink-secondary);
-  background: transparent;
-  border: none;
-  border-radius: 7px;
-  cursor: pointer;
-  transition: all var(--dur-base) var(--ease);
-  white-space: nowrap;
-  position: relative;
-  z-index: 1;
-}
-.segmented-control button:hover {
-  color: var(--ink-primary);
-}
-.segmented-control button.active {
-  color: #0B0906;
-}
-
-/* Sliding pill background for active segment */
-.segmented-pill {
-  position: absolute;
-  top: 3px;
-  height: calc(100% - 6px);
-  background: var(--amber);
-  border-radius: 7px;
-  transition: transform var(--dur-base) var(--ease), width var(--dur-base) var(--ease);
-  z-index: 0;
-}
-
-
-/* ═══════════════════════════════════════════════════════════════
-   MODE CARDS — Horizontal Scrollable
-   ═══════════════════════════════════════════════════════════════ */
-.mode-selector {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding: 4px 0;
-  scrollbar-width: none;
-}
-.mode-selector::-webkit-scrollbar { display: none; }
-
-.mode-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  width: 96px;
-  min-width: 96px;
-  height: 80px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-dim);
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all var(--dur-fast) var(--ease);
-  position: relative;
-}
-.mode-card:hover {
-  background: var(--bg-overlay);
-  border-color: var(--border-lit);
-}
-.mode-card:hover .mode-icon {
-  transform: translateY(-2px);
-}
-.mode-card.active {
-  background: var(--amber-dim);
-  border: 1.5px solid var(--amber);
-  box-shadow: var(--glow-amber);
-}
-.mode-card.active::before {
-  content: '';
-  position: absolute;
-  left: -1px;
-  top: 12px;
-  bottom: 12px;
-  width: 3px;
-  background: var(--amber);
-  border-radius: 0 3px 3px 0;
-}
-.mode-icon {
-  font-size: 22px;
-  color: var(--ink-tertiary);
-  transition: all var(--dur-fast) var(--ease);
-  line-height: 1;
-}
-.mode-card.active .mode-icon {
-  color: var(--amber);
-}
-.mode-label {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--ink-tertiary);
-  font-family: 'Cabinet Grotesk', sans-serif;
-  transition: color var(--dur-fast) var(--ease);
-}
-.mode-card.active .mode-label {
-  color: var(--amber);
-}
-
-
-/* ═══════════════════════════════════════════════════════════════
-   CHIPS / TAGS
-   ═══════════════════════════════════════════════════════════════ */
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  background: var(--bg-elevated);
-  border-radius: var(--radius-chip);
-  font-family: 'Commit Mono', monospace;
-  font-size: 11px;
-  color: var(--ink-secondary);
-}
-.chip-amber {
-  background: var(--amber-dim);
-  color: var(--amber);
-}
-.chip-sage {
-  background: rgba(110,186,127,0.12);
-  color: var(--sage);
-}
-.chip-terra {
-  background: var(--terra-dim);
-  color: var(--terra);
-}
-.chip-sky {
-  background: rgba(91,155,213,0.12);
-  color: var(--sky);
-}
-
-/* Keyword tag chip */
-.keyword-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  background: transparent;
-  border: 1px solid var(--amber);
-  border-radius: var(--radius-chip);
-  font-family: 'Commit Mono', monospace;
-  font-size: 11px;
-  color: var(--amber);
-  animation: tagSlideIn 150ms var(--spring) forwards;
-}
-
-@keyframes tagSlideIn {
-  from { opacity: 0; transform: translateX(8px) scale(0.8); }
-  to   { opacity: 1; transform: translateX(0) scale(1); }
-}
-
-
-/* ═══════════════════════════════════════════════════════════════
-   SECTION HEADER
-   ═══════════════════════════════════════════════════════════════ */
-.section-header {
-  font-family: 'Commit Mono', monospace;
-  font-size: 10px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--ink-tertiary);
-  padding: 0 0 8px 0;
-}
-
-
-/* ═══════════════════════════════════════════════════════════════
-   STAT CARD
-   ═══════════════════════════════════════════════════════════════ */
-.stat-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-dim);
-  border-radius: var(--radius-card);
-  padding: 24px;
-  transition: border-color var(--dur-base) var(--ease);
-}
-.stat-card:hover {
-  border-color: var(--border-lit);
-}
-.stat-card .stat-value {
-  font-family: 'Instrument Serif', Georgia, serif;
-  font-weight: 400;
-  font-size: 42px;
-  color: var(--amber);
-  line-height: 1;
-}
-.stat-card .stat-label {
-  font-family: 'Cabinet Grotesk', sans-serif;
-  font-size: 13px;
-  color: var(--ink-secondary);
-  margin-top: 8px;
-}
-
-
-/* ═══════════════════════════════════════════════════════════════
-   COMPRESSION BAR
-   ═══════════════════════════════════════════════════════════════ */
-.compression-bar {
-  height: 6px;
-  border-radius: 3px;
-  background: var(--bg-elevated);
-  overflow: hidden;
-}
-.compression-bar .fill {
-  height: 100%;
-  border-radius: 3px;
-  transition: width 600ms var(--ease);
-}
-
-
-/* ═══════════════════════════════════════════════════════════════
-   PULSE DOT
-   ═══════════════════════════════════════════════════════════════ */
-.pulse-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--sage);
-}
-.pulse-dot.live {
-  animation: pulseDot 2s infinite;
-}
-@keyframes pulseDot {
-  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(110,186,127,0.4); }
-  50%      { opacity: 0.8; box-shadow: 0 0 0 6px rgba(110,186,127,0); }
-}
-
-
-/* ═══════════════════════════════════════════════════════════════
-   TOOLTIP
-   ═══════════════════════════════════════════════════════════════ */
-.tooltip {
-  position: absolute;
-  padding: 6px 10px;
-  background: var(--bg-overlay);
-  color: var(--ink-primary);
-  font-family: 'Commit Mono', monospace;
-  font-size: 12px;
-  border-radius: var(--radius-chip);
-  box-shadow: var(--shadow-float);
-  white-space: nowrap;
-  z-index: 50;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity var(--dur-fast) var(--ease);
-}
-.tooltip.visible { opacity: 1; }
-
-
-/* ═══════════════════════════════════════════════════════════════
-   SKELETON SHIMMER
-   ═══════════════════════════════════════════════════════════════ */
-.skeleton {
-  background: linear-gradient(
-    90deg,
-    var(--bg-elevated) 25%,
-    var(--bg-overlay) 50%,
-    var(--bg-elevated) 75%
-  );
-  background-size: 200% auto;
-  animation: shimmer 1.5s infinite linear;
-  border-radius: var(--radius-chip);
-}
-@keyframes shimmer {
-  0%   { background-position: -200% center; }
-  100% { background-position: 200% center; }
-}
-
-
-/* ═══════════════════════════════════════════════════════════════
-   PAGE LOAD STAGGER ANIMATION
+   KEYFRAME ANIMATIONS
    ═══════════════════════════════════════════════════════════════ */
 @keyframes fadeSlideUp {
   from { opacity: 0; transform: translateY(20px) scale(0.98); }
@@ -663,18 +300,13 @@ a:hover {
 }
 
 
-/* ═══════════════════════════════════════════════════════════════
-   SUMMARIZE RITUAL — 4-ACT ANIMATION
-   ═══════════════════════════════════════════════════════════════ */
-
-/* ACT 1: Intake — button inhale */
+/* ── Summarize Ritual Keyframes ── */
 @keyframes btnInhale {
   0%   { transform: scale(1); }
   50%  { transform: scale(0.96); }
   100% { transform: scale(0.96); }
 }
 
-/* ACT 2: Processing — amber progress line */
 @keyframes progressGrow {
   from { width: 0%; }
   to   { width: 100%; }
@@ -690,7 +322,6 @@ a:hover {
   animation: progressGrow 3s ease-in-out infinite;
 }
 
-/* Processing status words */
 @keyframes statusFade {
   0%   { opacity: 0; transform: translateY(4px); }
   20%  { opacity: 1; transform: translateY(0); }
@@ -698,7 +329,6 @@ a:hover {
   100% { opacity: 0; transform: translateY(-4px); }
 }
 
-/* ACT 3: Reveal — output card rises */
 @keyframes outputReveal {
   from { opacity: 0; transform: translateY(32px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -707,27 +337,40 @@ a:hover {
   animation: outputReveal 400ms var(--spring) forwards;
 }
 
-/* ACT 4: Word stream */
 @keyframes wordIn {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.word-stream-word {
-  display: inline;
-  animation: wordIn 200ms var(--ease) forwards;
-  opacity: 0;
-}
 
-/* Amber border glow pulse */
 @keyframes borderGlow {
   0%   { border-color: var(--amber); box-shadow: var(--glow-amber); }
   100% { border-color: var(--border-dim); box-shadow: none; }
 }
 
+@keyframes tagSlideIn {
+  from { opacity: 0; transform: translateX(8px) scale(0.8); }
+  to   { opacity: 1; transform: translateX(0) scale(1); }
+}
 
-/* ═══════════════════════════════════════════════════════════════
-   3D TILT (Mode Card Selection)
-   ═══════════════════════════════════════════════════════════════ */
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(110,186,127,0.4); }
+  50%      { opacity: 0.8; box-shadow: 0 0 0 6px rgba(110,186,127,0); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes toastSlideIn {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes toastSlideOut {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(24px); }
+}
+
 @keyframes tilt3d {
   0%   { transform: perspective(400px) rotateX(0deg); }
   40%  { transform: perspective(400px) rotateX(8deg); }
@@ -752,248 +395,45 @@ a:hover {
   to   { width: 120px; height: 120px; opacity: 0; margin-top: -60px; margin-left: -60px; }
 }
 
-
-/* ═══════════════════════════════════════════════════════════════
-   WORD COUNT TICKER (Airport Flip)
-   ═══════════════════════════════════════════════════════════════ */
 @keyframes flipDown {
   0%   { transform: rotateX(-90deg); opacity: 0; }
   100% { transform: rotateX(0deg); opacity: 1; }
 }
-.word-count-flip {
-  display: inline-block;
-  animation: flipDown 200ms var(--ease);
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
-
-/* ═══════════════════════════════════════════════════════════════
-   COPY CONFIRMATION
-   ═══════════════════════════════════════════════════════════════ */
-@keyframes toastSlideIn {
-  from { opacity: 0; transform: translateX(24px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-@keyframes toastSlideOut {
-  from { opacity: 1; transform: translateX(0); }
-  to   { opacity: 0; transform: translateX(24px); }
+@keyframes amberPulseDot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }
 
-.toast {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  padding: 12px 20px;
-  background: var(--bg-overlay);
-  border: 1px solid var(--amber);
-  border-radius: var(--radius-btn);
-  font-family: 'Cabinet Grotesk', sans-serif;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--amber);
-  box-shadow: var(--glow-amber);
-  z-index: 100;
-  animation: toastSlideIn 200ms var(--spring) forwards;
-}
-.toast.exiting {
-  animation: toastSlideOut 200ms var(--ease) forwards;
+@keyframes slideIn {
+  from { transform: translateX(-100%); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
 }
 
-
-/* ═══════════════════════════════════════════════════════════════
-   ADVANCED OPTIONS
-   ═══════════════════════════════════════════════════════════════ */
-.advanced-toggle {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  cursor: pointer;
-  border: none;
-  background: none;
-  padding: 8px 0;
-  width: 100%;
-  color: var(--ink-tertiary);
-  font-family: 'Commit Mono', monospace;
-  font-size: 12px;
-}
-.advanced-toggle::before,
-.advanced-toggle::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--border-dim);
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-.advanced-content {
-  overflow: hidden;
-  max-height: 0;
-  transition: max-height 300ms var(--ease), opacity 300ms var(--ease);
-  opacity: 0;
-}
-.advanced-content.open {
-  max-height: 800px;
-  opacity: 1;
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
 }
 
-
-/* ═══════════════════════════════════════════════════════════════
-   INTELLIGENCE SCORE METER
-   ═══════════════════════════════════════════════════════════════ */
-.intelligence-meter {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 0;
-}
-.intelligence-meter .track {
-  flex: 1;
-  height: 3px;
-  background: var(--bg-elevated);
-  border-radius: 2px;
-  position: relative;
-}
-.intelligence-meter .indicator {
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  top: -2.5px;
-  transition: left 300ms var(--ease), background 300ms var(--ease);
-}
-.intelligence-meter .label {
-  font-family: 'Commit Mono', monospace;
-  font-size: 11px;
-  min-width: 70px;
-}
-
-
-/* ═══════════════════════════════════════════════════════════════
-   CUSTOM CURSOR (DESKTOP ONLY)
-   ═══════════════════════════════════════════════════════════════ */
-.custom-cursor {
-  position: fixed;
-  width: 10px;
-  height: 10px;
-  background: var(--amber);
-  border-radius: 50%;
-  pointer-events: none;
-  z-index: 9999;
-  transition: transform 0.15s ease, opacity 0.15s ease, background 0.15s ease, width 0.15s ease, height 0.15s ease;
-  transform: translate(-50%, -50%);
-  mix-blend-mode: difference;
-}
-.custom-cursor.hovering {
-  width: 32px;
-  height: 32px;
-  background: transparent;
-  border: 1.5px solid var(--amber);
-}
-.custom-cursor.hidden {
-  opacity: 0;
-}
-
-
-/* ═══════════════════════════════════════════════════════════════
-   KEYBOARD SHORTCUTS MODAL
-   ═══════════════════════════════════════════════════════════════ */
-.shortcuts-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(11, 9, 6, 0.7);
-  z-index: 200;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: fadeSlideUp 200ms var(--ease) forwards;
-}
-.shortcuts-modal {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-dim);
-  border-radius: var(--radius-card);
-  padding: 32px;
-  width: 420px;
-  max-width: 90vw;
-  box-shadow: var(--shadow-modal);
-}
-.shortcut-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border-dim);
-}
-.shortcut-row:last-child { border-bottom: none; }
-.shortcut-keys {
-  display: flex;
-  gap: 4px;
-}
-.shortcut-key {
-  padding: 3px 8px;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-dim);
-  border-radius: 4px;
-  font-family: 'Commit Mono', monospace;
-  font-size: 11px;
-  color: var(--ink-secondary);
-}
-
-
-/* ═══════════════════════════════════════════════════════════════
-   FOCUS MODE
-   ═══════════════════════════════════════════════════════════════ */
-.focus-mode-active .focus-fade {
-  opacity: 0.05 !important;
-  pointer-events: none;
-  transition: opacity 300ms var(--ease);
-}
-.focus-mode-active .focus-target {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 640px;
-  max-width: 90vw;
-  z-index: 100;
-  background: var(--bg-surface);
-  border-radius: var(--radius-card);
-  border: 1px solid var(--border-dim);
-  padding: 32px;
-  box-shadow: var(--shadow-modal);
-}
-
-
-/* ═══════════════════════════════════════════════════════════════
-   PAGE TRANSITION
-   ═══════════════════════════════════════════════════════════════ */
+/* Page transition */
 .page-enter {
   animation: fadeSlideUp var(--dur-slow) var(--ease) forwards;
 }
 @keyframes pageIn {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
-}
-
-
-/* ═══════════════════════════════════════════════════════════════
-   KEY THEMES NODE GRAPH
-   ═══════════════════════════════════════════════════════════════ */
-.theme-node {
-  cursor: pointer;
-  transition: all var(--dur-fast) var(--ease);
-}
-.theme-node:hover {
-  filter: brightness(1.3);
-}
-.theme-node-label {
-  font-family: 'Cabinet Grotesk', sans-serif;
-  font-size: 11px;
-  fill: var(--ink-secondary);
-  text-anchor: middle;
-  pointer-events: none;
-}
-.theme-edge {
-  stroke: var(--border-lit);
-  stroke-width: 1;
-  transition: stroke var(--dur-fast) var(--ease);
 }
 
 
@@ -1015,50 +455,7 @@ a:hover {
   }
 }
 
-
-/* ═══════════════════════════════════════════════════════════════
-   MISC ANIMATIONS
-   ═══════════════════════════════════════════════════════════════ */
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-@keyframes amberPulseDot {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
-
-.loading-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--amber);
-  animation: amberPulseDot 1.2s ease-in-out infinite;
-}
-
-/* Sidebar mobile slide */
-@keyframes slideIn {
-  from { transform: translateX(-100%); opacity: 0; }
-  to   { transform: translateX(0); opacity: 1; }
-}
-
-/* Number counter roll */
-@keyframes countUp {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* Shake animation for form validation (A3/A4) */
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-6px); }
-  40% { transform: translateX(6px); }
-  60% { transform: translateX(-4px); }
-  80% { transform: translateX(4px); }
-}
-
-/* Mode selector grid on desktop (A2) */
+/* Mode selector grid on desktop */
 @media (min-width: 1024px) {
   .mode-selector-wrap .mode-selector {
     display: grid;
@@ -1068,24 +465,4 @@ a:hover {
   .mode-fade-mask {
     display: none !important;
   }
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   MARKDOWN RENDERER
-   ═══════════════════════════════════════════════════════════════ */
-.markdown-body p {
-  margin: 0 0 8px;
-}
-.markdown-body ul, .markdown-body ol {
-  padding-left: 20px;
-  margin: 0 0 8px 0;
-}
-.markdown-body li {
-  margin-bottom: 4px;
-}
-.markdown-body strong {
-  font-weight: bold;
-}
-.markdown-body em {
-  font-style: italic;
 }
