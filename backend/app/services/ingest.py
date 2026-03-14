@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from app.models.document import Document
+from app.http_client import get_http_client
 
 # Hard cap on raw HTML stored / fetched (5 MB)
 MAX_HTML_BYTES = 5 * 1024 * 1024  # 5 MB
@@ -88,7 +89,6 @@ async def fetch_and_clean_url(url: str, user_id: int, session: AsyncSession) -> 
         Document.user_id == user_id,
         Document.url == url,
     )
-    fake_url = f"https://storage.probefy.local/audio/{uuid.uuid4()}.mp3"
     result = await session.execute(existing_stmt)
     existing = result.scalars().first()
     if existing:
@@ -98,28 +98,28 @@ async def fetch_and_clean_url(url: str, user_id: int, session: AsyncSession) -> 
     headers = {
         "User-Agent": "Mozilla/5.0 (compatible; PROBEfy/1.0; +http://localhost)"
     }
-    async with httpx.AsyncClient(follow_redirects=True, timeout=15.0, headers=headers) as client:
-        # Start a streaming request to read Content-Length header first
-        async with client.stream("GET", url) as response:
-            response.raise_for_status()
+    client = get_http_client()
+    # Start a streaming request to read Content-Length header first
+    async with client.stream("GET", url, follow_redirects=True, timeout=15.0, headers=headers) as response:
+        response.raise_for_status()
 
-            # Content-Length pre-check
-            content_length = response.headers.get("content-length")
-            if content_length and int(content_length) > MAX_HTML_BYTES:
+        # Content-Length pre-check
+        content_length = response.headers.get("content-length")
+        if content_length and int(content_length) > MAX_HTML_BYTES:
+            raise ValueError(
+                f"Page too large ({int(content_length) // 1024} KB). Max allowed: {MAX_HTML_BYTES // 1024} KB."
+            )
+
+        # Stream body with hard byte cap
+        chunks: list[bytes] = []
+        total = 0
+        async for chunk in response.aiter_bytes(chunk_size=65536):
+            total += len(chunk)
+            if total > MAX_HTML_BYTES:
                 raise ValueError(
-                    f"Page too large ({int(content_length) // 1024} KB). Max allowed: {MAX_HTML_BYTES // 1024} KB."
+                    f"Page too large (>{MAX_HTML_BYTES // 1024} KB). Max allowed: {MAX_HTML_BYTES // 1024} KB."
                 )
-
-            # Stream body with hard byte cap
-            chunks: list[bytes] = []
-            total = 0
-            async for chunk in response.aiter_bytes(chunk_size=65536):
-                total += len(chunk)
-                if total > MAX_HTML_BYTES:
-                    raise ValueError(
-                        f"Page too large (>{MAX_HTML_BYTES // 1024} KB). Max allowed: {MAX_HTML_BYTES // 1024} KB."
-                    )
-                chunks.append(chunk)
+            chunks.append(chunk)
 
     raw_bytes = b"".join(chunks)
     # Decode, lenient

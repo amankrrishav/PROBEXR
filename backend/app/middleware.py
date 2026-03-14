@@ -1,4 +1,5 @@
 import logging
+import secrets
 import time
 from typing import Callable, Awaitable, Protocol, Optional
 
@@ -150,3 +151,112 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
             )
 
         return await call_next(request)
+
+
+# ---------------------------------------------------------------------------
+# CSRF Protection — Dual-Submit Cookie Pattern
+# ---------------------------------------------------------------------------
+# How it works:
+#   1. Every response sets a `csrf_token` cookie (NOT HttpOnly → JS can read it).
+#   2. The frontend reads this cookie and sends it back as the `X-CSRF-Token` header.
+#   3. On state-changing requests (POST/PUT/PATCH/DELETE), the middleware checks
+#      that the header value matches the cookie value.
+#   4. An attacker's cross-site form cannot read our cookie, so they cannot set the
+#      header — the request is rejected.
+#
+# Safe methods (GET/HEAD/OPTIONS) are always allowed through.
+# Certain paths (health, metrics, OAuth callbacks) are exempt.
+# ---------------------------------------------------------------------------
+
+# Paths that are exempt from CSRF checks (public APIs and OAuth redirects)
+_CSRF_EXEMPT_PREFIXES: tuple[str, ...] = (
+    "/api/v1/health",
+    "/api/v1/metrics",
+    "/api/v1/auth/google/callback",
+    "/api/v1/auth/github/callback",
+    "/api/v1/auth/verify",          # magic link verification (GET with token param)
+    "/docs",
+    "/openapi.json",
+    "/redoc",
+)
+
+# Methods that never mutate state — always safe
+_CSRF_SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+
+CSRF_COOKIE_NAME = "csrf_token"
+CSRF_HEADER_NAME = "x-csrf-token"
+
+
+class CSRFMiddleware(BaseHTTPMiddleware):
+    """
+    Dual-submit cookie CSRF protection.
+
+    - Sets a `csrf_token` cookie (readable by JS) on every response.
+    - Validates that `X-CSRF-Token` header matches the cookie on mutating requests.
+    - Exempt paths and safe HTTP methods are allowed through unconditionally.
+    """
+
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
+        cfg = get_config()
+        path = request.url.path
+
+        # --- Skip CSRF for safe methods ---
+        if request.method in _CSRF_SAFE_METHODS:
+            response = await call_next(request)
+            self._ensure_csrf_cookie(response, request, cfg)
+            return response
+
+        # --- Skip CSRF for exempt paths ---
+        if any(path.startswith(prefix) for prefix in _CSRF_EXEMPT_PREFIXES):
+            response = await call_next(request)
+            self._ensure_csrf_cookie(response, request, cfg)
+            return response
+
+        # --- Validate CSRF on mutating requests ---
+        cookie_token = request.cookies.get(CSRF_COOKIE_NAME)
+        header_token = request.headers.get(CSRF_HEADER_NAME)
+
+        if not cookie_token or not header_token:
+            logger.warning(
+                "CSRF token missing",
+                extra={"path": path, "method": request.method, "has_cookie": bool(cookie_token), "has_header": bool(header_token)},
+            )
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "CSRF token missing. Please refresh the page and try again."},
+            )
+
+        if not secrets.compare_digest(cookie_token, header_token):
+            logger.warning(
+                "CSRF token mismatch",
+                extra={"path": path, "method": request.method},
+            )
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "CSRF token mismatch. Please refresh the page and try again."},
+            )
+
+        # Token is valid — proceed
+        response = await call_next(request)
+        self._ensure_csrf_cookie(response, request, cfg)
+        return response
+
+    @staticmethod
+    def _ensure_csrf_cookie(response: Response, request: Request, cfg: "AppConfig") -> None:  # type: ignore[name-defined]
+        """Set or refresh the CSRF cookie on every response."""
+        existing = request.cookies.get(CSRF_COOKIE_NAME)
+        token = existing or secrets.token_urlsafe(32)
+        is_prod = cfg.environment == "production"
+        response.set_cookie(
+            key=CSRF_COOKIE_NAME,
+            value=token,
+            httponly=False,        # Frontend JS must be able to read this
+            samesite="none" if is_prod else "lax",
+            secure=is_prod,
+            max_age=60 * 60 * 24,  # 24 hours
+            path="/",
+        )

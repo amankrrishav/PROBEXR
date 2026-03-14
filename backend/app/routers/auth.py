@@ -31,8 +31,11 @@ from app.services.auth import (
     verify_magic_link_token,
 )
 from app.services.social import get_google_user_info, get_github_user_info
+from app.services.email import send_magic_link_email
 from app.config import get_config
 from fastapi.responses import RedirectResponse
+from jose import jwt
+from datetime import timedelta
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -103,8 +106,23 @@ async def refresh(
 # --- Social Login (Google) ---
 
 @router.get("/google/login")
-async def google_login():
+async def google_login(response: Response):
     cfg = get_config()
+    state_payload = {"provider": "google", "exp": datetime.now(timezone.utc) + timedelta(minutes=10)}
+    state_token = jwt.encode(state_payload, cfg.secret_key, algorithm=cfg.algorithm)
+    
+    # Store state token in an HttpOnly cookie to verify during callback
+    is_prod = cfg.environment == "production"
+    response.set_cookie(
+        key="oauth_state",
+        value=state_token,
+        httponly=True,
+        secure=is_prod,
+        samesite="lax",
+        max_age=600,
+        path="/api/v1/auth"
+    )
+
     params = {
         "client_id": cfg.google_client_id,
         "redirect_uri": f"{cfg.frontend_url}/auth/callback/google",
@@ -112,6 +130,7 @@ async def google_login():
         "scope": "openid email profile",
         "access_type": "offline",
         "prompt": "select_account",
+        "state": state_token,
     }
     from urllib.parse import urlencode
     url = f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}"
@@ -126,8 +145,24 @@ async def google_callback(
 ) -> Token:
     body = await request.json()
     code = body.get("code")
+    state = body.get("state")
+    
     if not code:
         raise HTTPException(status_code=400, detail="Code missing")
+
+    # Validate state CSRF parameter
+    cookie_state = request.cookies.get("oauth_state")
+    if not state or not cookie_state or state != cookie_state:
+        raise HTTPException(status_code=400, detail="Invalid OAuth state (CSRF possible)")
+    
+    cfg = get_config()
+    try:
+        # Verify state is valid and hasn't expired
+        jwt.decode(state, cfg.secret_key, algorithms=[cfg.algorithm])
+    except Exception:
+        raise HTTPException(status_code=400, detail="OAuth state expired or invalid")
+    
+    response.delete_cookie("oauth_state", path="/api/v1/auth")
 
     cfg = get_config()
     try:
@@ -148,11 +183,26 @@ async def google_callback(
 # --- Social Login (GitHub) ---
 
 @router.get("/github/login")
-async def github_login():
+async def github_login(response: Response):
     cfg = get_config()
+    state_payload = {"provider": "github", "exp": datetime.now(timezone.utc) + timedelta(minutes=10)}
+    state_token = jwt.encode(state_payload, cfg.secret_key, algorithm=cfg.algorithm)
+    
+    is_prod = cfg.environment == "production"
+    response.set_cookie(
+        key="oauth_state",
+        value=state_token,
+        httponly=True,
+        secure=is_prod,
+        samesite="lax",
+        max_age=600,
+        path="/api/v1/auth"
+    )
+
     params = {
         "client_id": cfg.github_client_id,
         "scope": "user:email",
+        "state": state_token,
     }
     from urllib.parse import urlencode
     url = f"https://github.com/login/oauth/authorize?{urlencode(params)}"
@@ -167,8 +217,22 @@ async def github_callback(
 ) -> Token:
     body = await request.json()
     code = body.get("code")
+    state = body.get("state")
+    
     if not code:
         raise HTTPException(status_code=400, detail="Code missing")
+
+    cookie_state = request.cookies.get("oauth_state")
+    if not state or not cookie_state or state != cookie_state:
+        raise HTTPException(status_code=400, detail="Invalid OAuth state (CSRF possible)")
+        
+    cfg = get_config()
+    try:
+        jwt.decode(state, cfg.secret_key, algorithms=[cfg.algorithm])
+    except Exception:
+        raise HTTPException(status_code=400, detail="OAuth state expired or invalid")
+        
+    response.delete_cookie("oauth_state", path="/api/v1/auth")
 
     try:
         user_info = await get_github_user_info(code)
@@ -195,10 +259,12 @@ async def request_magic_link(payload: MagicLinkRequest):
     cfg = get_config()
     magic_link = f"{cfg.frontend_url}/auth/verify?token={token}"
     
-    # In a real app, send email here. For now, log it.
-    print(f"\n[MAGIC LINK] Sending to {payload.email}: {magic_link}\n")
+    try:
+        await send_magic_link_email(payload.email, magic_link)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
     
-    return {"message": "Magic link sent! Check server logs (Dev Mode)."}
+    return {"message": "Magic link sent! Check your email (or server logs in Dev Mode)."}
 
 
 @router.get("/verify", response_model=Token)

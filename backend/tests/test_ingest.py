@@ -9,7 +9,7 @@ from httpx import AsyncClient
 async def test_ingest_text_success(client: AsyncClient, registered_user: dict):
     client.cookies.set("access_token", f"Bearer {registered_user['token']}")
     res = await client.post(
-        "/api/ingest/text",
+        "/ingest/text",
         json={
             "text": "This is a sample document for testing purposes. " * 10,
             "title": "Test Document",
@@ -25,7 +25,7 @@ async def test_ingest_text_success(client: AsyncClient, registered_user: dict):
 @pytest.mark.asyncio
 async def test_ingest_text_unauthenticated(client: AsyncClient):
     res = await client.post(
-        "/api/ingest/text",
+        "/ingest/text",
         json={"text": "Some text here for testing.", "title": "No Auth"},
     )
     assert res.status_code == 401
@@ -36,7 +36,7 @@ async def test_ingest_url_private_ip_blocked(client: AsyncClient, registered_use
     """SSRF protection: private IPs must be rejected."""
     client.cookies.set("access_token", f"Bearer {registered_user['token']}")
     res = await client.post(
-        "/api/ingest/url",
+        "/ingest/url",
         json={"url": "http://127.0.0.1/secret"},
     )
     assert res.status_code == 400
@@ -47,7 +47,7 @@ async def test_ingest_url_private_ip_blocked(client: AsyncClient, registered_use
 async def test_ingest_url_invalid_scheme(client: AsyncClient, registered_user: dict):
     client.cookies.set("access_token", f"Bearer {registered_user['token']}")
     res = await client.post(
-        "/api/ingest/url",
+        "/ingest/url",
         json={"url": "ftp://example.com/file"},
     )
     # Pydantic validation: must start with http:// or https://
@@ -57,7 +57,7 @@ async def test_ingest_url_invalid_scheme(client: AsyncClient, registered_user: d
 @pytest.mark.asyncio
 async def test_ingest_url_unauthenticated(client: AsyncClient):
     res = await client.post(
-        "/api/ingest/url",
+        "/ingest/url",
         json={"url": "https://example.com"},
     )
     assert res.status_code == 401

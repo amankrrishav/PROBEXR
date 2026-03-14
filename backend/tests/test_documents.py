@@ -10,7 +10,7 @@ from httpx import AsyncClient
 @pytest.mark.asyncio
 async def test_list_documents_empty(authed_client: AsyncClient):
     """New user with no documents gets empty list."""
-    res = await authed_client.get("/api/documents/")
+    res = await authed_client.get("/documents/")
     assert res.status_code == 200
     data = res.json()
     assert data["documents"] == []
@@ -21,7 +21,7 @@ async def test_list_documents_empty(authed_client: AsyncClient):
 @pytest.mark.asyncio
 async def test_list_documents_with_data(authed_client: AsyncClient, document_id: int):
     """After ingesting a document, it appears in the list."""
-    res = await authed_client.get("/api/documents/")
+    res = await authed_client.get("/documents/")
     assert res.status_code == 200
     data = res.json()
     assert data["total"] >= 1
@@ -40,12 +40,12 @@ async def test_list_documents_pagination(authed_client: AsyncClient):
     # Ingest 3 documents
     for i in range(3):
         await authed_client.post(
-            "/api/ingest/text",
+            "/ingest/text",
             json={"text": f"Document number {i}. " * 20, "title": f"Doc {i}"},
         )
 
     # Page 1, per_page=2
-    res = await authed_client.get("/api/documents/?page=1&per_page=2")
+    res = await authed_client.get("/documents/?page=1&per_page=2")
     assert res.status_code == 200
     data = res.json()
     assert len(data["documents"]) == 2
@@ -53,14 +53,14 @@ async def test_list_documents_pagination(authed_client: AsyncClient):
     assert data["pages"] == 2
 
     # Page 2
-    res2 = await authed_client.get("/api/documents/?page=2&per_page=2")
+    res2 = await authed_client.get("/documents/?page=2&per_page=2")
     data2 = res2.json()
     assert len(data2["documents"]) == 1
 
 
 @pytest.mark.asyncio
 async def test_list_documents_unauthenticated(client: AsyncClient):
-    res = await client.get("/api/documents/")
+    res = await client.get("/documents/")
     assert res.status_code == 401
 
 
@@ -68,24 +68,24 @@ async def test_list_documents_unauthenticated(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_delete_document_success(authed_client: AsyncClient, document_id: int):
-    res = await authed_client.delete(f"/api/documents/{document_id}")
+    res = await authed_client.delete(f"/documents/{document_id}")
     assert res.status_code == 204
 
     # Verify it's gone
-    list_res = await authed_client.get("/api/documents/")
+    list_res = await authed_client.get("/documents/")
     doc_ids = [d["id"] for d in list_res.json()["documents"]]
     assert document_id not in doc_ids
 
 
 @pytest.mark.asyncio
 async def test_delete_document_not_found(authed_client: AsyncClient):
-    res = await authed_client.delete("/api/documents/999999")
+    res = await authed_client.delete("/documents/999999")
     assert res.status_code == 404
 
 
 @pytest.mark.asyncio
 async def test_delete_document_unauthenticated(client: AsyncClient):
-    res = await client.delete("/api/documents/1")
+    res = await client.delete("/documents/1")
     assert res.status_code == 401
 
 
@@ -101,5 +101,5 @@ async def test_delete_document_wrong_user(client: AsyncClient, document_id: int)
     other_token = res.json()["access_token"]
 
     client.cookies.set("access_token", f"Bearer {other_token}")
-    del_res = await client.delete(f"/api/documents/{document_id}")
+    del_res = await client.delete(f"/documents/{document_id}")
     assert del_res.status_code == 404  # appears as not found for wrong user

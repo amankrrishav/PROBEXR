@@ -68,6 +68,13 @@ class AppConfig(BaseSettings):
     github_client_secret: Optional[str] = None
     frontend_url: str = "http://localhost:5173"
 
+    # ── Email / SMTP (SendGrid, SES, Resend, etc.) ───────────────
+    smtp_host: Optional[str] = None
+    smtp_port: int = 587
+    smtp_user: Optional[str] = None
+    smtp_password: Optional[str] = None
+    smtp_from_email: str = "noreply@probexr.com"
+
     # ── Auth / JWT ───────────────────────────────────────────────
     secret_key: str = "dev-secret-change-this"
     algorithm: str = "HS256"

@@ -10,7 +10,7 @@ from httpx import AsyncClient
 @pytest.mark.asyncio
 async def test_analytics_unauthenticated(client: AsyncClient):
     """Dashboard requires authentication."""
-    res = await client.get("/api/analytics/dashboard")
+    res = await client.get("/analytics/dashboard")
     assert res.status_code == 401
 
 
@@ -19,7 +19,7 @@ async def test_analytics_unauthenticated(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_analytics_empty(authed_client: AsyncClient):
     """New user with no data gets zero counts and empty arrays."""
-    res = await authed_client.get("/api/analytics/dashboard")
+    res = await authed_client.get("/analytics/dashboard")
     assert res.status_code == 200
     data = res.json()
 
@@ -51,7 +51,7 @@ async def test_analytics_empty(authed_client: AsyncClient):
 @pytest.mark.asyncio
 async def test_analytics_with_documents(authed_client: AsyncClient, document_id: int):
     """After ingesting a document, stats reflect it."""
-    res = await authed_client.get("/api/analytics/dashboard")
+    res = await authed_client.get("/analytics/dashboard")
     assert res.status_code == 200
     data = res.json()
 
@@ -72,12 +72,12 @@ async def test_analytics_with_multiple_documents(authed_client: AsyncClient):
     # Ingest 3 documents
     for i in range(3):
         res = await authed_client.post(
-            "/api/ingest/text",
+            "/ingest/text",
             json={"text": f"Document number {i} about testing analytics. " * 20, "title": f"Analytics Doc {i}"},
         )
         assert res.status_code == 200
 
-    res = await authed_client.get("/api/analytics/dashboard")
+    res = await authed_client.get("/analytics/dashboard")
     assert res.status_code == 200
     data = res.json()
 
@@ -95,7 +95,7 @@ async def test_analytics_with_multiple_documents(authed_client: AsyncClient):
 @pytest.mark.asyncio
 async def test_analytics_streak(authed_client: AsyncClient, document_id: int):
     """Streak should be at least 1 when a document was ingested today."""
-    res = await authed_client.get("/api/analytics/dashboard")
+    res = await authed_client.get("/analytics/dashboard")
     assert res.status_code == 200
     data = res.json()
     assert data["streak"] >= 1
@@ -104,7 +104,7 @@ async def test_analytics_streak(authed_client: AsyncClient, document_id: int):
 @pytest.mark.asyncio
 async def test_analytics_heatmap_structure(authed_client: AsyncClient):
     """Heatmap entries have correct structure."""
-    res = await authed_client.get("/api/analytics/dashboard")
+    res = await authed_client.get("/analytics/dashboard")
     assert res.status_code == 200
     data = res.json()
 
