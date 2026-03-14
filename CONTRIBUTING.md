@@ -14,10 +14,10 @@ probexr/
 │   │   ├── config.py     # Env and constants; add keys for new features
 │   │   ├── db.py         # Async engine (asyncpg/aiosqlite), session factory
 │   │   ├── deps.py       # Auth + DB dependencies (CurrentUser, OptionalUser, DbSession)
-│   │   ├── middleware.py  # Logging + rate limiting (Redis / in-memory fallback)
+│   │   ├── middleware.py  # CSRF + Logging + rate limiting (Redis/in-memory)
 │   │   ├── schemas/      # Request/response models
-│   │   ├── routers/      # Async route modules (health, summarize, auth, chat, ingest, flashcards, tts, synthesis, streaming)
-│   │   └── services/     # Async business logic (summarizer, llm, auth, chat, etc.)
+│   │   ├── routers/      # Async route modules (health, summarize, auth, chat, ingest, flashcards, tts, synthesis, streaming, social)
+│   │   └── services/     # Async business logic (summarizer, llm, auth, chat, email, social, etc.)
 │   ├── alembic/          # Database migrations (env-driven URL)
 │   ├── requirements.txt
 │   ├── .env.example
@@ -82,6 +82,7 @@ See root [README.md](README.md) and `backend/README.md`, `frontend/README.md` fo
 - **Rate limiting:** Redis-backed (`INCR + EXPIRE`) with in-memory fallback. Configured in `middleware.py`, initialized in `main.py` lifespan.
 - **LLM layer:** `services/llm.py` provides `generate_full()` (blocking) and `generate_stream()` (async iterator). Existing callers use `chat_completion` alias.
 - **Migrations:** Alembic reads `DATABASE_URL` from environment. Run `python -m alembic upgrade head` after model changes.
+- **CI/CD Pipeline:** GitHub Actions automatically runs tests (pytest, vitest) and linters (mypy, eslint) on all pushes and PRs to `main`.
 
 ---
 

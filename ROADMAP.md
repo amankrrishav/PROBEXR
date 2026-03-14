@@ -12,6 +12,9 @@ PROBEXR is **100% free and open-source**. This doc outlines completed work and u
 - **Testing:** Comprehensive backend test suite (pytest) covering auth, documents, chat, flashcards, etc.
 - **Production Hardening:** Live deployment on Netlify (Frontend) and Render (Backend) with SSL/TLS, CORS configuration, and managed database/Redis.
 - **Session Sync:** Multi-device session support with Refresh Token rotation and reuse detection.
+- **Security & Performance:** Strict CSRF middleware (dual-submit cookie pattern), OAuth state validation, global shared HTTPX connections, and robust error masking in production 500s.
+- **CI/CD Pipeline:** Fully automated GitHub Actions checks (mypy, pytest, eslint, vitest) on PRs/pushes.
+- **Email Delivery:** Universal asynchronous SMTP service for passwordless Magic Link dispatch.
 
 ---
 
