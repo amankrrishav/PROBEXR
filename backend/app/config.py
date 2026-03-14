@@ -1,103 +1,119 @@
 """
-App configuration from environment. Safe for serverless (no heavy imports).
-Add new keys here as you add features.
+App configuration from environment using pydantic-settings BaseSettings.
+All fields have the same names, defaults, and behavior as the original config.
 """
-import os
 from functools import lru_cache
-from typing import Literal
+from typing import Literal, Optional
+from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
+
+from pydantic import model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ProviderName = Literal["groq", "openai", "openrouter"]
 
 
-def _env(key: str, default: str | None = None) -> str | None:
-    v = os.environ.get(key)
-    return (v.strip() if v else None) or default
+class AppConfig(BaseSettings):
+    """Configuration loaded from environment variables."""
 
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
-@lru_cache
-def get_config() -> "AppConfig":
-    return AppConfig()
+    # ── App ──────────────────────────────────────────────────────
+    app_name: str = "PROBEfy"
+    debug: bool = False
+    environment: str = "development"
+    app_version: str = "1.0.0"
 
+    # ── CORS ─────────────────────────────────────────────────────
+    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000"
 
-class AppConfig:
-    """Configuration loaded from env."""
+    # ── Summarization ────────────────────────────────────────────
+    summarize_provider: Optional[ProviderName] = None
+    summarize_model: str = ""
+    summarize_timeout_seconds: int = 90
 
-    def __init__(self) -> None:
-        # App
-        self.app_name = _env("APP_NAME", "PROBEfy") or "PROBEfy"
-        self.debug = (_env("DEBUG", "0") or "0").lower() in ("1", "true", "yes")
-        self.environment = _env("ENVIRONMENT", "development") or "development"
+    # ── Groq ─────────────────────────────────────────────────────
+    groq_api_key: Optional[str] = None
+    groq_base_url: str = "https://api.groq.com/openai/v1"
+    groq_model: str = "llama-3.3-70b-versatile"
 
-        # CORS (comma-separated origins, or *)
-        self.cors_origins = _env("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000") or "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000"
+    # ── OpenAI ───────────────────────────────────────────────────
+    openai_api_key: Optional[str] = None
+    openai_base_url: str = "https://api.openai.com/v1"
+    openai_model: str = "gpt-4o-mini"
 
-        # Summarization: provider auto-detected from API keys
-        self.summarize_provider: ProviderName | None = _env("SUMMARIZE_PROVIDER") or None  # type: ignore
-        self.summarize_model = _env("SUMMARIZE_MODEL", "") or ""
-        self.summarize_timeout_seconds = int(_env("SUMMARIZE_TIMEOUT", "90") or "90")
+    # ── OpenRouter ───────────────────────────────────────────────
+    openrouter_api_key: Optional[str] = None
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    openrouter_model: str = "meta-llama/llama-3.1-8b-instruct:free"
 
-        # Groq (free tier) — https://console.groq.com
-        self.groq_api_key = _env("GROQ_API_KEY")
-        self.groq_base_url = _env("GROQ_BASE_URL", "https://api.groq.com/openai/v1") or "https://api.groq.com/openai/v1"
+    # ── Validation ───────────────────────────────────────────────
+    min_words: int = 30
+    target_min_words: int = 80
+    target_max_words: int = 300
 
-        # OpenAI
-        self.openai_api_key = _env("OPENAI_API_KEY")
-        self.openai_base_url = _env("OPENAI_BASE_URL", "https://api.openai.com/v1") or "https://api.openai.com/v1"
+    # ── Database ─────────────────────────────────────────────────
+    database_url: str = "sqlite:///./probefy.db"
+    db_pool_size: int = 5
+    db_max_overflow: int = 10
+    db_pool_timeout: int = 30
 
-        # OpenRouter (free tier models available)
-        self.openrouter_api_key = _env("OPENROUTER_API_KEY")
-        self.openrouter_base_url = _env("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1") or "https://openrouter.ai/api/v1"
+    # ── OAuth2 ───────────────────────────────────────────────────
+    google_client_id: Optional[str] = None
+    google_client_secret: Optional[str] = None
+    github_client_id: Optional[str] = None
+    github_client_secret: Optional[str] = None
+    frontend_url: str = "http://localhost:5173"
 
-        # Validation
-        self.min_words = int(_env("SUMMARIZE_MIN_WORDS", "30") or "30")
-        self.target_min_words = int(_env("SUMMARIZE_TARGET_MIN_WORDS", "80") or "80")
-        self.target_max_words = int(_env("SUMMARIZE_TARGET_MAX_WORDS", "300") or "300")
-        self.database_url = _env("DATABASE_URL", "sqlite:///./probefy.db") or "sqlite:///./probefy.db"
+    # ── Auth / JWT ───────────────────────────────────────────────
+    secret_key: str = "dev-secret-change-this"
+    algorithm: str = "HS256"
 
-        self.app_version = _env("APP_VERSION", "1.0.0") or "1.0.0"
+    # ── Rate Limiting ────────────────────────────────────────────
+    rate_limit_per_minute: int = 60
+    rate_limit_llm_per_minute: int = 10
 
-        # OAuth2
-        self.google_client_id = _env("GOOGLE_CLIENT_ID")
-        self.google_client_secret = _env("GOOGLE_CLIENT_SECRET")
-        self.github_client_id = _env("GITHUB_CLIENT_ID")
-        self.github_client_secret = _env("GITHUB_CLIENT_SECRET")
-        self.frontend_url = _env("FRONTEND_URL", "http://localhost:5173") or "http://localhost:5173"
+    # ── Token Lifetimes ──────────────────────────────────────────
+    access_token_expire_minutes: int = 15
+    refresh_token_expire_days: int = 7
 
+    # ── Redis ────────────────────────────────────────────────────
+    redis_url: str = "redis://localhost:6379/0"
 
-        self.SECRET_KEY = _env("SECRET_KEY", "dev-secret-change-this") or "dev-secret-change-this"
-        self.ALGORITHM = _env("JWT_ALGORITHM", "HS256") or "HS256"
+    # ── Aliases for backward compatibility ───────────────────────
+    # The old config exposed these as cfg.SECRET_KEY and cfg.ALGORITHM.
+    # We keep them as computed properties so existing code doesn't break.
+    @property
+    def SECRET_KEY(self) -> str:  # noqa: N802
+        return self.secret_key
 
-        self.rate_limit_per_minute = int(_env("RATE_LIMIT_PER_MINUTE", "60") or "60")
-        self.rate_limit_llm_per_minute = int(_env("RATE_LIMIT_LLM_PER_MINUTE", "10") or "10")
+    @property
+    def ALGORITHM(self) -> str:  # noqa: N802
+        return self.algorithm
 
-        # Token lifetimes
-        self.access_token_expire_minutes = int(_env("ACCESS_TOKEN_EXPIRE_MINUTES", "15") or "15")
-        self.refresh_token_expire_days = int(_env("REFRESH_TOKEN_EXPIRE_DAYS", "7") or "7")
-
-        # Redis (rate limiting, caching)
-        self.redis_url = _env("REDIS_URL", "redis://localhost:6379/0") or "redis://localhost:6379/0"
-
-        # Database connection pool (PostgreSQL only; ignored for SQLite)
-        self.db_pool_size = int(_env("DB_POOL_SIZE", "5") or "5")
-        self.db_max_overflow = int(_env("DB_MAX_OVERFLOW", "10") or "10")
-        self.db_pool_timeout = int(_env("DB_POOL_TIMEOUT", "30") or "30")
-
-
-        # Resolve provider and default model if not set
+    # ── Provider auto-detection ──────────────────────────────────
+    @model_validator(mode="after")
+    def _resolve_provider_and_model(self) -> "AppConfig":
+        """If no explicit provider is set, detect from available API keys."""
         if not self.summarize_provider:
             if self.groq_api_key:
                 self.summarize_provider = "groq"
                 if not self.summarize_model:
-                    self.summarize_model = _env("GROQ_MODEL", "llama-3.3-70b-versatile") or "llama-3.3-70b-versatile"
+                    self.summarize_model = self.groq_model
             elif self.openai_api_key:
                 self.summarize_provider = "openai"
                 if not self.summarize_model:
-                    self.summarize_model = _env("OPENAI_MODEL", "gpt-4o-mini") or "gpt-4o-mini"
+                    self.summarize_model = self.openai_model
             elif self.openrouter_api_key:
                 self.summarize_provider = "openrouter"
                 if not self.summarize_model:
-                    self.summarize_model = _env("OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct:free") or "meta-llama/llama-3.1-8b-instruct:free"
+                    self.summarize_model = self.openrouter_model
+        return self
 
+    # ── LLM helpers ──────────────────────────────────────────────
     def get_llm_base_url(self) -> str:
         if self.summarize_provider == "groq":
             return self.groq_base_url
@@ -147,24 +163,22 @@ class AppConfig:
                 prefix = "cockroachdb"
             url = url.replace("postgresql://", f"{prefix}+asyncpg://", 1)
             url = url.replace("postgres://", f"{prefix}+asyncpg://", 1)
-        
+
         # 2. Aggressive Purification for Cloud/CockroachDB
         if self.is_sqlite:
             return url
 
-        from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
-        
         try:
             u = urlparse(url)
             q = parse_qs(u.query)
-            
+
             # Remove junk that causes driver failures if local files are missing
             for k in ["sslrootcert", "sslcert", "sslkey"]:
                 q.pop(k, None)
-            
+
             # Ensure we strip sslmode for asyncpg (handled in connect_args)
             q.pop("sslmode", None)
-            
+
             u = u._replace(query=urlencode(q, doseq=True))
             url = urlunparse(u)
         except Exception:
@@ -172,3 +186,8 @@ class AppConfig:
             pass
 
         return url
+
+
+@lru_cache
+def get_config() -> AppConfig:
+    return AppConfig()
