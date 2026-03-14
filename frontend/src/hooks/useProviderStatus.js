@@ -55,9 +55,14 @@ export function useProviderStatus() {
   }, []);
 
   useEffect(() => {
-    ping();
+    // Avoid synchronous state updates in the initial effect mounting phase.
+    const initialTimeout = setTimeout(() => {
+      ping();
+    }, 0);
+    
     intervalRef.current = setInterval(ping, PING_INTERVAL);
     return () => {
+      clearTimeout(initialTimeout);
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [ping]);

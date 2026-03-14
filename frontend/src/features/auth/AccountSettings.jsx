@@ -117,6 +117,15 @@ export default function AccountSettings({ open, onClose }) {
     return () => clearTimeout(timer);
   }, [avatarUrl]);
 
+  const handleClose = useCallback(() => {
+    setClosing(true);
+    setTimeout(() => {
+      setVisible(false);
+      setClosing(false);
+      onClose();
+    }, 150);
+  }, [onClose]);
+
   // Focus trap
   useEffect(() => {
     if (!open || !visible) return;
@@ -150,16 +159,7 @@ export default function AccountSettings({ open, onClose }) {
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open, visible]);
-
-  const handleClose = useCallback(() => {
-    setClosing(true);
-    setTimeout(() => {
-      setVisible(false);
-      setClosing(false);
-      onClose();
-    }, 150);
-  }, [onClose]);
+  }, [open, visible, handleClose]);
 
   if (!open && !visible) return null;
 
