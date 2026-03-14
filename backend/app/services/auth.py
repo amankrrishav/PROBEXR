@@ -18,7 +18,6 @@ from app.models.refresh_token import RefreshToken
 # Load config
 cfg = get_config()
 
-SECRET_KEY = cfg.SECRET_KEY
 ALGORITHM = cfg.ALGORITHM
 
 
@@ -32,7 +31,7 @@ def create_magic_link_token(email: str) -> str:
         "exp": expire,
         "type": "magic_link"
     }
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(to_encode, cfg.signing_key, algorithm=ALGORITHM)
 
 
 async def verify_magic_link_token(session: AsyncSession, token: str) -> User:
@@ -40,7 +39,7 @@ async def verify_magic_link_token(session: AsyncSession, token: str) -> User:
     Verify a magic link token and return the user.
     """
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, cfg.verification_key, algorithms=[ALGORITHM])
         if payload.get("type") != "magic_link":
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -112,7 +111,7 @@ def create_access_token(data: dict[str, Any]) -> str:
     to_encode = data.copy()
     expire = datetime.now(timezone.utc) + timedelta(minutes=cfg.access_token_expire_minutes)
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(to_encode, cfg.signing_key, algorithm=ALGORITHM)
 
 
 def set_auth_cookie(response: Response, token: str) -> None:
@@ -384,7 +383,7 @@ def _credentials_exception() -> HTTPException:
 
 def _decode_token(token: str) -> dict[str, Any]:
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, cfg.verification_key, algorithms=[ALGORITHM])
     except PyJWTError:
         raise _credentials_exception()
 

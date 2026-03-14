@@ -1,0 +1,64 @@
+/* ═══════════════════════════════════════════════════════════════
+   EDITOR — Advanced Options, Intelligence Meter
+   ═══════════════════════════════════════════════════════════════ */
+
+.advanced-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 8px 0;
+  width: 100%;
+  color: var(--ink-tertiary);
+  font-family: 'Commit Mono', monospace;
+  font-size: 12px;
+}
+.advanced-toggle::before,
+.advanced-toggle::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border-dim);
+}
+
+.advanced-content {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 300ms var(--ease), opacity 300ms var(--ease);
+  opacity: 0;
+}
+.advanced-content.open {
+  max-height: 800px;
+  opacity: 1;
+}
+
+
+/* ── INTELLIGENCE SCORE METER ── */
+.intelligence-meter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+}
+.intelligence-meter .track {
+  flex: 1;
+  height: 3px;
+  background: var(--bg-elevated);
+  border-radius: 2px;
+  position: relative;
+}
+.intelligence-meter .indicator {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  top: -2.5px;
+  transition: left 300ms var(--ease), background 300ms var(--ease);
+}
+.intelligence-meter .label {
+  font-family: 'Commit Mono', monospace;
+  font-size: 11px;
+  min-width: 70px;
+}

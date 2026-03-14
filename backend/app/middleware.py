@@ -64,8 +64,8 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
 class RateLimiterBackend(Protocol):
     """Protocol for rate limiter backends. Implementations can use Redis, in-memory, etc."""
-    async def check_and_increment(self, key: str, limit: int) -> bool:
-        """Return True if the request should be allowed, False if rate-limited."""
+    async def check_and_increment(self, key: str, limit: int) -> tuple[bool, int]:
+        """Return (allowed, current_count). allowed=True if under limit."""
         ...
 
 
@@ -75,7 +75,7 @@ class InMemoryRateLimiter:
         self._data: dict[str, int] = {}
         self._current_minute: int = 0
 
-    async def check_and_increment(self, key: str, limit: int) -> bool:
+    async def check_and_increment(self, key: str, limit: int) -> tuple[bool, int]:
         current_minute = int(time.time() // 60)
         # Cleanup stale keys when minute changes
         if current_minute != self._current_minute:
@@ -84,9 +84,9 @@ class InMemoryRateLimiter:
 
         current_hits = self._data.get(key, 0)
         if current_hits >= limit:
-            return False
+            return False, current_hits
         self._data[key] = current_hits + 1
-        return True
+        return True, current_hits + 1
 
 
 class RedisRateLimiter:
@@ -94,17 +94,17 @@ class RedisRateLimiter:
     def __init__(self, redis_client: "redis.asyncio.Redis") -> None:  # type: ignore
         self._redis = redis_client
 
-    async def check_and_increment(self, key: str, limit: int) -> bool:
+    async def check_and_increment(self, key: str, limit: int) -> tuple[bool, int]:
         try:
             current = await self._redis.incr(key)
             if current == 1:
                 # First request in this window — set TTL to 60s
                 await self._redis.expire(key, 60)
-            return current <= limit
+            return current <= limit, int(current)
         except Exception:
             # Redis error → allow the request (fail-open)
             logger.warning("Redis rate limiter error, allowing request", exc_info=True)
-            return True
+            return True, 0
 
 
 # Global rate limiter — set during startup
@@ -141,16 +141,29 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
         key = f"rl:{client_ip}:{tier}:{current_minute}"
 
         limiter = get_rate_limiter()
-        allowed = await limiter.check_and_increment(key, limit)
+        allowed, current_count = await limiter.check_and_increment(key, limit)
+
+        # Standard rate-limit headers (RFC 6585 / draft-ietf-httpapi-ratelimit-headers)
+        remaining = max(0, limit - current_count)
+        reset_at = (current_minute + 1) * 60  # start of next window
+        rl_headers = {
+            "X-RateLimit-Limit": str(limit),
+            "X-RateLimit-Remaining": str(remaining),
+            "X-RateLimit-Reset": str(reset_at),
+        }
 
         if not allowed:
             logger.info("Rate limit hit", extra={"client_ip": client_ip, "tier": tier, "limit": limit})
             return JSONResponse(
                 status_code=429,
-                content={"detail": "Rate limit exceeded. Try again later."}
+                content={"detail": "Rate limit exceeded. Try again later."},
+                headers={**rl_headers, "Retry-After": str(reset_at - int(time.time()))},
             )
 
-        return await call_next(request)
+        response = await call_next(request)
+        for header, value in rl_headers.items():
+            response.headers[header] = value
+        return response
 
 
 # ---------------------------------------------------------------------------
