@@ -5,7 +5,8 @@ import uuid
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 from fastapi import Depends, HTTPException, status, Request, Response
-from jose import JWTError, jwt
+import jwt
+from jwt.exceptions import PyJWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -52,7 +53,7 @@ async def verify_magic_link_token(session: AsyncSession, token: str) -> User:
                 detail="Could not validate credentials",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-    except JWTError:
+    except PyJWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
@@ -384,7 +385,7 @@ def _credentials_exception() -> HTTPException:
 def _decode_token(token: str) -> dict[str, Any]:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    except JWTError:
+    except PyJWTError:
         raise _credentials_exception()
 
     if "sub" not in payload:

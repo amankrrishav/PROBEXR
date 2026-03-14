@@ -10,7 +10,7 @@ We also test bad tokens, expired-ish tokens, and wrong token type.
 import pytest
 from unittest.mock import patch
 from httpx import AsyncClient
-from jose import jwt
+import jwt
 from datetime import datetime, timedelta, timezone
 
 from app.config import get_config
