@@ -56,16 +56,21 @@ export function useSummarizerState() {
     setSummaryTone("neutral");
   }, []);
 
-  // ── localStorage persistence ──
+  // ── Debounced localStorage persistence ──
+  const persistTimer = useRef(null);
   useEffect(() => {
-    localStorage.setItem("rp_text", text);
-    localStorage.setItem("rp_hasSummary", hasSummary ? "true" : "false");
-    localStorage.setItem("rp_summaryText", summaryText);
-    if (documentId) {
-      localStorage.setItem("rp_documentId", documentId.toString());
-    } else {
-      localStorage.removeItem("rp_documentId");
-    }
+    clearTimeout(persistTimer.current);
+    persistTimer.current = setTimeout(() => {
+      localStorage.setItem("rp_text", text);
+      localStorage.setItem("rp_hasSummary", hasSummary ? "true" : "false");
+      localStorage.setItem("rp_summaryText", summaryText);
+      if (documentId) {
+        localStorage.setItem("rp_documentId", documentId.toString());
+      } else {
+        localStorage.removeItem("rp_documentId");
+      }
+    }, 300);
+    return () => clearTimeout(persistTimer.current);
   }, [text, hasSummary, summaryText, documentId]);
 
   // ── Loading message rotation ──

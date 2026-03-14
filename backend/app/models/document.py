@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Optional, TYPE_CHECKING
 
-from sqlmodel import Field, SQLModel, Relationship
+from sqlmodel import Field, SQLModel, Relationship, UniqueConstraint
 
 if TYPE_CHECKING:
     from app.models.user import User
@@ -14,6 +14,7 @@ from app.models.synthesis import SynthesisDocumentLink
 
 
 class Document(SQLModel, table=True):
+    __table_args__ = (UniqueConstraint("user_id", "url", name="uq_document_user_url"),)
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True)
     url: str

@@ -52,7 +52,8 @@ async def register(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    assert user.id is not None
+    if user.id is None:
+        raise HTTPException(status_code=500, detail="User creation failed")
     access_token = create_access_token({"sub": user.email})
     refresh = await create_refresh_token(session, user.id)
 
@@ -72,7 +73,8 @@ async def login(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
 
-    assert user.id is not None
+    if user.id is None:
+        raise HTTPException(status_code=500, detail="User lookup failed")
     access_token = create_access_token({"sub": user.email})
     refresh = await create_refresh_token(session, user.id)
 
@@ -171,7 +173,8 @@ async def google_callback(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    assert user.id is not None
+    if user.id is None:
+        raise HTTPException(status_code=500, detail="User lookup failed")
     access_token = create_access_token({"sub": user.email})
     refresh = await create_refresh_token(session, user.id)
 
@@ -242,7 +245,8 @@ async def github_callback(
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    assert user.id is not None
+    if user.id is None:
+        raise HTTPException(status_code=500, detail="User lookup failed")
     access_token = create_access_token({"sub": user.email})
     refresh = await create_refresh_token(session, user.id)
 
@@ -278,7 +282,8 @@ async def verify_magic_link(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    assert user.id is not None
+    if user.id is None:
+        raise HTTPException(status_code=500, detail="User lookup failed")
     access_token = create_access_token({"sub": user.email})
     refresh = await create_refresh_token(session, user.id)
 
@@ -328,7 +333,8 @@ async def logout_all(
     session: DbSession,
 ) -> dict:
     """Revoke all refresh tokens for the current user (log out everywhere)."""
-    assert current_user.id is not None
+    if current_user.id is None:
+        raise HTTPException(status_code=500, detail="User lookup failed")
     count = await revoke_all_user_tokens(session, current_user.id)
     delete_auth_cookies(response)
     return {"message": f"Logged out of all sessions ({count} tokens revoked)"}

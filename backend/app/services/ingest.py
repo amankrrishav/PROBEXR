@@ -11,6 +11,7 @@ Security hardening:
 import asyncio
 import ipaddress
 import socket
+import uuid
 from urllib.parse import urlparse
 
 import httpx
@@ -96,7 +97,7 @@ async def fetch_and_clean_url(url: str, user_id: int, session: AsyncSession) -> 
 
     # 3. Fetch with size enforcement
     headers = {
-        "User-Agent": "Mozilla/5.0 (compatible; PROBEfy/1.0; +http://localhost)"
+        "User-Agent": "Mozilla/5.0 (compatible; PROBEXR/1.0; +http://localhost)"
     }
     client = get_http_client()
     # Start a streaming request to read Content-Length header first
@@ -195,7 +196,7 @@ async def ingest_text_document(user_id: int, text: str, title: str, session: Asy
             title = "Untitled Note"
     doc = Document(
         user_id=user_id,
-        url="pasted_text",
+        url=f"pasted_text:{uuid.uuid4()}",
         title=title[:200],
         cleaned_content=text[:MAX_TEXT_BYTES],
     )

@@ -1,5 +1,5 @@
 """
-PROBEfy backend — scalable, serverless-ready.
+PROBEXR backend — scalable, serverless-ready.
 Add new routers in app/routers and mount here.
 """
 import logging
@@ -23,6 +23,7 @@ from app.middleware import (
     RedisRateLimiter,
 )
 from app import http_client
+from app.services.token_gc import start_token_gc, stop_token_gc
 import httpx
 
 logger = logging.getLogger(__name__)
@@ -84,7 +85,7 @@ async def lifespan(app_inst: FastAPI):
         redis_client = None
 
     logger.info(
-        "PROBEfy starting: env=%s, provider=%s, db=%s",
+        "PROBEXR starting: env=%s, provider=%s, db=%s",
         cfg.environment,
         cfg.summarize_provider or "extractive",
         "configured",
@@ -100,6 +101,9 @@ async def lifespan(app_inst: FastAPI):
     # 8. Initialize global HTTP client
     http_client.client = httpx.AsyncClient()
 
+    # 9. Start refresh token garbage collection
+    start_token_gc(async_engine)
+
     yield
 
     # --- Shutdown ---
@@ -110,9 +114,10 @@ async def lifespan(app_inst: FastAPI):
     if http_client.client:
         await http_client.client.aclose()
         logger.info("Global HTTP client closed.")
+    stop_token_gc()
 
 app = FastAPI(
-    title="PROBEfy",
+    title="PROBEXR",
     description="Human-like article summarization API",
     version="1.0.0",
     lifespan=lifespan,
