@@ -346,7 +346,7 @@ def set_refresh_cookie(response: Response, token_str: str) -> None:
         httponly=True,
         samesite="none" if is_prod else "lax",
         secure=is_prod,  # Mandatory for samesite=none
-        path="/auth",  # Only sent to auth endpoints
+        path="/api/v1/auth",  # Matches actual router mount: /api/v1/auth/*
         max_age=cfg.refresh_token_expire_days * 24 * 60 * 60,
     )
 
@@ -363,7 +363,7 @@ def delete_auth_cookies(response: Response) -> None:
         "access_token", httponly=True, samesite=samesite_value, secure=is_prod
     )
     response.delete_cookie(
-        "refresh_token", httponly=True, samesite=samesite_value, secure=is_prod, path="/auth"
+        "refresh_token", httponly=True, samesite=samesite_value, secure=is_prod, path="/api/v1/auth"
     )
 
 

@@ -299,3 +299,36 @@ async def test_logout_all(client: AsyncClient, registered_user: dict):
 
     client.cookies.set("refresh_token", second_refresh)
     assert (await client.post("/auth/refresh")).status_code == 401
+
+
+# ---- Cookie path correctness ----
+
+@pytest.mark.asyncio
+async def test_refresh_cookie_path_is_api_v1_auth(client: AsyncClient):
+    """
+    The refresh_token Set-Cookie header must use path=/api/v1/auth so
+    browsers send it to /api/v1/auth/* endpoints.
+    path=/auth would silently break all token refreshes in production
+    because the browser would never send the cookie.
+    """
+    res = await client.post(
+        "/auth/register",
+        json={"email": "cookiepath@example.com", "password": "StrongPass1!"},
+    )
+    assert res.status_code == 201
+
+    # httpx merges duplicate header names with items() — use multi_items()
+    # to get each Set-Cookie header as a separate entry.
+    set_cookie_headers = [
+        v for k, v in res.headers.multi_items()
+        if k.lower() == "set-cookie"
+    ]
+    refresh_header = next(
+        (h for h in set_cookie_headers if "refresh_token=" in h), None
+    )
+    assert refresh_header is not None, (
+        f"refresh_token Set-Cookie header not found. Headers: {set_cookie_headers}"
+    )
+    assert "path=/api/v1/auth" in refresh_header.lower(), (
+        f"Expected path=/api/v1/auth in Set-Cookie, got: {refresh_header}"
+    )
