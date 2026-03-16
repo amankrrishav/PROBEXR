@@ -1,3 +1,5 @@
+import hashlib
+import json
 import logging
 import secrets
 import time
@@ -125,6 +127,13 @@ def set_rate_limiter(limiter: RateLimiterBackend) -> None:  # type: ignore
     _rate_limiter = limiter
 
 
+_AUTH_RATE_LIMITED_PATHS = (
+    "/api/v1/auth/login",
+    "/api/v1/auth/register",
+    "/api/v1/auth/magic-link",
+)
+
+
 class RateLimitingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
         cfg = get_config()
@@ -133,32 +142,85 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
 
         current_minute = int(time.time() // 60)
 
-        # Routes that hit LLM / scraping — given a tighter budget
-        is_llm_route = any(p in path for p in ["/summarize", "/api/synthesis", "/api/chat", "/api/tts", "/api/ingest"])
-        tier = "llm" if is_llm_route else "general"
-        limit = cfg.rate_limit_llm_per_minute if is_llm_route else cfg.rate_limit_per_minute
+        # Determine tier and limit
+        is_auth_route = any(path.startswith(p) for p in _AUTH_RATE_LIMITED_PATHS)
+        is_llm_route = not is_auth_route and any(
+            p in path for p in ["/summarize", "/api/synthesis", "/api/chat", "/api/tts", "/api/ingest"]
+        )
 
-        key = f"rl:{client_ip}:{tier}:{current_minute}"
+        if is_auth_route:
+            tier = "auth"
+            limit = cfg.rate_limit_auth_per_minute
+        elif is_llm_route:
+            tier = "llm"
+            limit = cfg.rate_limit_llm_per_minute
+        else:
+            tier = "general"
+            limit = cfg.rate_limit_per_minute
 
         limiter = get_rate_limiter()
-        allowed, current_count = await limiter.check_and_increment(key, limit)
+        reset_at = (current_minute + 1) * 60
 
-        # Standard rate-limit headers (RFC 6585 / draft-ietf-httpapi-ratelimit-headers)
-        remaining = max(0, limit - current_count)
-        reset_at = (current_minute + 1) * 60  # start of next window
+        # --- IP-based check (always) ---
+        ip_key = f"rl:{client_ip}:{tier}:{current_minute}"
+        ip_allowed, ip_count = await limiter.check_and_increment(ip_key, limit)
+
+        if not ip_allowed:
+            logger.info(
+                "Rate limit hit (IP)",
+                extra={"client_ip": client_ip, "tier": tier, "limit": limit},
+            )
+            rl_headers = {
+                "X-RateLimit-Limit": str(limit),
+                "X-RateLimit-Remaining": "0",
+                "X-RateLimit-Reset": str(reset_at),
+                "Retry-After": str(reset_at - int(time.time())),
+            }
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Too many requests. Please slow down and try again later."},
+                headers=rl_headers,
+            )
+
+        # --- Per-email check (auth routes only, POST with JSON body) ---
+        if is_auth_route and request.method == "POST":
+            try:
+                body_bytes = await request.body()
+                # Re-inject body so downstream handlers can still read it
+                request._body = body_bytes  # type: ignore[attr-defined]
+                body_data = json.loads(body_bytes)
+                email = body_data.get("email", "")
+                if email and isinstance(email, str):
+                    email_hash = hashlib.sha256(email.strip().lower().encode()).hexdigest()[:32]
+                    email_key = f"rl:email:{email_hash}:{tier}:{current_minute}"
+                    email_allowed, _ = await limiter.check_and_increment(email_key, limit)
+                    if not email_allowed:
+                        logger.info(
+                            "Rate limit hit (email)",
+                            extra={"tier": tier, "limit": limit},
+                        )
+                        rl_headers = {
+                            "X-RateLimit-Limit": str(limit),
+                            "X-RateLimit-Remaining": "0",
+                            "X-RateLimit-Reset": str(reset_at),
+                            "Retry-After": str(reset_at - int(time.time())),
+                        }
+                        return JSONResponse(
+                            status_code=429,
+                            content={"detail": "Too many requests for this account. Try again later."},
+                            headers=rl_headers,
+                        )
+            except Exception:
+                # Body parsing failed — fall through, IP check already passed
+                pass
+
+        # --- Standard rate-limit headers on success ---
+        remaining = max(0, limit - ip_count)
         rl_headers = {
             "X-RateLimit-Limit": str(limit),
             "X-RateLimit-Remaining": str(remaining),
             "X-RateLimit-Reset": str(reset_at),
         }
-
-        if not allowed:
-            logger.info("Rate limit hit", extra={"client_ip": client_ip, "tier": tier, "limit": limit})
-            return JSONResponse(
-                status_code=429,
-                content={"detail": "Rate limit exceeded. Try again later."},
-                headers={**rl_headers, "Retry-After": str(reset_at - int(time.time()))},
-            )
 
         response = await call_next(request)
         for header, value in rl_headers.items():

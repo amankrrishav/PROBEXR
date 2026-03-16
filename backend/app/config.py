@@ -86,6 +86,7 @@ class AppConfig(BaseSettings):
     # ── Rate Limiting ────────────────────────────────────────────
     rate_limit_per_minute: int = 60
     rate_limit_llm_per_minute: int = 10
+    rate_limit_auth_per_minute: int = 5  # Tight limit for login/register/magic-link
 
     # ── Token Lifetimes ──────────────────────────────────────────
     access_token_expire_minutes: int = 15
