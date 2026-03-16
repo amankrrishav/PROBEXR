@@ -5,9 +5,11 @@ Magic link tokens are short-lived JWTs (15 min) signed with SECRET_KEY.
 We test the full round-trip: request a link → extract the token from the
 signed JWT → verify it → get back a valid session.
 
-We also test bad tokens, expired-ish tokens, and wrong token type.
+We also test bad tokens, expired-ish tokens, wrong token type, and
+one-time use enforcement (second use of the same token returns 401).
 """
 import pytest
+import uuid
 from unittest.mock import patch
 from httpx import AsyncClient
 import jwt
@@ -20,11 +22,14 @@ cfg = get_config()
 
 
 def _make_jwt(sub: str, type_: str = "magic_link", exp_delta_minutes: int = 15) -> str:
-    """Helper to craft a custom JWT for edge-case tests."""
+    """Helper to craft a custom JWT for edge-case tests.
+    Includes a unique `jti` so one-time enforcement works correctly.
+    """
     payload = {
         "sub": sub,
         "exp": datetime.now(timezone.utc) + timedelta(minutes=exp_delta_minutes),
         "type": type_,
+        "jti": str(uuid.uuid4()),  # Required for one-time use enforcement
     }
     return jwt.encode(payload, cfg.SECRET_KEY, algorithm=cfg.ALGORITHM)
 
@@ -146,18 +151,19 @@ async def test_magic_link_verify_missing_token(client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_magic_link_second_verify_with_same_token_still_works(client: AsyncClient):
+async def test_magic_link_second_verify_with_same_token_rejected(client: AsyncClient):
     """
-    Magic link tokens are stateless JWTs — a second use within the validity window
-    will provision/log in the same user again (no one-time use enforcement at this
-    phase). This test documents the current behavior.
+    Magic link tokens are one-time use only.
+    A second attempt with the same token within the validity window
+    must return 401 — the jti is already in the UsedToken table.
     """
     email = "reuse@example.com"
     token = _make_jwt(email)
 
     res1 = await client.get(f"/auth/verify?token={token}")
+    assert res1.status_code == 200  # First use succeeds
+
     client.cookies.clear()
     res2 = await client.get(f"/auth/verify?token={token}")
-
-    assert res1.status_code == 200
-    assert res2.status_code == 200  # Second use still works (stateless JWT)
+    assert res2.status_code == 401  # Second use rejected
+    assert "already been used" in res2.json()["detail"].lower()

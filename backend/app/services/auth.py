@@ -1,5 +1,6 @@
 from typing import Annotated, Any, Optional
 from datetime import datetime, timedelta, timezone
+import hashlib
 import uuid
 
 from argon2 import PasswordHasher
@@ -116,19 +117,52 @@ async def verify_password_reset_token(session: AsyncSession, token: str, new_pas
 def create_magic_link_token(email: str) -> str:
     """
     Create a short-lived token for magic link authentication.
+    Includes a `jti` (JWT ID) claim for one-time use enforcement.
     """
     expire = datetime.now(timezone.utc) + timedelta(minutes=15)
     to_encode = {
         "sub": email,
         "exp": expire,
-        "type": "magic_link"
+        "type": "magic_link",
+        "jti": str(uuid.uuid4()),  # Unique token ID — stored on first use
     }
     return jwt.encode(to_encode, cfg.signing_key, algorithm=ALGORITHM)
+
+
+async def _mark_token_used(
+    session: AsyncSession,
+    jti: str,
+    token_type: str,
+    expires_at: datetime,
+) -> None:
+    """
+    Insert the jti into used_token.  If the jti already exists
+    (unique constraint violation) this raises an IntegrityError,
+    which the caller converts into a 401.
+    """
+    from app.models.used_token import UsedToken
+    from sqlalchemy.exc import IntegrityError
+
+    record = UsedToken(
+        jti=jti,
+        token_type=token_type,
+        expires_at=expires_at,
+    )
+    session.add(record)
+    try:
+        await session.commit()
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="This link has already been used. Please request a new one.",
+        )
 
 
 async def verify_magic_link_token(session: AsyncSession, token: str) -> User:
     """
     Verify a magic link token and return the user.
+    Enforces one-time use via the UsedToken table.
     """
     try:
         payload = jwt.decode(token, cfg.verification_key, algorithms=[ALGORITHM])
@@ -144,6 +178,15 @@ async def verify_magic_link_token(session: AsyncSession, token: str) -> User:
                 detail="Could not validate credentials",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+        jti = payload.get("jti")
+        if not jti:
+            # Legacy tokens without jti — fall back to hashing the full token
+            jti = hashlib.sha256(token.encode()).hexdigest()
+        exp_ts = payload.get("exp")
+        expires_at = (
+            datetime.fromtimestamp(exp_ts, tz=timezone.utc).replace(tzinfo=None)
+            if exp_ts else datetime.now(timezone.utc).replace(tzinfo=None)
+        )
     except PyJWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -151,11 +194,14 @@ async def verify_magic_link_token(session: AsyncSession, token: str) -> User:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # Enforce one-time use — raises 401 if already consumed
+    await _mark_token_used(session, jti, "magic_link", expires_at)
+
     user = await get_user_by_email(session, email)
     if not user:
         # Just-In-Time Provisioning for new magic link users
         user = await register_user(session, email, str(uuid.uuid4()))
-    
+
     user.last_login_at = datetime.now(timezone.utc).replace(tzinfo=None)
     user.is_verified = True
     session.add(user)
