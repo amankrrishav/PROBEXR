@@ -187,24 +187,31 @@ export default function AccountSettings({ open, onClose }) {
 
     setSubmitting(true);
     setMessage(null);
+    let backendSuccess = false;
     try {
-      // Try backend update first
       await auth.updateProfile({
         full_name: fullName.trim() || null,
         avatar_url: avatarUrl.trim() || null,
       });
-    } catch {
-      // Backend might be down, still save locally
+      backendSuccess = true;
+    } catch (err) {
+      setMessage({
+        type: "error",
+        text: err?.message || "Failed to save. Please check your connection and try again.",
+      });
+    } finally {
+      setSubmitting(false);
     }
 
-    // Always persist to localStorage
+    if (!backendSuccess) return;
+
+    // Only persist locally and show success when backend confirmed the save
     saveUser({
       full_name: fullName.trim(),
       avatar_url: avatarUrl.trim(),
       email: user?.email || "",
     });
 
-    setSubmitting(false);
     setMessage({ type: "success", text: "Changes saved" });
     setTimeout(() => handleClose(), 2500);
   }
