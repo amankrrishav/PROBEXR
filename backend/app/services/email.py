@@ -7,6 +7,69 @@ from app.config import get_config
 
 logger = logging.getLogger(__name__)
 
+async def send_account_exists_email(to_email: str, login_link: str) -> None:
+    """
+    Notify an existing user that someone tried to register with their email.
+    Provides a magic-link so they can log back in without a password.
+    Falls back to console log if no SMTP_HOST configured.
+    """
+    cfg = get_config()
+
+    if not cfg.smtp_host:
+        logger.info(f"ACCOUNT EXISTS EMAIL for {to_email}: {login_link}")
+        print(f"\n[DEVELOPMENT] ACCOUNT EXISTS EMAIL for {to_email}: {login_link}\n")
+        return
+
+    msg = EmailMessage()
+    msg["Subject"] = "Someone tried to sign up with your PROBEXR email"
+    msg["From"] = cfg.smtp_from_email
+    msg["To"] = to_email
+
+    msg.set_content(f"""
+Hi there,
+
+Someone just tried to create a PROBEXR account using your email address.
+
+If that was you and you already have an account, click the link below to log in:
+{login_link}
+
+If that wasn't you, you can safely ignore this email — no changes were made to your account.
+
+Thanks,
+The PROBEXR Team
+    """)
+
+    msg.add_alternative(f"""
+    <html>
+      <body>
+        <p>Hi there,</p>
+        <p>Someone just tried to create a PROBEXR account using your email address.</p>
+        <p>If that was you and you already have an account, click below to log in:</p>
+        <a href="{login_link}" style="display:inline-block;padding:10px 20px;background-color:#000;color:#fff;text-decoration:none;border-radius:5px;font-weight:bold;">Log in to PROBEXR</a>
+        <p>If that wasn't you, you can safely ignore this email — no changes were made.</p>
+        <p>Thanks,<br>The PROBEXR Team</p>
+      </body>
+    </html>
+    """, subtype="html")
+
+    def _send_email():
+        try:
+            with smtplib.SMTP(cfg.smtp_host, cfg.smtp_port) as server:
+                server.starttls()
+                if cfg.smtp_user and cfg.smtp_password:
+                    server.login(cfg.smtp_user, cfg.smtp_password)
+                server.send_message(msg)
+                logger.info(f"Account-exists email sent to {to_email}")
+        except Exception as e:
+            logger.error(f"SMTP error sending account-exists email to {to_email}: {str(e)}")
+            raise
+
+    try:
+        await asyncio.to_thread(_send_email)
+    except Exception as e:
+        raise ValueError(f"Failed to send email: {str(e)}")
+
+
 async def send_verification_email(to_email: str, verification_link: str) -> None:
     """Send email verification link. Falls back to console log if no SMTP_HOST configured."""
     cfg = get_config()

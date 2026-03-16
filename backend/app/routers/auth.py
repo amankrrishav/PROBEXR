@@ -2,6 +2,7 @@ import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
+from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -41,9 +42,8 @@ from app.services.auth import (
     verify_email_token,
 )
 from app.services.social import get_google_user_info, get_github_user_info
-from app.services.email import send_magic_link_email, send_password_reset_email, send_verification_email
+from app.services.email import send_magic_link_email, send_password_reset_email, send_verification_email, send_account_exists_email
 from app.config import get_config
-from fastapi.responses import RedirectResponse
 import jwt
 from datetime import timedelta
 
@@ -51,16 +51,49 @@ from datetime import timedelta
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-@router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
+@router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register(
-    payload: RegisterRequest, 
+    payload: RegisterRequest,
     response: Response,
-    session: DbSession
-) -> Token:
-    try:
-        user = await register_user(session, payload.email, payload.password)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    session: DbSession,
+):
+    # ----------------------------------------------------------------
+    # Email enumeration defense.
+    # We check for an existing user BEFORE calling register_user so we
+    # can return an identical-looking response regardless of whether the
+    # email is already registered.  An attacker watching status codes or
+    # response bodies cannot tell the difference between a fresh signup
+    # and a duplicate attempt.
+    # ----------------------------------------------------------------
+    existing = await get_user_by_email(session, payload.email)
+
+    if existing:
+        # Silently notify the existing owner so they know someone tried
+        # to register with their address, and give them a magic-link to
+        # log back in.  We deliberately do NOT return tokens here.
+        try:
+            cfg = get_config()
+            magic_token = create_magic_link_token(existing.email)
+            login_link = f"{cfg.frontend_url}/auth/verify?token={magic_token}"
+            await send_account_exists_email(existing.email, login_link)
+        except Exception as e:
+            logger.warning(
+                "Failed to send account-exists email to %s: %s",
+                existing.email, str(e),
+            )
+        # Return 200 (not 201, not 400) with a generic message — same
+        # surface area as a real registration from the caller's perspective.
+        return JSONResponse(
+            status_code=200,
+            content={
+                "message": (
+                    "If this email is new here, your account has been created. "
+                    "Please check your inbox to verify it."
+                )
+            },
+        )
+
+    user = await register_user(session, payload.email, payload.password)
 
     if user.id is None:
         raise HTTPException(status_code=500, detail="User creation failed")

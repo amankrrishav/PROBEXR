@@ -30,8 +30,17 @@ async def test_register_duplicate(client: AsyncClient):
     assert res1.status_code == 201
 
     res2 = await client.post("/auth/register", json=payload)
-    assert res2.status_code == 400
-    assert "already registered" in res2.json()["detail"].lower()
+
+    # Email enumeration defense: duplicate registration must NOT return 400
+    # with a message that reveals the email is taken. It returns 200 with a
+    # generic message — caller cannot distinguish new vs existing email.
+    assert res2.status_code == 200
+    body = res2.json()
+    assert "already registered" not in str(body).lower()
+    assert "message" in body
+    # No tokens — caller is not logged in automatically on a duplicate attempt
+    assert "access_token" not in body
+    assert "refresh_token" not in body
 
 
 @pytest.mark.asyncio
