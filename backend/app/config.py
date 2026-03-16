@@ -56,7 +56,7 @@ class AppConfig(BaseSettings):
     target_max_words: int = 300
 
     # ── Database ─────────────────────────────────────────────────
-    database_url: str = "sqlite:///./probefy.db"
+    database_url: str = "sqlite:///./app.db"
     db_pool_size: int = 5
     db_max_overflow: int = 10
     db_pool_timeout: int = 30

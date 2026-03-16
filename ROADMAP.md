@@ -7,12 +7,12 @@ PROBEXR is **100% free and open-source**. This doc outlines completed work and u
 ## Current (Completed)
 
 - **Backend:** FastAPI (fully async), config, routers, services. Includes endpoints for Summarize (extractive + LLM), URL Ingest, Text-to-Speech (ready for production implementation), Contextual Chat, Flashcard Export, and Multi-Document Synthesis. Health checks, auth (email + password, JWT with HttpOnly cookies).
-- **Infrastructure:** Async database layer (PostgreSQL/CockroachDB via `asyncpg` + SQLite via `aiosqlite`), connection pooling, Redis rate limiter with in-memory fallback, LLM streaming (`generate_full` + `generate_stream`), structured JSON observability logging, Alembic migrations (env-driven). Full local dev compatibility preserved.
+- **Infrastructure:** Async database layer (PostgreSQL via `asyncpg` + SQLite via `aiosqlite`), connection pooling, Redis rate limiter with in-memory fallback, LLM streaming (`generate_full` + `generate_stream`), structured JSON observability logging, Alembic migrations (env-driven). Full local dev compatibility preserved.
 - **Frontend:** React + Vite, config, hooks, features. Summarizer + theme, backend health on load, request timeout, auth modal (sign up / log in), account menu. Features include the Synthesis Workspace, Sidebar navigation, and interactive Output Cards for chat and flashcards. SSE streaming with automatic fallback.
-- **Testing:** Comprehensive backend test suite (pytest) covering auth, documents, chat, flashcards, etc.
-- **Production Hardening:** Live deployment on Netlify (Frontend) and Render (Backend) with SSL/TLS, CORS configuration, and managed database/Redis.
+- **Testing:** Comprehensive backend (pytest) and frontend (vitest) test suites covering auth, flashcards, and component rendering.
+- **Production Hardening:** Live deployment with SSL/TLS, CORS configuration, and managed database/Redis.
 - **Session Sync:** Multi-device session support with Refresh Token rotation and reuse detection.
-- **Security & Performance:** Strict CSRF middleware (dual-submit cookie pattern), OAuth state validation, global shared HTTPX connections, and robust error masking in production 500s.
+- **Security & Performance:** Enterprise-grade Auth (Account Lockout, Email Enumeration Defense, NIST Passwords, One-time Magic Links), Strict CSRF middleware (dual-submit cookie pattern), OAuth state validation, global shared HTTPX connections, and robust error masking.
 - **CI/CD Pipeline:** Fully automated GitHub Actions checks (mypy, pytest, eslint, vitest) on PRs/pushes.
 - **Email Delivery:** Universal asynchronous SMTP service for passwordless Magic Link dispatch.
 

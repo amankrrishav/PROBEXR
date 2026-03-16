@@ -1,6 +1,6 @@
 # PROBEXR Backend
 
-Scalable async FastAPI backend for human-like summarization, TTS, chat, and flashcards. PostgreSQL-ready with Redis rate limiting. Includes premium **Auth UX** (Google, GitHub, Magic Links via SMTP).
+Scalable async FastAPI backend for human-like summarization, TTS, chat, and flashcards. PostgreSQL-ready with Redis rate limiting. Includes premium **Enterprise-grade Auth UX** (Google, GitHub, JWTs, NIST Passwords, Account Lockout, Enumerable Defense, One-time Magic Links via SMTP).
 
 ## Cost: $0 options (no need to spend $5–10/month)
 
@@ -9,10 +9,10 @@ Scalable async FastAPI backend for human-like summarization, TTS, chat, and flas
 - **OAuth (free):** Google and GitHub OAuth are free to set up for personal/dev projects.
 
 
-## Production Deployment (Render)
+## Production Deployment
 
-1. **Connect GitHub:** Deploy the `/backend` subdirectory.
-2. **Env Vars:** Set `DATABASE_URL` (CockroachDB), `REDIS_URL` (Aiven), `SECRET_KEY`, and `FRONTEND_URL` (your Netlify domain).
+1. **Connect your repo:** Deploy the `/backend` subdirectory on your preferred PaaS.
+2. **Env Vars:** Set `DATABASE_URL` (PostgreSQL), `REDIS_URL` (managed Redis), `SECRET_KEY`, and `FRONTEND_URL` (your frontend domain).
 3. **Start Command:** `python -m alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT`
 
 ## Structure

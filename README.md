@@ -5,7 +5,7 @@ PROBEXR is a full-stack article summarizer and learning platform: paste text or 
 
 **Live App:** [https://probefy.netlify.app/](https://probefy.netlify.app/)
 
-**100% free and open-source.** No plans, no paywalls, no limits.**Backend:** Scalable FastAPI app with async PostgreSQL/CockroachDB (asyncpg), Redis rate limiting, and streaming-ready LLM layer. **$0 options:** no API key = extractive summarization; or Groq/OpenRouter free tier for human-like summaries. No need to spend $5–10/month. Runs locally with SQLite + no Redis for easy development.
+**100% free and open-source.** No plans, no paywalls, no limits. **Backend:** Scalable FastAPI app with async PostgreSQL (asyncpg), Redis rate limiting, and streaming-ready LLM layer. **$0 options:** no API key = extractive summarization; or Groq/OpenRouter free tier for human-like summaries. No need to spend $5–10/month. Runs locally with SQLite + no Redis for easy development.
 
 ---
 
@@ -35,8 +35,8 @@ PROBEXR is a full-stack article summarizer and learning platform: paste text or 
 - **Serverless/cloud-friendly:** Minimal deps (FastAPI, httpx, pydantic, uvicorn). No PyTorch, no local LLM. Deploy on Railway, Render, Fly, or serverless (e.g. Mangum for AWS Lambda).  
 - **$0 modes:** No API key → extractive summarization (sentence selection). Groq or OpenRouter free tier → human-like LLM summaries. No credit card or monthly spend required.
 - **Provider-agnostic:** Set one of `GROQ_API_KEY`, `OPENAI_API_KEY`, or `OPENROUTER_API_KEY`; provider and default model are auto-detected.  
-- **Auth:** Email/password + Social (Google/GitHub) with dynamic redirect URI support. JWT (HttpOnly cookies), Argon2 password hashing. Secure by default with CSRF middleware and OAuth state validation.
-- **CI/CD pipeline:** Automated GitHub Actions pipeline for testing (pytest, vitest) and linting (mypy, eslint) on push/PR.
+- **Enterprise-grade Auth:** Email/password + Social (Google/GitHub) with dynamic redirect URI support. Designed with advanced security: **Account Lockout** (Redis-backed anti-bruteforce), **Email Enumeration Defense**, strict **NIST SP 800-63B password policies**, and **one-time use Magic Links**. Secure by default with CSRF middleware and OAuth state validation.
+- **CI/CD pipeline:** Automated GitHub Actions pipeline for frontend (vitest, eslint) and backend (pytest, mypy) on push/PR.
 
 ---
 

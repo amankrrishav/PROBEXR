@@ -1,4 +1,4 @@
-# ReadPulse Frontend
+# PROBEXR Frontend
 
 React + Vite frontend. Structure matches backend: config, services (API), hooks, features. Includes premium **Auth UX** (Google, GitHub, Magic Links).
 
@@ -7,7 +7,9 @@ React + Vite frontend. Structure matches backend: config, services (API), hooks,
 - **Social Login:** Google and GitHub integration.
 - **Magic Links:** Passwordless signup/login via email.
 - **Profile Management:** In-app settings for name and avatar.
+- **Security-First UI:** Visual password strength hints (NIST compliant) and CSRF protection.
 - **Modern UI:** Vibrant, premium design with dark mode and smooth transitions.
+- **Testing:** Comprehensive frontend component testing with `vitest` and `@testing-library/react`.
 
 ## Structure (scalable)
 
@@ -17,16 +19,16 @@ React + Vite frontend. Structure matches backend: config, services (API), hooks,
 
 
 
-## Production Deployment (Netlify)
+## Production Deployment
 
-1. **Connect GitHub:** Deploy the `/frontend` subdirectory.
-2. **Build Settings:** Netlify automatically uses `netlify.toml`.
-3. **Env Vars:** Set `VITE_API_URL` to your Render backend URL.
+1. **Connect your repo:** Deploy the `/frontend` subdirectory on your preferred hosting platform.
+2. **Build Settings:** Use `netlify.toml` or equivalent config for your platform.
+3. **Env Vars:** Set `VITE_API_URL` to your backend URL.
 
 ## Env
 
 | Env | Purpose |
 |-----|--------|
 | `VITE_API_URL` | Backend base URL. |
-| `VITE_APP_NAME` | Defaults to `ReadPulse`. |
+| `VITE_APP_NAME` | Defaults to `PROBEXR`. |
 | `VITE_SUMMARIZE_MIN_WORDS` | Min word count to trigger summarization (default 30). |

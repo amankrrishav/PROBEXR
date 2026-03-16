@@ -1,1 +1,1 @@
-# ReadPulse backend — scalable, serverless-ready
+# PROBEXR backend — scalable, serverless-ready
