@@ -18,10 +18,14 @@ let _refreshPromise = null;
 
 async function _attemptTokenRefresh() {
   if (_refreshPromise) return _refreshPromise;
+  const csrfToken = getCookie("csrf_token");
   _refreshPromise = fetch(`${getBaseUrl()}/auth/refresh`, {
     method: "POST",
     credentials: "include",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
+    },
   }).then((res) => {
     _refreshPromise = null;
     return res.ok;

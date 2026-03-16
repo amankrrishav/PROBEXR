@@ -300,20 +300,24 @@ class CSRFMiddleware(BaseHTTPMiddleware):
                 "CSRF token missing",
                 extra={"path": path, "method": request.method, "has_cookie": bool(cookie_token), "has_header": bool(header_token)},
             )
-            return JSONResponse(
+            response = JSONResponse(
                 status_code=403,
                 content={"detail": "CSRF token missing. Please refresh the page and try again."},
             )
+            self._ensure_csrf_cookie(response, request, cfg)
+            return response
 
         if not secrets.compare_digest(cookie_token, header_token):
             logger.warning(
                 "CSRF token mismatch",
                 extra={"path": path, "method": request.method},
             )
-            return JSONResponse(
+            response = JSONResponse(
                 status_code=403,
                 content={"detail": "CSRF token mismatch. Please refresh the page and try again."},
             )
+            self._ensure_csrf_cookie(response, request, cfg)
+            return response
 
         # Token is valid — proceed
         response = await call_next(request)

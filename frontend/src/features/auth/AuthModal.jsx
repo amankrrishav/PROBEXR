@@ -1,5 +1,10 @@
 import { useState } from "react";
-import { config } from "../../config";
+import {
+  requestMagicLink,
+  forgotPassword as forgotPasswordApi,
+  resetPassword as resetPasswordApi,
+  resendVerification as resendVerificationApi,
+} from "../../services/auth.js";
 
 export default function AuthModal({
   open,
@@ -53,11 +58,7 @@ export default function AuthModal({
     if (resendCooldown || !user?.email) return;
     setLocalSubmitting(true);
     try {
-      await fetch(`${config.apiBaseUrl}/auth/resend-verification`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: user.email }),
-      });
+      await resendVerificationApi(user.email);
       onSuccess?.("Verification email resent! Check your inbox.");
       setResendCooldown(true);
       setTimeout(() => setResendCooldown(false), 60000);
@@ -118,12 +119,7 @@ export default function AuthModal({
     if (view === "forgot") {
       setLocalSubmitting(true);
       try {
-        const resp = await fetch(`${config.apiBaseUrl}/auth/forgot-password`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: email.trim() }),
-        });
-        if (!resp.ok) throw new Error("Request failed");
+        await forgotPasswordApi(email.trim());
         onSuccess?.("If that email exists, a reset link has been sent.");
         onClose();
       } catch {
@@ -137,20 +133,14 @@ export default function AuthModal({
     if (view === "reset") {
       setLocalSubmitting(true);
       try {
-        const resp = await fetch(`${config.apiBaseUrl}/auth/reset-password`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token: resetToken.trim(), new_password: newPassword }),
-        });
-        const data = await resp.json();
-        if (!resp.ok) throw new Error(data.detail || "Reset failed");
+        await resetPasswordApi(resetToken.trim(), newPassword);
         onSuccess?.("Password updated. Please log in with your new password.");
         setView("login");
         onModeChange("login");
         setResetToken("");
         setNewPassword("");
       } catch (err) {
-        setLocalError(err.message);
+        setLocalError(err.message || "Reset failed. Link may have expired.");
       } finally {
         setLocalSubmitting(false);
       }
@@ -160,12 +150,7 @@ export default function AuthModal({
     if (useMagicLink) {
       setLocalSubmitting(true);
       try {
-        const resp = await fetch(`${config.apiBaseUrl}/auth/magic-link`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: email.trim() }),
-        });
-        if (!resp.ok) throw new Error("Failed to send link");
+        await requestMagicLink(email.trim());
         onSuccess?.("Magic link sent! Check server logs if locally developing.");
         onClose();
       } catch {
