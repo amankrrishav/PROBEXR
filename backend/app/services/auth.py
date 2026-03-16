@@ -21,6 +21,55 @@ cfg = get_config()
 ALGORITHM = cfg.ALGORITHM
 
 
+def create_password_reset_token(email: str) -> str:
+    """Create a short-lived token for password reset."""
+    expire = datetime.now(timezone.utc) + timedelta(minutes=30)
+    to_encode = {
+        "sub": email,
+        "exp": expire,
+        "type": "password_reset",
+    }
+    return jwt.encode(to_encode, cfg.signing_key, algorithm=ALGORITHM)
+
+
+async def verify_password_reset_token(session: AsyncSession, token: str, new_password: str) -> User:
+    """Verify a password reset token and update the user's password."""
+    try:
+        payload = jwt.decode(token, cfg.verification_key, algorithms=[ALGORITHM])
+        if payload.get("type") != "password_reset":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token type",
+            )
+        email = payload.get("sub")
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Could not validate credentials",
+            )
+    except PyJWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Reset link is invalid or has expired",
+        )
+
+    user = await get_user_by_email(session, email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Account is inactive")
+
+    user.hashed_password = hash_password(new_password)
+    session.add(user)
+
+    # Revoke all refresh tokens so all existing sessions are invalidated
+    await revoke_all_user_tokens(session, user.id)
+
+    await session.commit()
+    await session.refresh(user)
+    return user
+
+
 def create_magic_link_token(email: str) -> str:
     """
     Create a short-lived token for magic link authentication.

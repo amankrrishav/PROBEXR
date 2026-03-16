@@ -6,6 +6,8 @@ from app.schemas.auth import (
     UserRead,
     MagicLinkRequest,
     ProfileUpdate,
+    PasswordResetRequest,
+    PasswordResetConfirm,
 )
 
 __all__ = [
@@ -16,4 +18,6 @@ __all__ = [
     "UserRead",
     "MagicLinkRequest",
     "ProfileUpdate",
+    "PasswordResetRequest",
+    "PasswordResetConfirm",
 ]

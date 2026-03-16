@@ -13,6 +13,8 @@ from app.schemas import (
     UserRead,
     MagicLinkRequest,
     ProfileUpdate,
+    PasswordResetRequest,
+    PasswordResetConfirm,
 )
 from app.services.auth import (
     create_access_token,
@@ -29,9 +31,11 @@ from app.services.auth import (
     handle_social_login,
     create_magic_link_token,
     verify_magic_link_token,
+    create_password_reset_token,
+    verify_password_reset_token,
 )
 from app.services.social import get_google_user_info, get_github_user_info
-from app.services.email import send_magic_link_email
+from app.services.email import send_magic_link_email, send_password_reset_email
 from app.config import get_config
 from fastapi.responses import RedirectResponse
 import jwt
@@ -290,6 +294,40 @@ async def verify_magic_link(
     set_auth_cookie(response, access_token)
     set_refresh_cookie(response, refresh.token)
     return Token(access_token=access_token, refresh_token=refresh.token)
+
+
+# --- Password Reset ---
+
+@router.post("/forgot-password")
+async def forgot_password(
+    payload: PasswordResetRequest,
+    session: DbSession,
+) -> dict:
+    """
+    Always returns 200 regardless of whether the email exists.
+    This prevents email enumeration — attacker can't tell if an account exists.
+    """
+    user = await get_user_by_email(session, payload.email)
+    if user and user.is_active and user.hashed_password:
+        # Only send reset for password-enabled accounts (not social-only)
+        cfg = get_config()
+        token = create_password_reset_token(payload.email)
+        reset_link = f"{cfg.frontend_url}/auth/reset-password?token={token}"
+        try:
+            await send_password_reset_email(payload.email, reset_link)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
+    return {"message": "If an account with that email exists, a reset link has been sent."}
+
+
+@router.post("/reset-password")
+async def reset_password(
+    payload: PasswordResetConfirm,
+    session: DbSession,
+) -> dict:
+    """Verify the reset token and update the user's password."""
+    await verify_password_reset_token(session, payload.token, payload.new_password)
+    return {"message": "Password updated successfully. Please log in with your new password."}
 
 
 # --- Profile (Phase 4) ---
