@@ -183,7 +183,7 @@ async def test_github_login_redirect(client: AsyncClient):
 async def test_social_links_to_existing_email_account(client: AsyncClient):
     """Social login with an email that already has an email/password account links them."""
     email = "shared@example.com"
-    await client.post("/auth/register", json={"email": email, "password": "Pass1234!"})
+    await client.post("/auth/register", json={"email": email, "password": "Pass1234!XyzAB"})
     client.cookies.clear()
 
     google_profile = {**GOOGLE_USER, "email": email}

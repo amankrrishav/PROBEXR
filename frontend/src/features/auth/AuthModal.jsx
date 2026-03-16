@@ -6,6 +6,46 @@ import {
   resendVerification as resendVerificationApi,
 } from "../../services/auth.js";
 
+const SPECIAL = new Set("!@#$%^&*()_+-=[]{}|;:',.<>?/~`\"\\");
+
+function PasswordStrengthHint({ password }) {
+  const rules = [
+    { label: "12+ characters", ok: password.length >= 12 },
+    { label: "Uppercase letter", ok: /[A-Z]/.test(password) },
+    { label: "Lowercase letter", ok: /[a-z]/.test(password) },
+    { label: "Digit", ok: /[0-9]/.test(password) },
+    { label: "Special character", ok: [...password].some(c => SPECIAL.has(c)) },
+  ];
+  const passed = rules.filter(r => r.ok).length;
+  const allGood = passed === rules.length;
+
+  return (
+    <div className="mt-1.5 space-y-1">
+      <div className="flex gap-0.5">
+        {rules.map((_, i) => (
+          <div
+            key={i}
+            className={`h-1 flex-1 rounded-full transition-colors ${i < passed
+                ? allGood ? "bg-emerald-500" : "bg-amber-400"
+                : "bg-gray-200 dark:bg-gray-700"
+              }`}
+          />
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+        {rules.map((r) => (
+          <span
+            key={r.label}
+            className={`text-[10px] ${r.ok ? "text-emerald-600 dark:text-emerald-400" : "text-gray-400"}`}
+          >
+            {r.ok ? "✓" : "·"} {r.label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function AuthModal({
   open,
   mode,
@@ -234,11 +274,11 @@ export default function AuthModal({
                 type="password"
                 autoComplete="new-password"
                 required
-                minLength={8}
+                minLength={12}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none ring-0 transition focus:border-black focus:ring-1 focus:ring-black dark:border-gray-700 dark:bg-[#050505] dark:focus:border-white dark:focus:ring-white"
-                placeholder="At least 8 characters"
+                placeholder="12+ chars, upper, lower, digit, symbol"
               />
             </div>
             {activeError && <p className="text-[11px] text-red-500">{activeError}</p>}
@@ -375,12 +415,15 @@ export default function AuthModal({
                 type="password"
                 autoComplete={isSignup ? "new-password" : "current-password"}
                 required
-                minLength={8}
+                minLength={12}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none ring-0 transition focus:border-black focus:ring-1 focus:ring-black dark:border-gray-700 dark:bg-[#050505] dark:focus:border-white dark:focus:ring-white"
-                placeholder="At least 8 characters"
+                placeholder={isSignup ? "12+ chars, upper, lower, digit, symbol" : "Your password"}
               />
+              {isSignup && password.length > 0 && (
+                <PasswordStrengthHint password={password} />
+              )}
             </div>
           )}
 

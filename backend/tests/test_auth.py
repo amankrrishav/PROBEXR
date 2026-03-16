@@ -49,8 +49,101 @@ async def test_register_short_password(client: AsyncClient):
         "/auth/register",
         json={"email": "short@example.com", "password": "abc"},
     )
-    # Pydantic validation: min_length=8
+    # Pydantic validation: below min_length
     assert res.status_code == 422
+
+
+# ---- Password Policy ----
+
+@pytest.mark.asyncio
+async def test_register_password_too_short_11_chars(client: AsyncClient):
+    """11 chars — one below the 12-char minimum."""
+    res = await client.post(
+        "/auth/register",
+        json={"email": "policy1@example.com", "password": "Short1!Pass"},
+    )
+    assert res.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_register_password_no_uppercase(client: AsyncClient):
+    """No uppercase letter → rejected."""
+    res = await client.post(
+        "/auth/register",
+        json={"email": "policy2@example.com", "password": "nouppercase1!"},
+    )
+    assert res.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_register_password_no_lowercase(client: AsyncClient):
+    """No lowercase letter → rejected."""
+    res = await client.post(
+        "/auth/register",
+        json={"email": "policy3@example.com", "password": "NOLOWERCASE1!"},
+    )
+    assert res.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_register_password_no_digit(client: AsyncClient):
+    """No digit → rejected."""
+    res = await client.post(
+        "/auth/register",
+        json={"email": "policy4@example.com", "password": "NoDigitPass!!"},
+    )
+    assert res.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_register_password_no_special_char(client: AsyncClient):
+    """No special character → rejected."""
+    res = await client.post(
+        "/auth/register",
+        json={"email": "policy5@example.com", "password": "NoSpecialChar1"},
+    )
+    assert res.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_register_password_too_long(client: AsyncClient):
+    """Over 128 characters → rejected."""
+    res = await client.post(
+        "/auth/register",
+        json={"email": "policy6@example.com", "password": "A1!" + "x" * 127},
+    )
+    assert res.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_register_common_password_rejected(client: AsyncClient):
+    """Known common password → rejected even if it meets length/complexity."""
+    res = await client.post(
+        "/auth/register",
+        json={"email": "policy7@example.com", "password": "Password123!"},
+    )
+    # "password" is in the common list — validator lowercases and checks
+    assert res.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_register_strong_password_accepted(client: AsyncClient):
+    """A genuinely strong password passes all policy rules."""
+    res = await client.post(
+        "/auth/register",
+        json={"email": "policy8@example.com", "password": "Tr0ub4dor&3XYZ"},
+    )
+    assert res.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_register_minimum_valid_password(client: AsyncClient):
+    """Exactly 12 chars satisfying all rules is accepted."""
+    res = await client.post(
+        "/auth/register",
+        json={"email": "policy9@example.com", "password": "Valid1!PassAB"},
+    )
+    assert res.status_code == 201
 
 
 @pytest.mark.asyncio

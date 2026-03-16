@@ -84,7 +84,7 @@ async def test_magic_link_verify_existing_user(client: AsyncClient):
     """Magic link for an already-registered user logs them in successfully."""
     email = "existing@example.com"
     # Register first
-    await client.post("/auth/register", json={"email": email, "password": "Pass1234!"})
+    await client.post("/auth/register", json={"email": email, "password": "Pass1234!XyzAB"})
     # Then verify via magic link
     token = _make_jwt(email)
     res = await client.get(f"/auth/verify?token={token}")
