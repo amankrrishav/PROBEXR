@@ -21,6 +21,7 @@ import app.models  # noqa: F401 — register all models on metadata
 from app.db import get_session
 from app.main import app as fastapi_app
 from app.middleware import set_rate_limiter
+from app.lockout import set_lockout_manager, NoOpLockoutStore
 from app.config import get_config
 from app.services.auth import create_email_verification_token
 import jwt as jose_jwt
@@ -34,6 +35,11 @@ class _NoOpRateLimiter:
         return True, 0
 
 set_rate_limiter(_NoOpRateLimiter())
+
+# ---- Disable account lockout in tests ----
+# Prevents inter-test bleed where a wrong-password test locks out
+# a later successful-login test on the same email.
+set_lockout_manager(NoOpLockoutStore())
 
 # ---- CSRF test token ----
 # All test clients will include this matching cookie + header pair

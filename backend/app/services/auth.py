@@ -187,7 +187,9 @@ def hash_password(password: str) -> str:
     return ph.hash(password)
 
 
-def verify_password(plain: str, hashed: str) -> bool:
+def verify_password(plain: str, hashed: Optional[str]) -> bool:
+    if not hashed:
+        return False
     try:
         ph.verify(hashed, plain)
         return True
@@ -391,9 +393,28 @@ async def register_user(session: AsyncSession, email: str, password: str) -> Use
     return user
 
 async def authenticate_user(session: AsyncSession, email: str, password: str) -> User:
+    from app.lockout import get_lockout_manager
+    mgr = get_lockout_manager()
+
+    # Check lockout BEFORE hitting the DB — fail fast, don't leak timing info
+    if await mgr.is_locked(email):
+        raise ValueError(
+            "Account temporarily locked due to too many failed login attempts. "
+            "Please try again in 15 minutes or reset your password."
+        )
+
     user = await get_user_by_email(session, email)
-    if user is None or not verify_password(password, user.hashed_password):
+    if user is None or not verify_password(password, user.hashed_password or ""):
+        # Record the failure regardless of whether the email exists.
+        # This prevents timing-based enumeration (both paths take the same action).
+        await mgr.record_failure(email)
         raise ValueError("Invalid credentials")
+
+    # Successful login — reset the failure counter
+    await mgr.reset(email)
+
+    if not user.is_active:
+        raise ValueError("Account is inactive")
 
     user.last_login_at = datetime.now(timezone.utc).replace(tzinfo=None)
     session.add(user)

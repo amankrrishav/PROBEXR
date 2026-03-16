@@ -22,6 +22,11 @@ from app.middleware import (
     InMemoryRateLimiter,
     RedisRateLimiter,
 )
+from app.lockout import (
+    set_lockout_manager,
+    InMemoryLockoutStore,
+    RedisLockoutStore,
+)
 from app import http_client
 from app.services.token_gc import start_token_gc, stop_token_gc
 import httpx
@@ -75,6 +80,11 @@ async def lifespan(app_inst: FastAPI):
         )
         await redis_client.ping()  # type: ignore[misc]
         set_rate_limiter(RedisRateLimiter(redis_client))
+        set_lockout_manager(RedisLockoutStore(
+            redis_client,
+            max_attempts=cfg.lockout_max_attempts,
+            window_seconds=cfg.lockout_window_seconds,
+        ))
         logger.info("Redis connected: %s", cfg.redis_url.split("@")[-1] if "@" in cfg.redis_url else cfg.redis_url)
     except Exception as e:
         if cfg.environment == "production":
@@ -82,6 +92,10 @@ async def lifespan(app_inst: FastAPI):
         else:
             logger.info("Redis not available (%s). Using in-memory rate limiter (OK for development).", type(e).__name__)
         set_rate_limiter(InMemoryRateLimiter())
+        set_lockout_manager(InMemoryLockoutStore(
+            max_attempts=cfg.lockout_max_attempts,
+            window_seconds=cfg.lockout_window_seconds,
+        ))
         redis_client = None
 
     logger.info(

@@ -88,6 +88,10 @@ class AppConfig(BaseSettings):
     rate_limit_llm_per_minute: int = 10
     rate_limit_auth_per_minute: int = 5  # Tight limit for login/register/magic-link
 
+    # ── Account Lockout ──────────────────────────────────────────
+    lockout_max_attempts: int = 5        # Failed logins before lockout
+    lockout_window_seconds: int = 900    # 15 minutes
+
     # ── Token Lifetimes ──────────────────────────────────────────
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
