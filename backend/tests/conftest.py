@@ -4,7 +4,7 @@ conftest.py — shared fixtures for backend smoke tests.
 Provides:
   - async_session: in-memory SQLite session for DB tests
   - client: async FastAPI test client
-  - registered_user: a pre-registered user with token
+  - registered_user: a pre-registered AND email-verified user with token
 """
 import asyncio
 from typing import AsyncGenerator
@@ -22,6 +22,7 @@ from app.db import get_session
 from app.main import app as fastapi_app
 from app.middleware import set_rate_limiter
 from app.config import get_config
+from app.services.auth import create_email_verification_token
 import jwt as jose_jwt
 
 
@@ -97,9 +98,20 @@ def make_oauth_state(provider: str = "google") -> str:
     return jose_jwt.encode(payload, cfg.secret_key, algorithm=cfg.algorithm)
 
 
+async def verify_user_email(client: AsyncClient, email: str) -> None:
+    """Helper: generate a verification token and call the verify-email endpoint."""
+    token = create_email_verification_token(email)
+    res = await client.get(f"/auth/verify-email?token={token}")
+    assert res.status_code == 200, f"Email verification failed for {email}: {res.text}"
+
+
 @pytest_asyncio.fixture
 async def registered_user(client: AsyncClient) -> dict:
-    """Register a user and return {"email", "password", "token", "refresh_token", "cookies"}."""
+    """Register a user, verify their email, and return credentials.
+
+    All feature routes now require is_verified=True (VerifiedUser dep),
+    so we verify immediately after registration to avoid 403s in tests.
+    """
     email = "test@example.com"
     password = "TestPass123!"
     res = await client.post(
@@ -108,6 +120,10 @@ async def registered_user(client: AsyncClient) -> dict:
     )
     assert res.status_code == 201, f"Registration failed: {res.text}"
     data = res.json()
+
+    # Verify email so VerifiedUser dependency passes
+    await verify_user_email(client, email)
+
     return {
         "email": email,
         "password": password,

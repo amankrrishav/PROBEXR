@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, status
 
 from app.schemas.requests import URLRequest, TextIngestRequest
 from app.models.document import Document
-from app.deps import OptionalUser, DbSession
+from app.deps import OptionalVerifiedUser, DbSession
 from app.services.ingest import fetch_and_clean_url, ingest_text_document
 
 logger = logging.getLogger(__name__)
@@ -14,7 +14,7 @@ router = APIRouter(prefix="/ingest", tags=["ingest"])
 @router.post("/url", response_model=Document)
 async def ingest_url(
     request: URLRequest,
-    user: OptionalUser,
+    user: OptionalVerifiedUser,
     session: DbSession
 ) -> Document:
     if not user or user.id is None:
@@ -35,7 +35,7 @@ async def ingest_url(
 @router.post("/text", response_model=Document)
 async def ingest_text(
     request: TextIngestRequest,
-    user: OptionalUser,
+    user: OptionalVerifiedUser,
     session: DbSession
 ) -> Document:
     if not user or user.id is None:

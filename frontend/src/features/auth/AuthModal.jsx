@@ -11,6 +11,8 @@ export default function AuthModal({
   submitting,
   error,
   onSuccess,
+  // Pass the logged-in user so we can show the unverified banner
+  user,
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -22,6 +24,7 @@ export default function AuthModal({
   const [newPassword, setNewPassword] = useState("");
   const [localError, setLocalError] = useState(null);
   const [localSubmitting, setLocalSubmitting] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(false);
 
   const [prevOpen, setPrevOpen] = useState(open);
   if (open !== prevOpen) {
@@ -44,6 +47,62 @@ export default function AuthModal({
     if (view === "login" || view === "signup") {
       setView(mode === "signup" ? "signup" : "login");
     }
+  }
+
+  async function handleResendVerification() {
+    if (resendCooldown || !user?.email) return;
+    setLocalSubmitting(true);
+    try {
+      await fetch(`${config.apiBaseUrl}/auth/resend-verification`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: user.email }),
+      });
+      onSuccess?.("Verification email resent! Check your inbox.");
+      setResendCooldown(true);
+      setTimeout(() => setResendCooldown(false), 60000);
+    } catch {
+      setLocalError("Failed to resend. Please try again.");
+    } finally {
+      setLocalSubmitting(false);
+    }
+  }
+
+  // Unverified banner — shown when logged in but email not verified
+  if (open && user && !user.is_verified) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+        <div className="relative w-full max-w-md rounded-2xl bg-white/95 p-6 shadow-2xl dark:bg-[#111111]/95 border border-gray-200 dark:border-gray-800">
+          <button type="button" onClick={onClose} className="absolute right-4 top-4 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">Esc</button>
+          <div className="mb-4 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+              <svg className="h-5 w-5 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-base font-semibold tracking-tight">Verify your email</h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Required to use all features</p>
+            </div>
+          </div>
+          <p className="mb-5 text-sm text-gray-600 dark:text-gray-300">
+            We sent a verification link to <span className="font-medium text-black dark:text-white">{user.email}</span>. Click the link in that email to unlock full access.
+          </p>
+          {localError && <p className="mb-3 text-[11px] text-red-500">{localError}</p>}
+          <button
+            type="button"
+            onClick={handleResendVerification}
+            disabled={localSubmitting || resendCooldown}
+            className="inline-flex w-full items-center justify-center rounded-full bg-black px-4 py-2.5 text-sm font-medium text-white shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-white dark:text-black"
+          >
+            {localSubmitting ? "Sending…" : resendCooldown ? "Link sent — check your inbox" : "Resend verification email"}
+          </button>
+          <p className="mt-3 text-center text-[10px] text-gray-400">
+            Check your spam folder if you don't see it.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   if (!open) return null;

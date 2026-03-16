@@ -1,7 +1,10 @@
+import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from app.db import get_session
 from app.deps import CurrentUser, DbSession
@@ -15,6 +18,7 @@ from app.schemas import (
     ProfileUpdate,
     PasswordResetRequest,
     PasswordResetConfirm,
+    ResendVerificationRequest,
 )
 from app.services.auth import (
     create_access_token,
@@ -33,9 +37,11 @@ from app.services.auth import (
     verify_magic_link_token,
     create_password_reset_token,
     verify_password_reset_token,
+    create_email_verification_token,
+    verify_email_token,
 )
 from app.services.social import get_google_user_info, get_github_user_info
-from app.services.email import send_magic_link_email, send_password_reset_email
+from app.services.email import send_magic_link_email, send_password_reset_email, send_verification_email
 from app.config import get_config
 from fastapi.responses import RedirectResponse
 import jwt
@@ -58,6 +64,16 @@ async def register(
 
     if user.id is None:
         raise HTTPException(status_code=500, detail="User creation failed")
+
+    # Send verification email (non-blocking — don't fail registration if email fails)
+    try:
+        cfg = get_config()
+        token = create_email_verification_token(user.email)
+        verification_link = f"{cfg.frontend_url}/auth/verify-email?token={token}"
+        await send_verification_email(user.email, verification_link)
+    except Exception as e:
+        logger.warning("Failed to send verification email to %s: %s", user.email, str(e))
+
     access_token = create_access_token({"sub": user.email})
     refresh = await create_refresh_token(session, user.id)
 
@@ -294,6 +310,39 @@ async def verify_magic_link(
     set_auth_cookie(response, access_token)
     set_refresh_cookie(response, refresh.token)
     return Token(access_token=access_token, refresh_token=refresh.token)
+
+
+# --- Email Verification ---
+
+@router.get("/verify-email")
+async def verify_email(
+    token: str,
+    session: DbSession,
+) -> dict:
+    """Verify a user's email address via the token sent during registration."""
+    await verify_email_token(session, token)
+    return {"message": "Email verified successfully. You can now use all features."}
+
+
+@router.post("/resend-verification")
+async def resend_verification(
+    payload: ResendVerificationRequest,
+    session: DbSession,
+) -> dict:
+    """
+    Resend verification email. Always returns 200 to prevent email enumeration.
+    Only sends if user exists, is active, and not already verified.
+    """
+    user = await get_user_by_email(session, payload.email)
+    if user and user.is_active and not user.is_verified:
+        try:
+            cfg = get_config()
+            token = create_email_verification_token(user.email)
+            verification_link = f"{cfg.frontend_url}/auth/verify-email?token={token}"
+            await send_verification_email(user.email, verification_link)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
+    return {"message": "If your email is registered and unverified, a new verification link has been sent."}
 
 
 # --- Password Reset ---

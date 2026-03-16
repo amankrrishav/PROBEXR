@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, status
 from sqlmodel import select, func
 
 from app.schemas.requests import ChatRequest
-from app.deps import OptionalUser, CurrentUser, DbSession
+from app.deps import OptionalVerifiedUser, VerifiedUser, DbSession
 from app.models.chat import ChatSession, ChatMessage
 from app.models.document import Document
 from app.services.chat import process_chat_message, ChatReply
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 
 @router.get("/sessions")
 async def list_chat_sessions(
-    user: CurrentUser,
+    user: VerifiedUser,
     session: DbSession,
     page: int = 1,
     per_page: int = 20,
@@ -69,7 +69,7 @@ async def list_chat_sessions(
 @router.get("/sessions/{session_id}/messages")
 async def list_session_messages(
     session_id: int,
-    user: CurrentUser,
+    user: VerifiedUser,
     session: DbSession,
     page: int = 1,
     per_page: int = 50,
@@ -120,7 +120,7 @@ async def list_session_messages(
 @router.post("/")
 async def chat_endpoint(
     request: ChatRequest,
-    user: OptionalUser,
+    user: OptionalVerifiedUser,
     session: DbSession,
 ) -> ChatReply:
     if not user or user.id is None:

@@ -21,6 +21,49 @@ cfg = get_config()
 ALGORITHM = cfg.ALGORITHM
 
 
+def create_email_verification_token(email: str) -> str:
+    """Create a short-lived token for email verification."""
+    expire = datetime.now(timezone.utc) + timedelta(hours=24)
+    to_encode = {
+        "sub": email,
+        "exp": expire,
+        "type": "email_verification",
+    }
+    return jwt.encode(to_encode, cfg.signing_key, algorithm=ALGORITHM)
+
+
+async def verify_email_token(session: AsyncSession, token: str) -> User:
+    """Verify the email verification token and mark the user as verified."""
+    try:
+        payload = jwt.decode(token, cfg.verification_key, algorithms=[ALGORITHM])
+        if payload.get("type") != "email_verification":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token type",
+            )
+        email = payload.get("sub")
+        if not email:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Could not validate credentials",
+            )
+    except PyJWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Verification link is invalid or has expired",
+        )
+
+    user = await get_user_by_email(session, email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.is_verified = True
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+    return user
+
+
 def create_password_reset_token(email: str) -> str:
     """Create a short-lived token for password reset."""
     expire = datetime.now(timezone.utc) + timedelta(minutes=30)

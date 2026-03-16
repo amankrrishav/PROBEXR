@@ -92,13 +92,16 @@ async def test_delete_document_unauthenticated(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_delete_document_wrong_user(client: AsyncClient, document_id: int):
     """User B cannot delete User A's document."""
-    # Register a second user
+    from tests.conftest import verify_user_email
+
+    # Register and verify a second user
     res = await client.post(
         "/auth/register",
         json={"email": "other@example.com", "password": "OtherPass123!"},
     )
     assert res.status_code == 201
     other_token = res.json()["access_token"]
+    await verify_user_email(client, "other@example.com")
 
     client.cookies.set("access_token", f"Bearer {other_token}")
     del_res = await client.delete(f"/documents/{document_id}")

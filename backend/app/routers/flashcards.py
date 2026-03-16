@@ -7,7 +7,7 @@ from sqlmodel import select, func
 
 from app.schemas.requests import FlashcardRequest
 from app.models.flashcards import FlashcardSet, Flashcard
-from app.deps import OptionalUser, CurrentUser, DbSession
+from app.deps import OptionalVerifiedUser, VerifiedUser, DbSession
 from app.services.flashcards import generate_flashcards, export_flashcards
 
 logger = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/flashcards", tags=["flashcards"])
 
 @router.get("/")
 async def list_flashcard_sets(
-    user: CurrentUser,
+    user: VerifiedUser,
     session: DbSession,
     page: int = 1,
     per_page: int = 20,
@@ -66,7 +66,7 @@ async def list_flashcard_sets(
 @router.post("/", response_model=FlashcardSet)
 async def create_flashcards(
     request: FlashcardRequest,
-    user: OptionalUser,
+    user: OptionalVerifiedUser,
     session: DbSession
 ) -> FlashcardSet:
     if not user or user.id is None:
@@ -88,7 +88,7 @@ async def create_flashcards(
 @router.get("/{set_id}/export", response_class=PlainTextResponse)
 async def export_flashcards_csv(
     set_id: int,
-    user: OptionalUser,
+    user: OptionalVerifiedUser,
     session: DbSession
 ) -> PlainTextResponse:
     if not user or user.id is None:

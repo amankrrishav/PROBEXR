@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, status
 from sqlmodel import select, func
 
-from app.deps import CurrentUser, DbSession
+from app.deps import VerifiedUser, DbSession
 from app.models.document import Document
 
 logger = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 
 @router.get("/")
 async def list_documents(
-    user: CurrentUser,
+    user: VerifiedUser,
     session: DbSession,
     page: int = 1,
     per_page: int = 20,
@@ -69,7 +69,7 @@ async def list_documents(
 @router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_document(
     document_id: int,
-    user: CurrentUser,
+    user: VerifiedUser,
     session: DbSession,
 ) -> None:
     """Delete a document owned by the current user."""

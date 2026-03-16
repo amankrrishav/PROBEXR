@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, status
 
 from app.schemas.requests import SynthesisRequest
 from app.models.synthesis import Synthesis
-from app.deps import OptionalUser, DbSession
+from app.deps import OptionalVerifiedUser, DbSession
 from app.services.synthesis import synthesize_documents
 
 logger = logging.getLogger(__name__)
@@ -14,7 +14,7 @@ router = APIRouter(prefix="/synthesis", tags=["synthesis"])
 @router.post("/", response_model=Synthesis)
 async def create_synthesis(
     request: SynthesisRequest,
-    user: OptionalUser,
+    user: OptionalVerifiedUser,
     session: DbSession
 ) -> Synthesis:
     if not user or user.id is None:

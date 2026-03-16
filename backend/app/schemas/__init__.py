@@ -8,6 +8,7 @@ from app.schemas.auth import (
     ProfileUpdate,
     PasswordResetRequest,
     PasswordResetConfirm,
+    ResendVerificationRequest,
 )
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "ProfileUpdate",
     "PasswordResetRequest",
     "PasswordResetConfirm",
+    "ResendVerificationRequest",
 ]
