@@ -158,6 +158,10 @@ async def get_dashboard(user_id: int, session: AsyncSession) -> dict:
     streak = 0
     if active_dates:
         check_date = today
+        # Allow streak to survive if nothing ingested today —
+        # start checking from yesterday if today has no activity.
+        if active_dates[0] < check_date:
+            check_date = today - timedelta(days=1)
         for active_date in active_dates:
             if active_date == check_date:
                 streak += 1

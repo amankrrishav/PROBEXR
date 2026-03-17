@@ -46,6 +46,12 @@ async def lifespan(app_inst: FastAPI):
             "FATAL: SECRET_KEY is set to the default value in production. "
             "Set a strong, unique SECRET_KEY environment variable before deploying."
         )
+    # 1b. SECRET_KEY must have sufficient entropy (min 32 chars)
+    if cfg.environment == "production" and len(cfg.SECRET_KEY) < 32:
+        raise RuntimeError(
+            "FATAL: SECRET_KEY is too short. Use at least 32 characters. "
+            "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+        )
 
     # 2. Valid database URL
     if not cfg.database_url:

@@ -102,6 +102,41 @@ async def test_analytics_streak(authed_client: AsyncClient, document_id: int):
 
 
 @pytest.mark.asyncio
+async def test_analytics_streak_survives_no_activity_today(authed_client: AsyncClient):
+    """
+    A streak built on previous days should not reset to 0 just because
+    the user hasn't ingested anything yet today.
+    We simulate this by ingesting a document then backdating its created_at
+    to yesterday, then verifying the streak is still >= 1.
+    """
+    from datetime import datetime, timezone, timedelta
+    from app.models.document import Document
+    from tests.conftest import _TestSessionLocal
+
+    # Ingest a document
+    res = await authed_client.post(
+        "/ingest/text",
+        json={"text": "Yesterday document for streak test. " * 10, "title": "Yesterday Doc"},
+    )
+    assert res.status_code == 200
+    doc_id = res.json()["id"]
+
+    # Backdate via the test session (same DB the app uses in tests)
+    async with _TestSessionLocal() as session:
+        doc = await session.get(Document, doc_id)
+        if doc:
+            doc.created_at = (datetime.now(timezone.utc) - timedelta(days=1)).replace(tzinfo=None)
+            session.add(doc)
+            await session.commit()
+
+    res = await authed_client.get("/analytics/dashboard")
+    assert res.status_code == 200
+    data = res.json()
+    # Streak should be >= 1 even though nothing ingested today
+    assert data["streak"] >= 1
+
+
+@pytest.mark.asyncio
 async def test_analytics_heatmap_structure(authed_client: AsyncClient):
     """Heatmap entries have correct structure."""
     res = await authed_client.get("/analytics/dashboard")
