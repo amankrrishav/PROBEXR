@@ -54,6 +54,7 @@ class AppConfig(BaseSettings):
     min_words: int = 30
     target_min_words: int = 80
     target_max_words: int = 300
+    summarize_max_words: int = 10_000  # Hard cap — prevents runaway LLM costs on huge pastes
 
     # ── Database ─────────────────────────────────────────────────
     database_url: str = "sqlite:///./app.db"

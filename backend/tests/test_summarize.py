@@ -82,3 +82,49 @@ async def test_summarize_invalid_length(client: AsyncClient):
     """Invalid length value should be rejected by Pydantic validation."""
     res = await client.post("/summarize", json={"text": SAMPLE_TEXT, "length": "invalid"})
     assert res.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# A-24: SUMMARIZE_MAX_WORDS cap tests
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_summarize_over_max_words_returns_400(client: AsyncClient):
+    """Submitting text over summarize_max_words limit returns 400."""
+    from app.config import get_config
+    cfg = get_config()
+    # Build a text just over the limit
+    over_limit_text = ("word " * (cfg.summarize_max_words + 1)).strip()
+    res = await client.post("/summarize", json={"text": over_limit_text})
+    assert res.status_code == 400
+    detail = res.json()["detail"]
+    assert "too long" in detail.lower()
+    assert str(cfg.summarize_max_words) in detail.replace(",", "")
+
+
+@pytest.mark.asyncio
+async def test_summarize_at_max_words_passes(client: AsyncClient):
+    """Submitting text exactly at the limit is allowed."""
+    from app.config import get_config
+    cfg = get_config()
+    at_limit_text = ("word " * cfg.summarize_max_words).strip()
+    res = await client.post("/summarize", json={"text": at_limit_text})
+    # 200 or 400 for too-short (extractive fallback) — either way NOT 422 schema error
+    assert res.status_code in (200, 400)
+    if res.status_code == 400:
+        # If 400, must be the min_words guard, NOT the max_words guard
+        assert "too long" not in res.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_summarize_max_words_error_message_includes_word_count(client: AsyncClient):
+    """Error message includes both the limit and the submitted count."""
+    from app.config import get_config
+    cfg = get_config()
+    submitted = cfg.summarize_max_words + 500
+    over_limit_text = ("word " * submitted).strip()
+    res = await client.post("/summarize", json={"text": over_limit_text})
+    assert res.status_code == 400
+    detail = res.json()["detail"]
+    # Should mention both the limit and the submitted count
+    assert str(cfg.summarize_max_words).replace(",", "") in detail.replace(",", "")

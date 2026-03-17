@@ -88,6 +88,12 @@ async def summarize(
     if word_count < cfg.min_words:
         raise ValueError(f"Text too short. Minimum {cfg.min_words} words.")
 
+    if word_count > cfg.summarize_max_words:
+        raise ValueError(
+            f"Text too long. Maximum {cfg.summarize_max_words:,} words allowed "
+            f"({word_count:,} submitted). Please shorten your input."
+        )
+
     # 1. Extractive Fallback (No LLM)
     if not cfg.has_llm_provider:
         preset = LENGTH_PRESETS.get(length, LENGTH_PRESETS["standard"])
@@ -137,6 +143,14 @@ async def process_summarize(
     text = text.strip()
     if not text:
         raise ValueError("Text is required.")
+
+    cfg_check = get_config()
+    word_count_check = len(text.split())
+    if word_count_check > cfg_check.summarize_max_words:
+        raise ValueError(
+            f"Text too long. Maximum {cfg_check.summarize_max_words:,} words allowed "
+            f"({word_count_check:,} submitted). Please shorten your input."
+        )
 
     try:
         res = await summarize(text, length=length, mode=mode, tone=tone, keywords=keywords)
