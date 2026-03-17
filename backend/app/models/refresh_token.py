@@ -18,5 +18,5 @@ class RefreshToken(SQLModel, table=True):
     token_family: str = Field(index=True)
 
     is_revoked: bool = Field(default=False)
-    expires_at: datetime
+    expires_at: datetime = Field(index=True)  # Indexed — token_gc WHERE expires_at < now scans this hourly
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
