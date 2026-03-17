@@ -6,6 +6,7 @@ from sqlmodel import select
 from app.models.document import Document
 from app.models.synthesis import Synthesis
 from app.services.llm import chat_completion
+from app.services.prompt_sanitizer import sanitize_document_content, sanitize_user_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -37,13 +38,18 @@ async def synthesize_documents(document_ids: list[int], user_id: int, session: A
                 d.id, d.title, len(content), per_doc_cap,
             )
             content = content[:per_doc_cap]
-        parts.append(f"--- Document {i+1}: {d.title} ---\n{content}")
+        # Sanitize document content and title before injecting into prompt
+        safe_content = sanitize_document_content(content)
+        safe_title = sanitize_document_content(d.title or "")
+        parts.append(f"--- Document {i+1}: {safe_title} ---\n{safe_content}")
 
     combined_text = "\n\n".join(parts)
 
     system_prompt = "You are an expert analyst. Synthesize the following documents, extracting common themes, contrasting viewpoints, and providing a comprehensive overview."
     if prompt:
-        system_prompt += f"\n\nAdditional instructions from user: {prompt}"
+        # Sanitize the user-supplied synthesis instruction before injecting
+        safe_prompt = sanitize_user_prompt(prompt)
+        system_prompt += f"\n\nAdditional instructions from user: {safe_prompt}"
         
     user_prompt = f"Documents:\n\n{combined_text}\n\nPlease synthesize these documents."
     

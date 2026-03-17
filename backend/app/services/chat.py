@@ -16,6 +16,7 @@ from sqlmodel import select, desc
 from app.models.chat import ChatMessage, ChatSession
 from app.models.document import Document
 from app.services.llm import chat_completion
+from app.services.prompt_sanitizer import sanitize_document_content, sanitize_user_prompt
 
 # How many recent messages to include in the LLM context window
 HISTORY_LIMIT = 10
@@ -95,19 +96,25 @@ async def prepare_chat_context(
     recent_msgs = list(result.scalars().all())
     recent_msgs.reverse()
 
-    # 5. Build LLM payload
+    # 5. Build LLM payload — sanitize all user-controlled content before injection
+    safe_title = sanitize_document_content(doc.title or "")
+    safe_content = sanitize_document_content(
+        (doc.cleaned_content or "")[:DOC_CONTEXT_CHARS]
+    )
     messages_payload: list[dict[str, str]] = [
         {
             "role": "system",
             "content": (
                 f"You are a helpful assistant answering questions about the following document:\n\n"
-                f"Title: {doc.title}\n\n"
-                f"Content:\n{doc.cleaned_content[:DOC_CONTEXT_CHARS]}"
+                f"Title: {safe_title}\n\n"
+                f"Content:\n{safe_content}"
             ),
         }
     ]
     for m in recent_msgs:
-        messages_payload.append({"role": m.role, "content": m.content})
+        # Re-sanitize stored user messages when replaying history into the prompt
+        content = sanitize_user_prompt(m.content) if m.role == "user" else m.content
+        messages_payload.append({"role": m.role, "content": content})
 
     assert session_id is not None
     return ChatContext(messages_payload=messages_payload, session_id=session_id)

@@ -8,6 +8,7 @@ from sqlmodel import select
 from app.models.document import Document
 from app.models.flashcards import FlashcardSet, Flashcard
 from app.services.llm import chat_completion
+from app.services.prompt_sanitizer import sanitize_document_content
 
 
 async def generate_flashcards(document_id: int, user_id: int, session: AsyncSession, count: int = 10) -> FlashcardSet:
@@ -20,7 +21,10 @@ async def generate_flashcards(document_id: int, user_id: int, session: AsyncSess
         "Return the flashcards strictly as a JSON list of objects, where each object has 'front' and 'back' keys. "
         "Do not include any other text or markdown wrapping outside of the JSON array."
     )
-    user_prompt = f"Document Title: {doc.title}\n\nDocument Content:\n{doc.cleaned_content[:8000]}"
+    # Sanitize document content before injecting into the prompt
+    safe_title = sanitize_document_content(doc.title or "")
+    safe_content = sanitize_document_content((doc.cleaned_content or "")[:8000])
+    user_prompt = f"Document Title: {safe_title}\n\nDocument Content:\n{safe_content}"
     
     reply = await chat_completion(
         [
