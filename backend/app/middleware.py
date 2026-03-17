@@ -5,6 +5,8 @@ import secrets
 import time
 from typing import Callable, Awaitable, Protocol, Optional
 
+import jwt
+
 from pythonjsonlogger import jsonlogger
 from fastapi import Request
 from fastapi.responses import JSONResponse
@@ -181,6 +183,48 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
                 content={"detail": "Too many requests. Please slow down and try again later."},
                 headers=rl_headers,
             )
+
+        # --- Per-user check (authenticated non-auth routes) ---
+        # Decodes the access_token cookie JWT to get the user's identity without
+        # a DB round-trip. Hashes the sub claim so no PII is stored in the
+        # rate-limit store. Prevents a heavy user on a shared IP (corporate VPN,
+        # university) from consuming the entire IP quota for everyone else.
+        if not is_auth_route:
+            raw_token = request.cookies.get("access_token", "")
+            if raw_token.startswith("Bearer "):
+                raw_token = raw_token[len("Bearer "):]
+            if raw_token:
+                try:
+                    payload = jwt.decode(
+                        raw_token,
+                        cfg.verification_key,
+                        algorithms=[cfg.algorithm],
+                        options={"verify_exp": False},  # expiry enforced by auth layer
+                    )
+                    sub = payload.get("sub", "")
+                    if sub:
+                        user_hash = hashlib.sha256(sub.strip().lower().encode()).hexdigest()[:32]
+                        user_key = f"rl:user:{user_hash}:{tier}:{current_minute}"
+                        user_allowed, _ = await limiter.check_and_increment(user_key, limit)
+                        if not user_allowed:
+                            logger.info(
+                                "Rate limit hit (user)",
+                                extra={"tier": tier, "limit": limit},
+                            )
+                            rl_headers = {
+                                "X-RateLimit-Limit": str(limit),
+                                "X-RateLimit-Remaining": "0",
+                                "X-RateLimit-Reset": str(reset_at),
+                                "Retry-After": str(reset_at - int(time.time())),
+                            }
+                            return JSONResponse(
+                                status_code=429,
+                                content={"detail": "Too many requests. Please slow down and try again later."},
+                                headers=rl_headers,
+                            )
+                except Exception:
+                    # Malformed / expired token — fall through, IP check already passed
+                    pass
 
         # --- Per-email check (auth routes only, POST with JSON body) ---
         if is_auth_route and request.method == "POST":
