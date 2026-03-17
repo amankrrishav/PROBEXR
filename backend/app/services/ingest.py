@@ -3,6 +3,8 @@ Ingest service: fetch + clean web pages and save text documents.
 
 Security hardening:
   - SSRF: resolved host IP is validated against private/loopback ranges before request.
+  - SSRF redirects: follow_redirects=False; manual redirect following with
+    re-validation of each hop through _assert_safe_url().
   - Size: Content-Length header enforced; streaming body capped at MAX_HTML_BYTES.
   - Timeout: 15 s hard limit.
   - Duplicate prevention: one record per (user_id, url).
@@ -12,7 +14,7 @@ import asyncio
 import ipaddress
 import socket
 import uuid
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 
 import httpx
 from bs4 import BeautifulSoup
@@ -28,6 +30,8 @@ MAX_HTML_BYTES = 5 * 1024 * 1024  # 5 MB
 MAX_CLEANED_BYTES = 500 * 1024  # 500 KB
 # Hard cap on text ingest (500 KB)
 MAX_TEXT_BYTES = 500 * 1024  # 500 KB
+# Maximum HTTP redirects to follow (SSRF defence)
+_MAX_REDIRECTS = 5
 
 _PRIVATE_NETWORKS = [
     ipaddress.ip_network("10.0.0.0/8"),
@@ -54,9 +58,15 @@ def _check_ip_not_private(addr_str: str) -> None:
 
 async def _assert_safe_url(url: str) -> None:
     """Raise ValueError if the URL resolves to a private/internal IP (SSRF guard).
+    Also rejects non-HTTP(S) schemes.
     DNS resolution is offloaded to a thread pool to avoid blocking the event loop.
     """
     parsed = urlparse(url)
+
+    # Scheme whitelist: only http and https
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"Unsupported URL scheme: {parsed.scheme}")
+
     hostname = parsed.hostname
     if not hostname:
         raise ValueError("Invalid URL: no hostname found.")
@@ -95,32 +105,54 @@ async def fetch_and_clean_url(url: str, user_id: int, session: AsyncSession) -> 
     if existing:
         return existing
 
-    # 3. Fetch with size enforcement
+    # 3. Fetch with size enforcement + manual redirect following (SSRF safe)
     headers = {
         "User-Agent": "Mozilla/5.0 (compatible; PROBEXR/1.0; +http://localhost)"
     }
     client = get_http_client()
-    # Start a streaming request to read Content-Length header first
-    async with client.stream("GET", url, follow_redirects=True, timeout=15.0, headers=headers) as response:
-        response.raise_for_status()
 
-        # Content-Length pre-check
-        content_length = response.headers.get("content-length")
-        if content_length and int(content_length) > MAX_HTML_BYTES:
-            raise ValueError(
-                f"Page too large ({int(content_length) // 1024} KB). Max allowed: {MAX_HTML_BYTES // 1024} KB."
-            )
+    # Manual redirect loop: re-validate every redirect destination
+    current_url = url
+    for _redirect_hop in range(_MAX_REDIRECTS + 1):
+        async with client.stream(
+            "GET", current_url, follow_redirects=False, timeout=15.0, headers=headers,
+        ) as response:
+            # Handle redirects manually
+            if response.status_code in (301, 302, 303, 307, 308):
+                location = response.headers.get("location")
+                if not location:
+                    raise ValueError("Redirect response missing Location header.")
+                # Resolve relative redirects
+                redirect_url = urljoin(current_url, location)
+                # Re-validate the redirect target for SSRF
+                await _assert_safe_url(redirect_url)
+                current_url = redirect_url
+                continue
 
-        # Stream body with hard byte cap
-        chunks: list[bytes] = []
-        total = 0
-        async for chunk in response.aiter_bytes(chunk_size=65536):
-            total += len(chunk)
-            if total > MAX_HTML_BYTES:
+            response.raise_for_status()
+
+            # Content-Length pre-check
+            content_length = response.headers.get("content-length")
+            if content_length and int(content_length) > MAX_HTML_BYTES:
                 raise ValueError(
-                    f"Page too large (>{MAX_HTML_BYTES // 1024} KB). Max allowed: {MAX_HTML_BYTES // 1024} KB."
+                    f"Page too large ({int(content_length) // 1024} KB). Max allowed: {MAX_HTML_BYTES // 1024} KB."
                 )
-            chunks.append(chunk)
+
+            # Stream body with hard byte cap
+            chunks: list[bytes] = []
+            total = 0
+            async for chunk in response.aiter_bytes(chunk_size=65536):
+                total += len(chunk)
+                if total > MAX_HTML_BYTES:
+                    raise ValueError(
+                        f"Page too large (>{MAX_HTML_BYTES // 1024} KB). Max allowed: {MAX_HTML_BYTES // 1024} KB."
+                    )
+                chunks.append(chunk)
+
+            # Success — break out of the redirect loop
+            break
+    else:
+        raise ValueError(f"Too many redirects (>{_MAX_REDIRECTS}).")
 
     raw_bytes = b"".join(chunks)
     # Decode, lenient

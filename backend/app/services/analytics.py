@@ -3,14 +3,18 @@ Analytics service — aggregates reading metrics from existing tables.
 
 No new tables needed: queries Document, FlashcardSet, ChatSession to produce
 a rich analytics payload for the dashboard.
+
+Performance: uses SQL aggregates and lightweight column projections to avoid
+loading cleaned_content (up to 500 KB each) into Python memory.
 """
 import logging
-from collections import Counter, defaultdict
-from datetime import datetime, timedelta, timezone
+from collections import Counter
+from datetime import datetime, date, timedelta, timezone
 from urllib.parse import urlparse
 
+
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select, func
+from sqlmodel import select, func, col
 
 from app.models.document import Document
 from app.models.flashcards import FlashcardSet, Flashcard
@@ -20,6 +24,9 @@ logger = logging.getLogger(__name__)
 
 # Average reading speed (words per minute) for time-saved calculation
 _WPM = 200
+
+# Approximate average word length in English (chars per word including spaces)
+_AVG_CHARS_PER_WORD = 5
 
 
 async def get_dashboard(user_id: int, session: AsyncSession) -> dict:
@@ -33,13 +40,18 @@ async def get_dashboard(user_id: int, session: AsyncSession) -> dict:
       - streak: current consecutive-day streak
     """
 
-    # ---- 1. Fetch all user documents (lightweight: id, url, created_at, content length) ----
-    doc_stmt = select(Document).where(Document.user_id == user_id)
-    result = await session.execute(doc_stmt)
-    docs = list(result.scalars().all())
-
-    total_documents = len(docs)
-    total_words = sum(len(d.cleaned_content.split()) if d.cleaned_content else 0 for d in docs)
+    # ---- 1. Summary stats via SQL aggregates (no content loaded) ----
+    stats_stmt = (
+        select(
+            func.count().label("total_docs"),
+            func.coalesce(func.sum(func.length(Document.cleaned_content)), 0).label("total_chars"),
+        )
+        .where(Document.user_id == user_id)
+    )
+    stats_row = (await session.execute(stats_stmt)).one()
+    total_documents: int = stats_row.total_docs
+    total_chars: int = stats_row.total_chars
+    total_words = total_chars // _AVG_CHARS_PER_WORD
     time_saved_seconds = int(total_words / _WPM * 60) if total_words > 0 else 0
 
     # ---- 2. Flashcard sets count ----
@@ -76,16 +88,24 @@ async def get_dashboard(user_id: int, session: AsyncSession) -> dict:
     )
     total_chat_messages = (await session.execute(chat_msg_stmt)).scalar() or 0
 
-    # ---- 4. Activity heatmap — last 365 days ----
+    # ---- 4. Activity heatmap — last 365 days (date + count via GROUP BY) ----
     today = datetime.now(timezone.utc).date()
     year_ago = today - timedelta(days=364)
 
-    # Group documents by creation date
-    day_counts: dict[str, int] = defaultdict(int)
-    for d in docs:
-        if d.created_at:
-            day_str = d.created_at.date().isoformat() if hasattr(d.created_at, 'date') else str(d.created_at)[:10]
-            day_counts[day_str] += 1
+    day_col = func.date(Document.created_at).label("day")
+    heatmap_stmt = (
+        select(day_col, func.count().label("cnt"))
+        .where(Document.user_id == user_id)
+        .group_by(day_col)
+    )
+    heatmap_rows = (await session.execute(heatmap_stmt)).all()
+
+    day_counts: dict[str, int] = {}
+    for row in heatmap_rows:
+        d = row.day
+        if d is not None:
+            day_str = d.isoformat() if isinstance(d, date) else str(d)[:10]
+            day_counts[day_str] = row.cnt
 
     # Build full 365-day array (fill missing days with 0)
     heatmap = []
@@ -94,22 +114,31 @@ async def get_dashboard(user_id: int, session: AsyncSession) -> dict:
         day_str = day.isoformat()
         heatmap.append({"date": day_str, "count": day_counts.get(day_str, 0)})
 
-    # ---- 5. Top domains ----
+    # ---- 5. Top domains (fetch only url column — no content) ----
+    url_stmt = (
+        select(Document.url)
+        .where(Document.user_id == user_id)
+        .where(col(Document.url).isnot(None))  # type: ignore[arg-type]
+    )
+    url_rows = (await session.execute(url_stmt)).all()
+
     domain_counter: Counter = Counter()
-    for d in docs:
-        if d.url and not d.url.startswith("pasted_text"):
-            try:
-                parsed = urlparse(d.url)
-                host = parsed.hostname or ""
-                # Strip www.
-                if host.startswith("www."):
-                    host = host[4:]
-                if host:
-                    domain_counter[host] += 1
-            except Exception:
-                pass
-    # Add pasted text count separately
-    pasted_count = sum(1 for d in docs if d.url and d.url.startswith("pasted_text"))
+    pasted_count = 0
+    for (url,) in url_rows:
+        if not url:
+            continue
+        if url.startswith("pasted_text"):
+            pasted_count += 1
+            continue
+        try:
+            parsed = urlparse(url)
+            host = parsed.hostname or ""
+            if host.startswith("www."):
+                host = host[4:]
+            if host:
+                domain_counter[host] += 1
+        except Exception:
+            pass
 
     top_domains = [
         {"domain": domain, "count": count}
@@ -117,15 +146,14 @@ async def get_dashboard(user_id: int, session: AsyncSession) -> dict:
     ]
     if pasted_count > 0:
         top_domains.append({"domain": "Pasted Text", "count": pasted_count})
-    # Sort by count descending, take top 10
     top_domains.sort(key=lambda x: x["count"], reverse=True)
     top_domains = top_domains[:10]
 
-    # ---- 6. Reading streak ----
-    active_dates = sorted(set(
-        d.created_at.date() if hasattr(d.created_at, 'date') else d.created_at
-        for d in docs if d.created_at
-    ), reverse=True)
+    # ---- 6. Reading streak (reuse date counts already fetched) ----
+    active_dates = sorted(
+        (date.fromisoformat(ds) for ds in day_counts),
+        reverse=True,
+    )
 
     streak = 0
     if active_dates:
@@ -135,7 +163,6 @@ async def get_dashboard(user_id: int, session: AsyncSession) -> dict:
                 streak += 1
                 check_date -= timedelta(days=1)
             elif active_date < check_date:
-                # Gap found — streak broken
                 break
 
     # ---- Build response ----

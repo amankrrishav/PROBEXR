@@ -15,6 +15,7 @@ from sqlmodel import col
 from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 
 from app.models.refresh_token import RefreshToken
+from app.models.used_token import UsedToken
 
 logger = logging.getLogger(__name__)
 
@@ -22,15 +23,21 @@ GC_INTERVAL_SECONDS = 60 * 60  # 1 hour
 
 
 async def _cleanup_tokens(session_factory: async_sessionmaker[AsyncSession]) -> int:
-    """Delete expired or revoked refresh tokens. Returns count deleted."""
+    """Delete expired/revoked refresh tokens and expired used tokens. Returns total count deleted."""
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     async with session_factory() as session:
-        stmt = delete(RefreshToken).where(
+        # Purge expired / revoked refresh tokens
+        refresh_stmt = delete(RefreshToken).where(
             (col(RefreshToken.expires_at) < now) | (col(RefreshToken.is_revoked) == True)  # noqa: E712
         )
-        result = await session.execute(stmt)
+        refresh_result = await session.execute(refresh_stmt)
+
+        # Purge expired used tokens (magic links, email verification)
+        used_stmt = delete(UsedToken).where(col(UsedToken.expires_at) < now)
+        used_result = await session.execute(used_stmt)
+
         await session.commit()
-        return result.rowcount  # type: ignore[return-value]
+        return (refresh_result.rowcount or 0) + (used_result.rowcount or 0)  # type: ignore[return-value]
 
 
 async def _gc_loop(session_factory: async_sessionmaker[AsyncSession]) -> None:
@@ -40,6 +47,9 @@ async def _gc_loop(session_factory: async_sessionmaker[AsyncSession]) -> None:
             count = await _cleanup_tokens(session_factory)
             if count:
                 logger.info("Token GC: purged %d expired/revoked refresh tokens", count)
+        except asyncio.CancelledError:
+            logger.info("Token GC: task cancelled, shutting down")
+            raise
         except Exception:
             logger.exception("Token GC: error during cleanup")
         await asyncio.sleep(GC_INTERVAL_SECONDS)
