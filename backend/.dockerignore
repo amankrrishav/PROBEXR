@@ -1,0 +1,69 @@
+# =============================================================================
+# backend/.dockerignore
+# Keep the build context lean and prevent secrets / cruft from leaking in.
+# =============================================================================
+
+# --- Secrets & local config (NEVER bake these into the image) ---
+.env
+.env.*
+*.env
+secrets/
+
+# --- Python runtime artefacts ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+wheels/
+
+# --- Virtual environments ---
+.venv/
+venv/
+env/
+ENV/
+
+# --- Test suite (not needed in the production image) ---
+tests/
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+*.xml
+
+# --- Local databases (never commit / ship these) ---
+*.db
+*.sqlite
+*.sqlite3
+
+# --- Development & editor noise ---
+.git/
+.gitignore
+.gitattributes
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.iml
+
+# --- Docs & CI scripts (not needed at runtime) ---
+README.md
+docs/
+*.md
+.github/
+
+# --- pip-tools input files (compiled requirements.txt is enough) ---
+requirements.in
+requirements-dev.in
+requirements-dev.txt
+
+# --- Alembic migration history is needed at runtime for `alembic upgrade` ---
+# (so we do NOT ignore alembic/ here)
