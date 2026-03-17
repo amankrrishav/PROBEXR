@@ -8,6 +8,7 @@ from argon2.exceptions import VerifyMismatchError
 from fastapi import Depends, HTTPException, status, Request, Response
 import jwt
 from jwt.exceptions import PyJWTError
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
@@ -355,32 +356,30 @@ async def revoke_refresh_token(session: AsyncSession, token_str: str) -> None:
 
 async def revoke_all_user_tokens(session: AsyncSession, user_id: int) -> int:
     """Revoke all refresh tokens for a user. Returns the count revoked."""
-    statement = select(RefreshToken).where(
-        RefreshToken.user_id == user_id,
-        RefreshToken.is_revoked == False,  # noqa: E712
+    statement = (
+        update(RefreshToken)
+        .where(
+            RefreshToken.user_id == user_id,
+            RefreshToken.is_revoked == False,  # noqa: E712
+        )
+        .values(is_revoked=True)
     )
     result = await session.execute(statement)
-    tokens = result.scalars().all()
-    count = 0
-    for token in tokens:
-        token.is_revoked = True
-        session.add(token)
-        count += 1
     await session.commit()
-    return count
+    return result.rowcount  # type: ignore[return-value]
 
 
 async def _revoke_family(session: AsyncSession, token_family: str) -> None:
     """Revoke all tokens in a family (reuse detection response)."""
-    statement = select(RefreshToken).where(
-        RefreshToken.token_family == token_family,
-        RefreshToken.is_revoked == False,  # noqa: E712
+    statement = (
+        update(RefreshToken)
+        .where(
+            RefreshToken.token_family == token_family,
+            RefreshToken.is_revoked == False,  # noqa: E712
+        )
+        .values(is_revoked=True)
     )
-    result = await session.execute(statement)
-    tokens = result.scalars().all()
-    for token in tokens:
-        token.is_revoked = True
-        session.add(token)
+    await session.execute(statement)
     await session.commit()
 
 
@@ -456,11 +455,11 @@ async def authenticate_user(session: AsyncSession, email: str, password: str) ->
         await mgr.record_failure(email)
         raise ValueError("Invalid credentials")
 
-    # Successful login — reset the failure counter
-    await mgr.reset(email)
-
     if not user.is_active:
         raise ValueError("Account is inactive")
+
+    # Successful login — reset the failure counter only after all checks pass
+    await mgr.reset(email)
 
     user.last_login_at = datetime.now(timezone.utc).replace(tzinfo=None)
     session.add(user)

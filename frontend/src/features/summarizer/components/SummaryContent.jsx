@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeSanitize from 'rehype-sanitize';
 import TypingSummary from "../TypingSummary";
 
 const LOADING_PHASES = [
@@ -102,7 +103,7 @@ export default function SummaryContent({
         fontSize: 15, lineHeight: 1.75, color: "var(--ink-primary)",
         userSelect: "text",
       }}>
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{summaryText}</ReactMarkdown>
+        <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>{summaryText}</ReactMarkdown>
       </div>
     );
   }
