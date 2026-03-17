@@ -70,3 +70,45 @@ async def test_export_flashcards_not_found(authed_client: AsyncClient):
     """Non-existent flashcard set returns 404."""
     res = await authed_client.get("/flashcards/999999/export")
     assert res.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# A-06: LLM provider guard — missing key returns safe 400, not internal error
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_create_flashcards_no_llm_provider_returns_400(
+    authed_client: AsyncClient, document_id: int
+):
+    """
+    When no LLM provider is configured (test env has no API keys),
+    the endpoint must return 400 with a user-safe message — NOT a 500
+    leaking the internal ValueError from config.get_llm_base_url().
+    """
+    res = await authed_client.post(
+        "/flashcards/",
+        json={"document_id": document_id, "count": 5},
+    )
+    # Must be 400 (user-safe), not 500 (internal leak)
+    assert res.status_code == 400
+    detail = res.json()["detail"].lower()
+    # Must mention LLM provider in a user-friendly way
+    assert "llm provider" in detail or "api key" in detail
+    # Must NOT leak the raw internal config error message
+    assert "get_llm_base_url" not in detail
+    assert "get_llm_api_key" not in detail
+
+
+@pytest.mark.asyncio
+async def test_create_flashcards_no_llm_error_message_is_actionable(
+    authed_client: AsyncClient, document_id: int
+):
+    """Error message tells the user what to do (set an API key)."""
+    res = await authed_client.post(
+        "/flashcards/",
+        json={"document_id": document_id, "count": 5},
+    )
+    assert res.status_code == 400
+    detail = res.json()["detail"].lower()
+    # Should mention setting a key — actionable guidance
+    assert "groq_api_key" in detail or "openai_api_key" in detail or "api key" in detail

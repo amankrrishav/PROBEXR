@@ -9,9 +9,17 @@ from app.models.document import Document
 from app.models.flashcards import FlashcardSet, Flashcard
 from app.services.llm import chat_completion
 from app.services.prompt_sanitizer import sanitize_document_content
+from app.config import get_config
 
 
 async def generate_flashcards(document_id: int, user_id: int, session: AsyncSession, count: int = 10) -> FlashcardSet:
+    cfg = get_config()
+    if not cfg.has_llm_provider:
+        raise ValueError(
+            "Flashcard generation requires an LLM provider. "
+            "Please set GROQ_API_KEY, OPENAI_API_KEY, or OPENROUTER_API_KEY."
+        )
+
     doc = await session.get(Document, document_id)
     if not doc or doc.user_id != user_id:
         raise ValueError("Document not found or unauthorized")
