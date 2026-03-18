@@ -63,57 +63,60 @@ export default function App() {
   }, [dark]);
 
   // C3: Global keyboard shortcuts
-  useEffect(() => {
-    function handleKeyDown(e) {
-      const mod = e.metaKey || e.ctrlKey;
+  // useCallback with stable primitive deps prevents the handler from being
+  // re-registered on every render (A-25: summarizer is a new object each render).
+  const handleKeyDown = useCallback((e) => {
+    const mod = e.metaKey || e.ctrlKey;
 
-      // ⌘/ — Keyboard shortcuts
-      if (mod && e.key === "/") {
-        e.preventDefault();
-        setShortcutsOpen(o => !o);
-        return;
-      }
-
-      // ⌘F — Focus mode
-      if (mod && e.key === "f" && activeTab === "summarize") {
-        e.preventDefault();
-        setFocusMode(f => !f);
-        return;
-      }
-
-      // ⌘K — New summary (B11)
-      if (mod && e.key === "k") {
-        e.preventDefault();
-        summarizer.reset();
-        setActiveTab("summarize");
-        return;
-      }
-
-      // ⌘+Shift+C — Clear input
-      if (mod && e.shiftKey && e.key === "C") {
-        e.preventDefault();
-        summarizer.setText("");
-        summarizer.setUrl("");
-        return;
-      }
-
-      // Escape — exit modals/focus mode
-      if (e.key === "Escape") {
-        setShortcutsOpen(false);
-        setFocusMode(false);
-        return;
-      }
-
-      // ⌘+Enter — Summarize (C3)
-      if (mod && e.key === "Enter") {
-        e.preventDefault();
-        handleSummarizeWithGate();
-        return;
-      }
+    // ⌘/ — Keyboard shortcuts
+    if (mod && e.key === "/") {
+      e.preventDefault();
+      setShortcutsOpen(o => !o);
+      return;
     }
+
+    // ⌘F — Focus mode
+    if (mod && e.key === "f" && activeTab === "summarize") {
+      e.preventDefault();
+      setFocusMode(f => !f);
+      return;
+    }
+
+    // ⌘K — New summary (B11)
+    if (mod && e.key === "k") {
+      e.preventDefault();
+      summarizer.reset();
+      setActiveTab("summarize");
+      return;
+    }
+
+    // ⌘+Shift+C — Clear input
+    if (mod && e.shiftKey && e.key === "C") {
+      e.preventDefault();
+      summarizer.setText("");
+      summarizer.setUrl("");
+      return;
+    }
+
+    // Escape — exit modals/focus mode
+    if (e.key === "Escape") {
+      setShortcutsOpen(false);
+      setFocusMode(false);
+      return;
+    }
+
+    // ⌘+Enter — Summarize (C3)
+    if (mod && e.key === "Enter") {
+      e.preventDefault();
+      handleSummarizeWithGate();
+      return;
+    }
+  }, [activeTab, summarizer.reset, summarizer.setText, summarizer.setUrl, handleSummarizeWithGate]);
+
+  useEffect(() => {
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [activeTab, summarizer]);
+  }, [handleKeyDown]);
 
   // Trigger page transition on tab change
   const handleSetActiveTab = useCallback((tab) => {

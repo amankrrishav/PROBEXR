@@ -12,14 +12,25 @@ from typing import Any, AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
-import sqlalchemy.dialects.postgresql.base  # Global monkeypatch for CockroachDB
-
-# --- THE SLEDGEHAMMER: Bypass version check globally ---
 # CockroachDB version strings often break SQLAlchemy's standard Postgres parser.
-def _mock_server_version_info(self, connection):
-    return (13, 0, 0)
-sqlalchemy.dialects.postgresql.base.PGDialect._get_server_version_info = _mock_server_version_info
-# -------------------------------------------------------
+# Scoped via an engine event listener rather than a global class mutation (A-19).
+def _register_cockroachdb_version_fix(engine) -> None:
+    """Attach a connect event that overrides the server version check for this
+    engine only — does NOT mutate PGDialect globally.
+
+    Must attach to sync_engine because SQLAlchemy does not support async
+    engine events directly.
+    """
+    from sqlalchemy import event
+
+    # AsyncEngine exposes sync_engine for synchronous event listeners
+    sync_engine = getattr(engine, "sync_engine", engine)
+
+    @event.listens_for(sync_engine, "connect")
+    def _set_version(dbapi_conn, connection_record):
+        # Patch the dialect instance on this engine only
+        if hasattr(engine.dialect, "_get_server_version_info"):
+            engine.dialect._get_server_version_info = lambda self, conn: (13, 0, 0)
 
 from app.config import get_config
 
@@ -47,11 +58,11 @@ else:
         "connect_args": {"ssl": True},
     }
 
-print(f"App: Initializing Async Engine (scheme={cfg.async_database_url.split('://')[0]})")
+logger.info("App: Initializing Async Engine (scheme=%s)", cfg.async_database_url.split("://")[0])
 async_engine = create_async_engine(cfg.async_database_url, **_engine_kwargs)
 
-# The async engine now uses the cockroachdb+asyncpg dialect in production, 
-# which correctly handles the CockroachDB version string.
+# Apply the scoped CockroachDB version fix to this engine only (A-19)
+_register_cockroachdb_version_fix(async_engine)
 
 async_session_factory: async_sessionmaker[AsyncSession] = async_sessionmaker(
     async_engine, expire_on_commit=False
