@@ -22,7 +22,7 @@ class ChatMessage(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     session_id: int = Field(foreign_key="chatsession.id", index=True)
     role: str = Field(index=True)  # "user" or "assistant"
-    content: str
+    content: str = Field(max_length=32000)  # LLM responses capped; user messages bounded by ChatRequest.message (2000)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
     chat_session: Optional["ChatSession"] = Relationship(back_populates="messages")

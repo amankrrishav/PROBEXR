@@ -215,9 +215,11 @@ async def google_callback(
     except Exception:
         raise HTTPException(status_code=400, detail="OAuth state expired or invalid")
     
+    # Delete state cookie immediately after validation.
+    # Note: concurrent tab race is inherent to cookie-based OAuth state
+    # and acceptable for the threat model — state tokens expire in 10 min.
     response.delete_cookie("oauth_state", path="/api/v1/auth")
 
-    cfg = get_config()
     try:
         user_info = await get_google_user_info(code, f"{cfg.frontend_url}/auth/callback/google")
         user = await handle_social_login(session, "google", user_info)
@@ -283,6 +285,9 @@ async def github_callback(
     except Exception:
         raise HTTPException(status_code=400, detail="OAuth state expired or invalid")
         
+    # Delete state cookie immediately after validation.
+    # Note: concurrent tab race is inherent to cookie-based OAuth state
+    # and acceptable for the threat model — state tokens expire in 10 min.
     response.delete_cookie("oauth_state", path="/api/v1/auth")
 
     try:

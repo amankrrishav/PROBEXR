@@ -210,3 +210,42 @@ async def test_social_links_to_existing_email_account(client: AsyncClient):
 
     assert res.status_code == 200
     assert "access_token" in res.json()
+
+# ---------------------------------------------------------------------------
+# N-14: No duplicate get_config() call in OAuth callbacks
+# ---------------------------------------------------------------------------
+
+def test_google_callback_no_duplicate_get_config():
+    """google_callback must not call get_config() twice."""
+    import inspect
+    from app.routers.auth import google_callback
+    src = inspect.getsource(google_callback)
+    count = src.count('get_config()')
+    assert count <= 1, (
+        f"google_callback calls get_config() {count} times — should be at most once"
+    )
+
+
+def test_github_callback_no_duplicate_get_config():
+    """github_callback must not call get_config() twice."""
+    import inspect
+    from app.routers.auth import github_callback
+    src = inspect.getsource(github_callback)
+    count = src.count('get_config()')
+    assert count <= 1, (
+        f"github_callback calls get_config() {count} times — should be at most once"
+    )
+
+
+# ---------------------------------------------------------------------------
+# N-15: OAuth state race condition is documented
+# ---------------------------------------------------------------------------
+
+def test_oauth_state_race_condition_is_documented():
+    """OAuth callbacks must document the known concurrent tab race condition."""
+    import inspect
+    from app.routers import auth as auth_router
+    src = inspect.getsource(auth_router)
+    assert 'concurrent tab race' in src or 'race' in src.lower(), (
+        "OAuth callbacks must include a comment documenting the known state race condition"
+    )

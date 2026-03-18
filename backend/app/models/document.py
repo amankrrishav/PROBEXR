@@ -17,7 +17,7 @@ class Document(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("user_id", "url", name="uq_document_user_url"),)
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True)
-    url: str
+    url: str = Field(max_length=2048)  # Ingest service caps at 2048; model enforces at schema level
     title: str = Field(default="")
     cleaned_content: str = Field(default="")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))

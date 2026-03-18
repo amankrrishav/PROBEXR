@@ -97,6 +97,9 @@ class AppConfig(BaseSettings):
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
 
+    # ── Feature flags ──────────────────────────────────────────────
+    tts_enabled: bool = False  # Set TTS_ENABLED=true to activate (requires provider keys)
+
     # ── Redis ────────────────────────────────────────────────────
     redis_url: str = "redis://localhost:6379/0"
 

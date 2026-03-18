@@ -106,3 +106,17 @@ async def test_delete_document_wrong_user(client: AsyncClient, document_id: int)
     client.cookies.set("access_token", f"Bearer {other_token}")
     del_res = await client.delete(f"/documents/{document_id}")
     assert del_res.status_code == 404  # appears as not found for wrong user
+
+# ---------------------------------------------------------------------------
+# N-12: Document.url field has max_length=2048
+# ---------------------------------------------------------------------------
+
+def test_document_url_has_max_length():
+    """Document.url must define max_length to prevent unbounded storage."""
+    import inspect
+    src = open('app/models/document.py').read()
+    url_lines = [l for l in src.split('\n') if 'url' in l and 'Field' in l]
+    assert url_lines, "Document must have a url field with Field()"
+    assert any('max_length' in l for l in url_lines), (
+        f"Document.url must have max_length constraint. Found: {url_lines}"
+    )

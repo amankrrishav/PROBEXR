@@ -120,3 +120,17 @@ def test_list_chat_sessions_no_loop_query():
     assert 'for s in sessions_list' not in src, (
         "list_chat_sessions must not loop over sessions and query each one individually"
     )
+
+
+# ---------------------------------------------------------------------------
+# N-13: ChatMessage.content field has max_length
+# ---------------------------------------------------------------------------
+
+def test_chat_message_content_has_max_length():
+    """ChatMessage.content must define max_length to cap stored message size."""
+    src = open('app/models/chat.py').read()
+    content_lines = [l for l in src.split('\n') if 'content' in l and 'Field' in l]
+    assert content_lines, "ChatMessage must have a content field with Field()"
+    assert any('max_length' in l for l in content_lines), (
+        f"ChatMessage.content must have max_length constraint. Found: {content_lines}"
+    )
