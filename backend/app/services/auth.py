@@ -17,10 +17,9 @@ from app.db import get_session
 from app.models.user import User
 from app.models.refresh_token import RefreshToken
 
-# Load config
-cfg = get_config()
-
-ALGORITHM = cfg.ALGORITHM
+# ALGORITHM is read once at import time — it is a static deployment parameter
+# that never changes at runtime, so this is safe.
+ALGORITHM = get_config().ALGORITHM
 
 
 class DuplicateEmailError(ValueError):
@@ -43,13 +42,13 @@ def create_email_verification_token(email: str) -> str:
         "exp": expire,
         "type": "email_verification",
     }
-    return jwt.encode(to_encode, cfg.signing_key, algorithm=ALGORITHM)
+    return jwt.encode(to_encode, get_config().signing_key, algorithm=ALGORITHM)
 
 
 async def verify_email_token(session: AsyncSession, token: str) -> User:
     """Verify the email verification token and mark the user as verified."""
     try:
-        payload = jwt.decode(token, cfg.verification_key, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, get_config().verification_key, algorithms=[ALGORITHM])
         if payload.get("type") != "email_verification":
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -86,13 +85,13 @@ def create_password_reset_token(email: str) -> str:
         "exp": expire,
         "type": "password_reset",
     }
-    return jwt.encode(to_encode, cfg.signing_key, algorithm=ALGORITHM)
+    return jwt.encode(to_encode, get_config().signing_key, algorithm=ALGORITHM)
 
 
 async def verify_password_reset_token(session: AsyncSession, token: str, new_password: str) -> User:
     """Verify a password reset token and update the user's password."""
     try:
-        payload = jwt.decode(token, cfg.verification_key, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, get_config().verification_key, algorithms=[ALGORITHM])
         if payload.get("type") != "password_reset":
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -139,7 +138,7 @@ def create_magic_link_token(email: str) -> str:
         "type": "magic_link",
         "jti": str(uuid.uuid4()),  # Unique token ID — stored on first use
     }
-    return jwt.encode(to_encode, cfg.signing_key, algorithm=ALGORITHM)
+    return jwt.encode(to_encode, get_config().signing_key, algorithm=ALGORITHM)
 
 
 async def _mark_token_used(
@@ -178,7 +177,7 @@ async def verify_magic_link_token(session: AsyncSession, token: str) -> User:
     Enforces one-time use via the UsedToken table.
     """
     try:
-        payload = jwt.decode(token, cfg.verification_key, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, get_config().verification_key, algorithms=[ALGORITHM])
         if payload.get("type") != "magic_link":
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -262,20 +261,20 @@ def verify_password(plain: str, hashed: Optional[str]) -> bool:
 
 def create_access_token(data: dict[str, Any]) -> str:
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + timedelta(minutes=cfg.access_token_expire_minutes)
+    expire = datetime.now(timezone.utc) + timedelta(minutes=get_config().access_token_expire_minutes)
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, cfg.signing_key, algorithm=ALGORITHM)
+    return jwt.encode(to_encode, get_config().signing_key, algorithm=ALGORITHM)
 
 
 def set_auth_cookie(response: Response, token: str) -> None:
-    is_prod = cfg.environment == "production"
+    is_prod = get_config().environment == "production"
     response.set_cookie(
         key="access_token",
         value=f"Bearer {token}",
         httponly=True,
         samesite="none" if is_prod else "lax",
         secure=is_prod,  # Mandatory for samesite=none
-        max_age=cfg.access_token_expire_minutes * 60,
+        max_age=get_config().access_token_expire_minutes * 60,
     )
 
 
@@ -289,7 +288,7 @@ async def create_refresh_token(session: AsyncSession, user_id: int) -> RefreshTo
         token=str(uuid.uuid4()),
         user_id=user_id,
         token_family=str(uuid.uuid4()),
-        expires_at=(datetime.now(timezone.utc) + timedelta(days=cfg.refresh_token_expire_days)).replace(tzinfo=None),
+        expires_at=(datetime.now(timezone.utc) + timedelta(days=get_config().refresh_token_expire_days)).replace(tzinfo=None),
     )
     session.add(token)
     await session.commit()
@@ -346,7 +345,7 @@ async def rotate_refresh_token(session: AsyncSession, old_token_str: str) -> tup
         token=str(uuid.uuid4()),
         user_id=old_token.user_id,
         token_family=old_token.token_family,
-        expires_at=(datetime.now(timezone.utc) + timedelta(days=cfg.refresh_token_expire_days)).replace(tzinfo=None),
+        expires_at=(datetime.now(timezone.utc) + timedelta(days=get_config().refresh_token_expire_days)).replace(tzinfo=None),
     )
     session.add(new_token)
     await session.commit()
@@ -396,7 +395,7 @@ async def _revoke_family(session: AsyncSession, token_family: str) -> None:
 
 
 def set_refresh_cookie(response: Response, token_str: str) -> None:
-    is_prod = cfg.environment == "production"
+    is_prod = get_config().environment == "production"
     response.set_cookie(
         key="refresh_token",
         value=token_str,
@@ -404,7 +403,7 @@ def set_refresh_cookie(response: Response, token_str: str) -> None:
         samesite="none" if is_prod else "lax",
         secure=is_prod,  # Mandatory for samesite=none
         path="/api/v1/auth",  # Matches actual router mount: /api/v1/auth/*
-        max_age=cfg.refresh_token_expire_days * 24 * 60 * 60,
+        max_age=get_config().refresh_token_expire_days * 24 * 60 * 60,
     )
 
 
@@ -414,7 +413,7 @@ def delete_auth_cookies(response: Response) -> None:
     Must use the same samesite/secure attributes that were used when setting
     them, otherwise the browser will not remove them.
     """
-    is_prod = cfg.environment == "production"
+    is_prod = get_config().environment == "production"
     samesite_value = "none" if is_prod else "lax"
     response.delete_cookie(
         "access_token", httponly=True, samesite=samesite_value, secure=is_prod
@@ -553,7 +552,7 @@ def _credentials_exception() -> HTTPException:
 
 def _decode_token(token: str) -> dict[str, Any]:
     try:
-        payload = jwt.decode(token, cfg.verification_key, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, get_config().verification_key, algorithms=[ALGORITHM])
     except PyJWTError:
         raise _credentials_exception()
 

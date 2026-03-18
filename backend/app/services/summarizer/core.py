@@ -7,6 +7,7 @@ ONLY clean summary text. Metadata is computed purely in intelligence.py.
 Takeaways extracted via a lightweight second LLM call.
 """
 import asyncio
+from dataclasses import dataclass, field
 import logging
 from typing import Any
 
@@ -51,7 +52,7 @@ def _target_words(original_count: int, length: str) -> int:
     return min(base, int(preset["max_target"]))
 
 
-def _parse_takeaways(raw: str) -> list[str]:
+def parse_takeaways(raw: str) -> list[str]:
     """Parse bullet takeaways from the LLM response."""
     lines = raw.strip().splitlines()
     takeaways = []
@@ -192,7 +193,7 @@ async def _single_call_flow(
         try:
             takeaway_msgs = build_takeaway_prompt(summary, takeaway_count)
             raw_takeaways = await llm.chat_completion(takeaway_msgs, max_tokens=400, temperature=0.2)
-            takeaways = _parse_takeaways(raw_takeaways)[:takeaway_count]
+            takeaways = parse_takeaways(raw_takeaways)[:takeaway_count]
         except Exception:
             logger.warning("Takeaway extraction failed, skipping")
 
@@ -234,7 +235,7 @@ async def _map_reduce_flow(
         try:
             takeaway_msgs = build_takeaway_prompt(summary, takeaway_count)
             raw_takeaways = await llm.chat_completion(takeaway_msgs, max_tokens=400, temperature=0.2)
-            takeaways = _parse_takeaways(raw_takeaways)[:takeaway_count]
+            takeaways = parse_takeaways(raw_takeaways)[:takeaway_count]
         except Exception:
             logger.warning("Takeaway extraction failed in map-reduce, skipping")
 
@@ -267,34 +268,20 @@ def _chunk_text(text: str) -> list[str]:
 # SummarizePrepResult — for streaming
 # ---------------------------------------------------------------------------
 
+@dataclass
 class SummarizePrepResult:
     """Result of prepare_summarize_messages — either extractive or LLM messages ready to stream."""
-    def __init__(
-        self,
-        *,
-        extractive_result: str | None = None,
-        extractive_takeaways: list[str] | None = None,
-        messages: list[dict[str, str]] | None = None,
-        max_tokens: int = 800,
-        temperature: float = 0.3,
-        original_text: str = "",
-        length: str = "standard",
-        mode: str = "paragraph",
-        tone: str = "neutral",
-        keywords: list[str] | None = None,
-        takeaway_count: int = 5,
-    ):
-        self.extractive_result = extractive_result
-        self.extractive_takeaways = extractive_takeaways
-        self.messages = messages
-        self.max_tokens = max_tokens
-        self.temperature = temperature
-        self.original_text = original_text
-        self.length = length
-        self.mode = mode
-        self.tone = tone
-        self.keywords = keywords or []
-        self.takeaway_count = takeaway_count
+    extractive_result: str | None = None
+    extractive_takeaways: list[str] | None = None
+    messages: list[dict[str, str]] | None = None
+    max_tokens: int = 800
+    temperature: float = 0.3
+    original_text: str = ""
+    length: str = "standard"
+    mode: str = "paragraph"
+    tone: str = "neutral"
+    keywords: list[str] = field(default_factory=list)
+    takeaway_count: int = 5
 
     @property
     def is_extractive(self) -> bool:
@@ -335,7 +322,7 @@ async def prepare_summarize_messages(
             length=length,
             mode=mode,
             tone=tone,
-            keywords=keywords,
+            keywords=keywords or [],
             takeaway_count=int(preset["takeaway_count"]),
         )
 
@@ -352,6 +339,6 @@ async def prepare_summarize_messages(
         length=length,
         mode=mode,
         tone=tone,
-        keywords=keywords,
+        keywords=keywords or [],
         takeaway_count=int(preset["takeaway_count"]),
     )

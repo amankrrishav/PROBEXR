@@ -32,7 +32,7 @@ from app.services.summarizer import (
     LENGTH_PRESETS,
 )
 from app.services.summarizer.prompts import build_takeaway_prompt
-from app.services.summarizer.core import _parse_takeaways
+from app.services.summarizer import parse_takeaways
 from app.services.chat import prepare_chat_context
 from app.services.llm import generate_stream, generate_full
 
@@ -189,7 +189,7 @@ async def summarize_stream(
             try:
                 takeaway_msgs = build_takeaway_prompt(summary_text, prep.takeaway_count)
                 raw_takeaways = await generate_full(takeaway_msgs, max_tokens=400, temperature=0.2)
-                takeaways = _parse_takeaways(raw_takeaways)[:prep.takeaway_count]
+                takeaways = parse_takeaways(raw_takeaways)[:prep.takeaway_count]
             except Exception:
                 logger.warning("Takeaway extraction failed in stream, skipping")
 

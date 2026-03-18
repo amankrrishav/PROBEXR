@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -46,7 +46,6 @@ from app.services.social import get_google_user_info, get_github_user_info
 from app.services.email import send_magic_link_email, send_password_reset_email, send_verification_email, send_account_exists_email
 from app.config import get_config
 import jwt
-from datetime import timedelta
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])

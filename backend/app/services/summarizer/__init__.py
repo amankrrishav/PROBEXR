@@ -8,6 +8,7 @@ from .core import (
     prepare_summarize_messages,
     SummarizePrepResult,
     LENGTH_PRESETS,
+    parse_takeaways,
 )
 from .intelligence import (
     clean_text,
@@ -20,6 +21,7 @@ __all__ = [
     "prepare_summarize_messages",
     "SummarizePrepResult",
     "LENGTH_PRESETS",
+    "parse_takeaways",
     "clean_text",
     "compute_metadata",
 ]

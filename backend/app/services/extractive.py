@@ -629,6 +629,27 @@ def summarize_extractive(
         clean_sentences = sentences
         clean_indices = list(range(len(sentences)))
 
+    # O(N²) guard — TextRank builds an N×N similarity matrix.
+    # For a 1000-sentence paper that's ~500k cosine computations (perceptible lag).
+    # Cap at 300 sentences: trim from the middle to preserve intro and conclusion
+    # which carry the most signal.
+    _SENTENCE_LIMIT = 300
+    if len(clean_sentences) > _SENTENCE_LIMIT:
+        keep_head = _SENTENCE_LIMIT // 3          # first ~100 sentences
+        keep_tail = _SENTENCE_LIMIT // 6          # last ~50 sentences
+        keep_mid  = _SENTENCE_LIMIT - keep_head - keep_tail  # middle ~150
+        mid_start = keep_head
+        mid_end   = len(clean_sentences) - keep_tail
+        mid_step  = max(1, (mid_end - mid_start) // keep_mid)
+        mid_indices = list(range(mid_start, mid_end, mid_step))[:keep_mid]
+        selected = (
+            list(range(keep_head))
+            + mid_indices
+            + list(range(len(clean_sentences) - keep_tail, len(clean_sentences)))
+        )
+        clean_sentences = [clean_sentences[i] for i in selected]
+        clean_indices   = [clean_indices[i]   for i in selected]
+
     target_words = _target_word_count(len(words), target_min, target_max, ratio=word_ratio)
     n = len(clean_sentences)
     total_original = len(sentences)
