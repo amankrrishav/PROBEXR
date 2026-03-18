@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getCurrentUser, login as loginApi, register as registerApi, logout as logoutApi, logoutAll as logoutAllApi, refreshToken } from "../services/auth.js";
+import { getCurrentUser, login as loginApi, register as registerApi, logout as logoutApi, logoutAll as logoutAllApi, refreshToken, updateProfile as updateProfileApi } from "../services/auth.js";
 
 export function useAuth() {
   const [user, setUser] = useState(null);
@@ -102,7 +102,7 @@ export function useAuth() {
     setError(null);
     setSubmitting(true);
     try {
-      const updated = await import("../services/auth.js").then(m => m.updateProfile(data));
+      const updated = await updateProfileApi(data);
       setUser(updated);
       return updated;
     } catch (err) {

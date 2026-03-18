@@ -20,6 +20,7 @@ from app.schemas import (
     PasswordResetRequest,
     PasswordResetConfirm,
     ResendVerificationRequest,
+    OAuthCallbackRequest,
 )
 from app.services.auth import (
     create_access_token,
@@ -194,16 +195,13 @@ async def google_login(response: Response):
 
 @router.post("/google/callback", response_model=Token)
 async def google_callback(
+    body: OAuthCallbackRequest,
     request: Request,
     response: Response,
     session: DbSession
 ) -> Token:
-    body = await request.json()
-    code = body.get("code")
-    state = body.get("state")
-    
-    if not code:
-        raise HTTPException(status_code=400, detail="Code missing")
+    code = body.code
+    state = body.state
 
     # Validate state CSRF parameter
     cookie_state = request.cookies.get("oauth_state")
@@ -267,16 +265,13 @@ async def github_login(response: Response):
 
 @router.post("/github/callback", response_model=Token)
 async def github_callback(
+    body: OAuthCallbackRequest,
     request: Request,
     response: Response,
     session: DbSession
 ) -> Token:
-    body = await request.json()
-    code = body.get("code")
-    state = body.get("state")
-    
-    if not code:
-        raise HTTPException(status_code=400, detail="Code missing")
+    code = body.code
+    state = body.state
 
     cookie_state = request.cookies.get("oauth_state")
     if not state or not cookie_state or state != cookie_state:

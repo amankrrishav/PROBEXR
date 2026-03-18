@@ -114,3 +114,9 @@ class PasswordResetConfirm(BaseModel):
 
 class ResendVerificationRequest(BaseModel):
     email: EmailStr
+
+
+class OAuthCallbackRequest(BaseModel):
+    """Request body for OAuth provider callbacks (Google, GitHub)."""
+    code: str = Field(..., min_length=1, max_length=2048, description="Authorization code from OAuth provider")
+    state: str = Field(..., min_length=1, max_length=2048, description="CSRF state token")

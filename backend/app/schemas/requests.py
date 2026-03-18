@@ -44,4 +44,4 @@ class FlashcardRequest(BaseModel):
 
 class TTSRequest(BaseModel):
     document_id: int = Field(..., description="ID of the document to narrate")
-    provider: str = Field(default="openai", description="TTS provider, e.g. 'openai' or 'elevenlabs'")
+    provider: Literal["openai", "elevenlabs"] = Field(default="openai", description="TTS provider")

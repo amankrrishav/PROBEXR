@@ -28,7 +28,7 @@ class UsedToken(SQLModel, table=True):
     token_type: str = Field(index=True)
 
     # When the original JWT expires — used for garbage collection
-    expires_at: datetime
+    expires_at: datetime = Field(index=True)  # Indexed — token GC WHERE expires_at < now scans this hourly
 
     # When this record was created
     created_at: datetime = Field(

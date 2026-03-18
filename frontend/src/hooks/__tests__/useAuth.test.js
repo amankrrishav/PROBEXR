@@ -159,4 +159,14 @@ describe('useAuth', () => {
     expect(result.current.user).toBeNull();
     expect(result.current.isAuthenticated).toBe(false);
   });
+  it('updateProfile uses static import, not dynamic import', async () => {
+    // N-01 regression guard: updateProfile must use the statically imported
+    // updateProfileApi, not a dynamic await import(...) call.
+    const src = await import('fs').then(fs =>
+      fs.readFileSync('src/hooks/useAuth.js', 'utf-8')
+    );
+    expect(src).not.toContain('await import(');
+    expect(src).toContain('updateProfileApi');
+  });
+
 });

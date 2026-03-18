@@ -133,6 +133,8 @@ _AUTH_RATE_LIMITED_PATHS = (
     "/api/v1/auth/login",
     "/api/v1/auth/register",
     "/api/v1/auth/magic-link",
+    "/api/v1/auth/forgot-password",    # triggers SMTP send — prevent email spam
+    "/api/v1/auth/resend-verification", # triggers SMTP send — prevent email spam
 )
 
 

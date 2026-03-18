@@ -99,3 +99,27 @@ async def test_cleanup_purges_expired_refresh_tokens():
         tokens = [t.token for t in remaining]
         assert "expired-token-001" not in tokens
         assert "valid-token-002" in tokens
+
+
+# ---- N-06: UsedToken.expires_at index ----
+
+def test_used_token_expires_at_has_index():
+    """UsedToken.expires_at must have index=True — the GC query scans it hourly."""
+    import inspect
+    src = open('app/models/used_token.py').read()
+    # Find the expires_at line and confirm index=True is on it
+    lines = src.split('\n')
+    expires_lines = [l for l in lines if 'expires_at' in l and 'Field' in l]
+    assert expires_lines, "UsedToken must have expires_at field with Field()"
+    assert any('index=True' in l for l in expires_lines), (
+        "UsedToken.expires_at must have index=True for GC query performance. "
+        f"Found: {expires_lines}"
+    )
+
+def test_used_token_expires_at_migration_exists():
+    """Alembic migration for used_token.expires_at index must exist."""
+    import os
+    versions = os.listdir('alembic/versions')
+    assert any('used_token_expires_at' in f for f in versions), (
+        "Missing Alembic migration for used_token.expires_at index"
+    )

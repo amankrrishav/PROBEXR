@@ -196,3 +196,62 @@ async def test_auth_routes_exempt_from_per_user_check(
     )
     # 401 (wrong creds) is fine — what matters is NOT 429 from the user check
     assert res.status_code != 429 or res.json().get("detail", "").startswith("Too many requests for")
+
+# ---------------------------------------------------------------------------
+# N-02: forgot-password + resend-verification included in rate-limited paths
+# ---------------------------------------------------------------------------
+
+def test_forgot_password_is_rate_limited_path():
+    """forgot-password must be in _AUTH_RATE_LIMITED_PATHS."""
+    from app.middleware import _AUTH_RATE_LIMITED_PATHS
+    assert any("forgot-password" in p for p in _AUTH_RATE_LIMITED_PATHS), (
+        "/auth/forgot-password must be rate-limited to prevent email spam"
+    )
+
+def test_resend_verification_is_rate_limited_path():
+    """resend-verification must be in _AUTH_RATE_LIMITED_PATHS."""
+    from app.middleware import _AUTH_RATE_LIMITED_PATHS
+    assert any("resend-verification" in p for p in _AUTH_RATE_LIMITED_PATHS), (
+        "/auth/resend-verification must be rate-limited to prevent email spam"
+    )
+
+@pytest.mark.asyncio
+async def test_forgot_password_counted_as_auth_tier(
+    client: AsyncClient, real_limiter: InMemoryRateLimiter
+):
+    """forgot-password requests must be counted in the auth rate-limit tier."""
+    import time
+    cfg_limit = 5
+    minute = int(time.time() // 60)
+    ip = "127.0.0.1"
+    # Pre-fill the auth bucket to the limit
+    for _ in range(cfg_limit):
+        await real_limiter.check_and_increment(f"rl:{ip}:auth:{minute}", cfg_limit)
+
+    res = await client.post(
+        "/auth/forgot-password",
+        json={"email": "test@example.com"},
+    )
+    assert res.status_code == 429, (
+        "forgot-password must be blocked when auth rate limit is exhausted"
+    )
+
+@pytest.mark.asyncio
+async def test_resend_verification_counted_as_auth_tier(
+    client: AsyncClient, real_limiter: InMemoryRateLimiter
+):
+    """resend-verification requests must be counted in the auth rate-limit tier."""
+    import time
+    cfg_limit = 5
+    minute = int(time.time() // 60)
+    ip = "127.0.0.1"
+    for _ in range(cfg_limit):
+        await real_limiter.check_and_increment(f"rl:{ip}:auth:{minute}", cfg_limit)
+
+    res = await client.post(
+        "/auth/resend-verification",
+        json={"email": "test@example.com"},
+    )
+    assert res.status_code == 429, (
+        "resend-verification must be blocked when auth rate limit is exhausted"
+    )

@@ -81,11 +81,29 @@ async def test_google_callback_returns_existing_user(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_google_callback_missing_code(client: AsyncClient):
-    """Callback with no code returns 400."""
+    """Callback with no code returns 422 (Pydantic schema rejects missing required field)."""
     extra = _oauth_state_for("google", client)
     res = await client.post("/auth/google/callback", json={**extra})
-    assert res.status_code == 400
-    assert "Code missing" in res.json()["detail"]
+    assert res.status_code == 422
+
+@pytest.mark.asyncio
+async def test_github_callback_missing_code_is_422(client: AsyncClient):
+    """Callback with no code returns 422 (Pydantic schema rejects missing required field)."""
+    extra = _oauth_state_for("github", client)
+    res = await client.post("/auth/github/callback", json={**extra})
+    assert res.status_code == 422
+
+@pytest.mark.asyncio
+async def test_google_callback_empty_body_is_422(client: AsyncClient):
+    """Completely empty body returns 422."""
+    res = await client.post("/auth/google/callback", json={})
+    assert res.status_code == 422
+
+@pytest.mark.asyncio
+async def test_github_callback_empty_body_is_422(client: AsyncClient):
+    """Completely empty body returns 422."""
+    res = await client.post("/auth/github/callback", json={})
+    assert res.status_code == 422
 
 
 @pytest.mark.asyncio
@@ -101,11 +119,10 @@ async def test_google_callback_provider_error(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_google_callback_missing_state(client: AsyncClient):
-    """Callback without OAuth state returns 400 (CSRF protection)."""
+    """Callback without state returns 422 — Pydantic rejects missing required field."""
     with patch(_GOOGLE_PATCH, new=AsyncMock(return_value=GOOGLE_USER)):
         res = await client.post("/auth/google/callback", json={"code": "fake-code"})
-    assert res.status_code == 400
-    assert "state" in res.json()["detail"].lower() or "CSRF" in res.json()["detail"]
+    assert res.status_code == 422
 
 
 @pytest.mark.asyncio
@@ -150,10 +167,10 @@ async def test_github_callback_returns_existing_user(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_github_callback_missing_code(client: AsyncClient):
-    """Callback with no code returns 400."""
+    """Callback with no code returns 422 — Pydantic rejects missing required field."""
     extra = _oauth_state_for("github", client)
     res = await client.post("/auth/github/callback", json={**extra})
-    assert res.status_code == 400
+    assert res.status_code == 422
 
 
 @pytest.mark.asyncio
