@@ -1,11 +1,10 @@
+from typing import Any
+
 from fastapi import APIRouter
 
 from app.config import get_config
 
 router = APIRouter(tags=["health"])
-
-
-from typing import Any
 
 @router.get("/")
 def health() -> dict[str, Any]:

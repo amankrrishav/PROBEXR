@@ -138,3 +138,28 @@ def test_list_flashcard_sets_no_loop_query():
     assert 'await session.execute' not in src_after_loop, (
         "list_flashcard_sets must not call session.execute() inside the 'for s in sets' loop"
     )
+
+
+# ---------------------------------------------------------------------------
+# R-05: Flashcard.front and Flashcard.back have max_length bounds
+# ---------------------------------------------------------------------------
+
+def test_flashcard_front_has_max_length():
+    """Flashcard.front must have a max_length constraint."""
+    src = open('app/models/flashcards.py').read()
+    front_lines = [l for l in src.split('\n') if 'front' in l and 'Field' in l]
+    assert front_lines, "Flashcard must have a front field with Field()"
+    assert any('max_length' in l for l in front_lines), (
+        f"Flashcard.front must have max_length. Found: {front_lines}"
+    )
+
+
+def test_flashcard_back_has_max_length():
+    """Flashcard.back must have a max_length constraint."""
+    src = open('app/models/flashcards.py').read()
+    back_lines = [l for l in src.split('\n') if "'back'" in l or ('"back"' in l) or ('back' in l and 'Field' in l and 'set_id' not in l and 'flashcard_set' not in l)]
+    back_field_lines = [l for l in src.split('\n') if l.strip().startswith('back') and 'Field' in l]
+    assert back_field_lines, "Flashcard must have a back field with Field()"
+    assert any('max_length' in l for l in back_field_lines), (
+        f"Flashcard.back must have max_length. Found: {back_field_lines}"
+    )

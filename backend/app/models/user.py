@@ -13,8 +13,8 @@ class User(SQLModel, table=True):
     hashed_password: Optional[str] = Field(default=None)  # Optional for social-only users
 
     # Profile
-    full_name: Optional[str] = Field(default=None)
-    avatar_url: Optional[str] = Field(default=None)
+    full_name: Optional[str] = Field(default=None, max_length=200)
+    avatar_url: Optional[str] = Field(default=None, max_length=2048)
 
     # Auth / lifecycle
     is_active: bool = True

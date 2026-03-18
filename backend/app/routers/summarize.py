@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import APIRouter, HTTPException
 
 from app.deps import OptionalVerifiedUser, DbSession
@@ -5,9 +7,6 @@ from app.schemas import TextRequest
 from app.services.summarizer import process_summarize
 
 router = APIRouter(prefix="", tags=["summarize"])
-
-
-from typing import Any
 
 @router.post("/summarize")
 async def summarize_endpoint(

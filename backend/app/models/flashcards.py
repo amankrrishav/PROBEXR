@@ -19,7 +19,7 @@ class FlashcardSet(SQLModel, table=True):
 class Flashcard(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     set_id: int = Field(foreign_key="flashcardset.id", index=True)
-    front: str
-    back: str
+    front: str = Field(max_length=2000)  # Anki card front face
+    back: str = Field(max_length=2000)   # Anki card back face
 
     flashcard_set: Optional["FlashcardSet"] = Relationship(back_populates="flashcards")

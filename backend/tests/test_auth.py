@@ -355,3 +355,27 @@ def test_secret_key_entropy_check():
     import secrets
     long_key = secrets.token_hex(32)
     assert len(long_key) >= 32
+
+
+# ---------------------------------------------------------------------------
+# R-08: User.full_name and User.avatar_url have max_length bounds
+# ---------------------------------------------------------------------------
+
+def test_user_full_name_has_max_length():
+    """User.full_name must have a max_length constraint."""
+    src = open('app/models/user.py').read()
+    lines = [l for l in src.split('\n') if 'full_name' in l and 'Field' in l]
+    assert lines, "User must have a full_name field with Field()"
+    assert any('max_length' in l for l in lines), (
+        f"User.full_name must have max_length. Found: {lines}"
+    )
+
+
+def test_user_avatar_url_has_max_length():
+    """User.avatar_url must have a max_length constraint."""
+    src = open('app/models/user.py').read()
+    lines = [l for l in src.split('\n') if 'avatar_url' in l and 'Field' in l]
+    assert lines, "User must have an avatar_url field with Field()"
+    assert any('max_length' in l for l in lines), (
+        f"User.avatar_url must have max_length. Found: {lines}"
+    )

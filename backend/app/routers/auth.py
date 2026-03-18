@@ -1,13 +1,11 @@
 import logging
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
+from fastapi import APIRouter, HTTPException, status, Response, Request
 from fastapi.responses import JSONResponse, RedirectResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
-from app.db import get_session
 from app.deps import CurrentUser, DbSession
 from app.models.user import User
 from app.schemas import (
