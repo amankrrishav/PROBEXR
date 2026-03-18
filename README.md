@@ -28,7 +28,7 @@ PROBEXR is a full-stack article summarizer and learning platform: paste text or 
 **Backend (FastAPI)**  
 - **Scalable structure:** `app/` with config, schemas, routers, services—contains routers for auth, chat, flashcards, ingest, summarize, synthesis, and tts.  
 - **Async-first:** Full async pipeline using `asyncpg` (PostgreSQL) or `aiosqlite` (SQLite dev) with `AsyncSession`. Zero blocking calls in the request path.  
-- **PostgreSQL-ready:** Connection pooling (`pool_size`, `max_overflow`, `pool_timeout`) configured for production. SQLite fallback for local development.  
+- **PostgreSQL-ready:** Connection pooling (`pool_size`, `max_overflow`, `pool_timeout`) configured for production. CockroachDB compatibility is handled seamlessly. SQLite fallback for local development.  
 - **Redis rate limiting:** Atomic INCR+EXPIRE pattern with per-IP limits. Graceful in-memory fallback when Redis is unavailable.  
 - **LLM streaming-ready:** `generate_full()` + `generate_stream()` in the LLM layer. SSE transport for real-time token streaming.  
 - **Human-like summarization:** Two-stage (extract concepts → synthesize in natural language) via any OpenAI-compatible API.  
@@ -85,7 +85,7 @@ backend/
 ## Current capabilities
 
 - **Two-stage human-like summarization** (extract → synthesize)  
-- **URL Ingestion** for seamless web scraping and DB content storage
+- **URL Ingestion** for seamless web scraping with content-type validation (rejects binaries early) and DB content storage
 - **Contextual Article Chat** for interrogating documents
 - **Flashcard Export** to CSV matching Anki formats
 - **Multi-Document Synthesis** for combining insights across documents
