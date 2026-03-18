@@ -11,9 +11,9 @@ PROBEXR is a full-stack article summarizer and learning platform: paste text or 
 
 ## Project overview
 
-**Frontend (React + Vite)**  
+**Frontend (React 19 + Vite)**  
 - Paste text or URL (min 30 words).  
-- Calls backend `POST /summarize` or `POST /api/ingest/url`.  
+- Calls backend `POST /api/v1/summarize` or `POST /api/v1/ingest/...`.  
 - Displays summary with typewriter effect and "Show full".  
 - **Premium Auth UX:** 
   - **Social Login:** Sign in instantly via Google or GitHub.
@@ -26,7 +26,7 @@ PROBEXR is a full-stack article summarizer and learning platform: paste text or 
   - **Read Aloud (TTS):** Coming soon — listen to summaries.
 
 **Backend (FastAPI)**  
-- **Scalable structure:** `app/` with config, schemas, routers, services—contains routers for auth, chat, flashcards, ingest, summarize, synthesis, and tts.  
+- **Scalable structure:** `app/` with config, schemas, routers, services—contains routers for auth, chat, documents, flashcards, ingest, summarize, synthesis, tts, analytics, and streaming.  
 - **Async-first:** Full async pipeline using `asyncpg` (PostgreSQL) or `aiosqlite` (SQLite dev) with `AsyncSession`. Zero blocking calls in the request path.  
 - **PostgreSQL-ready:** Connection pooling (`pool_size`, `max_overflow`, `pool_timeout`) configured for production. CockroachDB compatibility is handled seamlessly. SQLite fallback for local development.  
 - **Redis rate limiting:** Atomic INCR+EXPIRE pattern with per-IP limits. Graceful in-memory fallback when Redis is unavailable.  
@@ -47,10 +47,10 @@ User pastes text / URL
        ↓
 React frontend (VITE_API_URL → backend)
        ↓
-┌─────────────────────────────────────────────────┐
-│  FastAPI (async)                                │
+┌──────────────────────────────────────────────────┐
+│  FastAPI (async)                                 │
 │    ↓ RateLimitingMiddleware (Redis / in-memory)  │
-│    ↓ Routers (auth│social│ingest│chat│synthesis)   │
+│    ↓ Routers (auth│ingest│chat│synthesis│docs│etc)│
 │    ↓ Services (async, AsyncSession)              │
 │    ↓ LLM Layer (generate_full / generate_stream) │
 │    ↓ Database (asyncpg / aiosqlite)              │
@@ -73,7 +73,7 @@ backend/
 │   ├── http_client.py    # Global shared httpx.AsyncClient (connection pooling)
 │   ├── middleware.py      # CSRF + Logging + rate limiting (Redis / in-memory fallback)
 │   ├── schemas/          # Request/response models (e.g. TextRequest)
-│   ├── routers/          # Route modules (summarize, auth, chat, ingest, flashcards, tts, synthesis, streaming, social)
+│   ├── routers/          # Route modules (summarize, auth, chat, ingest, flashcards, tts, synthesis, streaming, documents, analytics)
 │   └── services/         # Business logic (summarizer, llm, auth, social, email, chat, etc.)
 ├── alembic/              # Database migrations (env-driven URL)
 ├── requirements.txt      # Dependencies
@@ -87,6 +87,9 @@ backend/
 - **Two-stage human-like summarization** (extract → synthesize)  
 - **URL Ingestion** for seamless web scraping with content-type validation (rejects binaries early) and DB content storage
 - **Contextual Article Chat** for interrogating documents
+- **Document Management** to browse, search, and manage your summary library
+- **Analytics** for tracking usage and interactions
+- **Observability** with built-in Prometheus metrics (`/metrics`) and `X-Request-ID` tracing for structured log correlation
 - **Flashcard Export** to CSV matching Anki formats
 - **Multi-Document Synthesis** for combining insights across documents
 - **SSE Streaming** for real-time token delivery

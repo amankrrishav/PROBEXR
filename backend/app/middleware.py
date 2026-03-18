@@ -40,27 +40,54 @@ from fastapi import Response
 
 class LoggingMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+        from app.metrics import HTTP_REQUEST_DURATION_SECONDS, HTTP_REQUESTS_TOTAL
+
         api_logger = logging.getLogger("api")
         start_time = time.time()
-        
+
+        # A-34: Generate or propagate a request ID for log correlation.
+        # Clients can send X-Request-ID; if absent we generate one.
+        request_id = request.headers.get("x-request-id") or secrets.token_hex(8)
+
         try:
             response = await call_next(request)
             status_code = response.status_code
-        except Exception as e:
+        except Exception:
             status_code = 500
-            api_logger.exception("Request failed with exception")
+            api_logger.exception(
+                "Request failed with exception",
+                extra={"request_id": request_id},
+            )
             raise
         finally:
             process_time = time.time() - start_time
+            path = str(request.url.path)
+
             api_logger.info(
                 "Request handled",
                 extra={
+                    "request_id": request_id,
                     "method": request.method,
-                    "url": str(request.url.path),
+                    "url": path,
                     "status_code": status_code,
-                    "process_time_s": process_time,
-                }
+                    "process_time_s": round(process_time, 4),
+                },
             )
+
+            # A-35: Record HTTP route metrics
+            HTTP_REQUEST_DURATION_SECONDS.labels(
+                method=request.method,
+                path=path,
+                status_code=str(status_code),
+            ).observe(process_time)
+            HTTP_REQUESTS_TOTAL.labels(
+                method=request.method,
+                path=path,
+                status_code=str(status_code),
+            ).inc()
+
+        # A-34: Propagate request ID back to caller in response header
+        response.headers["X-Request-ID"] = request_id
         return response
 
 

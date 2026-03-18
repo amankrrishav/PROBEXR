@@ -9,7 +9,7 @@ React + Vite frontend. Structure matches backend: config, services (API), hooks,
 - **Profile Management:** In-app settings for name and avatar.
 - **Security-First UI:** Visual password strength hints (NIST compliant) and CSRF protection.
 - **Modern UI:** Vibrant, premium design with dark mode and smooth transitions.
-- **Testing:** Comprehensive frontend component testing with `vitest` and `@testing-library/react`.
+- **Testing:** Comprehensive React 19 component testing with `vitest` and `@testing-library/react`.
 
 ## Structure (scalable)
 

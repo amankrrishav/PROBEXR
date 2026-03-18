@@ -44,6 +44,7 @@ from app.services.auth import (
 from app.services.social import get_google_user_info, get_github_user_info
 from app.services.email import send_magic_link_email, send_password_reset_email, send_verification_email, send_account_exists_email
 from app.config import get_config
+from app.metrics import AUTH_EVENTS_TOTAL
 import jwt
 
 
@@ -123,6 +124,7 @@ async def login(
     try:
         user = await authenticate_user(session, payload.email, payload.password)
     except ValueError as e:
+        AUTH_EVENTS_TOTAL.labels(event="login_failure").inc()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
 
     if user.id is None:
@@ -130,6 +132,7 @@ async def login(
     access_token = create_access_token({"sub": user.email})
     refresh = await create_refresh_token(session, user.id)
 
+    AUTH_EVENTS_TOTAL.labels(event="login_success").inc()
     set_auth_cookie(response, access_token)
     set_refresh_cookie(response, refresh.token)
     return Token(access_token=access_token, refresh_token=refresh.token)
@@ -152,6 +155,7 @@ async def refresh(
     new_refresh, user = await rotate_refresh_token(session, old_refresh)
     access_token = create_access_token({"sub": user.email})
 
+    AUTH_EVENTS_TOTAL.labels(event="token_refresh").inc()
     set_auth_cookie(response, access_token)
     set_refresh_cookie(response, new_refresh.token)
     return Token(access_token=access_token, refresh_token=new_refresh.token)
@@ -440,6 +444,7 @@ async def logout(
     if old_refresh:
         await revoke_refresh_token(session, old_refresh)
 
+    AUTH_EVENTS_TOTAL.labels(event="logout").inc()
     delete_auth_cookies(response)
     return {"message": "Logged out"}
 

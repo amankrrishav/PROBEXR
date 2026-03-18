@@ -6,9 +6,9 @@ PROBEXR is **100% free and open-source**. This doc outlines completed work and u
 
 ## Current (Completed)
 
-- **Backend:** FastAPI (fully async), config, routers, services. Includes endpoints for Summarize (extractive + LLM), URL Ingest, Text-to-Speech (ready for production implementation), Contextual Chat, Flashcard Export, and Multi-Document Synthesis. Health checks, auth (email + password, JWT with HttpOnly cookies).
+- **Backend:** FastAPI (fully async), config, routers, services. Includes endpoints (`/api/v1`) for Summarize (extractive + LLM), URL Ingest, Text-to-Speech (ready for production implementation), Contextual Chat, Flashcard Export, Document Management, Analytics, and Multi-Document Synthesis. Health checks, auth (email + password, JWT with HttpOnly cookies).
 - **Infrastructure:** Async database layer (PostgreSQL via `asyncpg` + SQLite via `aiosqlite`), connection pooling, Redis rate limiter with in-memory fallback, LLM streaming (`generate_full` + `generate_stream`), structured JSON observability logging, Alembic migrations (env-driven). Full local dev compatibility preserved.
-- **Frontend:** React + Vite, config, hooks, features. Summarizer + theme, backend health on load, request timeout, auth modal (sign up / log in), account menu. Features include the Synthesis Workspace, Sidebar navigation, and interactive Output Cards for chat and flashcards. SSE streaming with automatic fallback.
+- **Frontend:** React 19 + Vite, config, hooks, features. Summarizer + theme, backend health on load, request timeout, auth modal (sign up / log in), account menu. Features include the Synthesis Workspace, Sidebar navigation, personal Document Management (Library Dashboard), robust Analytics, and interactive Output Cards for chat and flashcards. SSE streaming with automatic fallback.
 - **Testing:** Comprehensive backend (pytest) and frontend (vitest) test suites covering auth, flashcards, and component rendering.
 - **Production Hardening:** Live deployment with SSL/TLS, CORS configuration, and managed database/Redis.
 - **Session Sync:** Multi-device session support with Refresh Token rotation and reuse detection.
@@ -21,7 +21,6 @@ PROBEXR is **100% free and open-source**. This doc outlines completed work and u
 
 ## Phase Next — Growth & Retention
 
-- [ ] **Library Dashboard** — personal document history (list, search, re-open past summaries)
 - [ ] **Browser Extension** — one-click "Summarize this page" for Chrome/Firefox
 - [ ] **Export & Sharing** — copy as markdown, PDF export, public share links
 - [ ] **Highlights & Annotations** — highlight text spans, add notes, export

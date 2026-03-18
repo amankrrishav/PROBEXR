@@ -18,8 +18,10 @@ Scalable async FastAPI backend for human-like summarization, TTS, chat, and flas
 ## Structure
 
 - **app/config.py** — Dynamic env-based config with robust URL purification.
-- **app/routers/** — Includes `auth.py` with Social Login and Magic Link support.
+- **app/routers/** — Scalable API structure under `/api/v1` prefix. Includes `auth.py` (Social Login/Magic Link), `documents.py`, and `analytics.py`.
 - **app/services/** — Includes `social.py` for OAuth2 client logic.
+- **app/metrics.py** — Prometheus metrics tracking HTTP request durations and auth events.
+- **app/middleware.py** — CSRF, rate limiting, and structured logging with `X-Request-ID` propagation.
 - **alembic/** — Migrations targeting both SQLite (dev) and PostgreSQL (prod).
 
 ## Env

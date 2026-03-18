@@ -16,7 +16,7 @@ probexr/
 │   │   ├── deps.py       # Auth + DB dependencies (CurrentUser, OptionalUser, DbSession)
 │   │   ├── middleware.py  # CSRF + Logging + rate limiting (Redis/in-memory)
 │   │   ├── schemas/      # Request/response models
-│   │   ├── routers/      # Async route modules (health, summarize, auth, chat, ingest, flashcards, tts, synthesis, streaming, social)
+│   │   ├── routers/      # Async route modules (health, summarize, auth, chat, ingest, flashcards, tts, synthesis, streaming, documents, analytics, social)
 │   │   └── services/     # Async business logic (summarizer, llm, auth, chat, email, social, etc.)
 │   ├── alembic/          # Database migrations (env-driven URL)
 │   ├── requirements.txt
@@ -43,7 +43,7 @@ probexr/
 2. **Schema** — Add Pydantic models in `backend/app/schemas/` (e.g. `UrlFetchRequest`).
 3. **Service** — Add async logic in `backend/app/services/` (e.g. `url_fetch.py`). Use `AsyncSession` for all DB operations (`await session.execute()`, `await session.commit()`).
 4. **Router** — Add `backend/app/routers/url_fetch.py` with `async def` handlers; mount in `app/main.py`:  
-   `app.include_router(url_fetch.router, prefix="/api")`.
+   `app.include_router(url_fetch.router, prefix="/api/v1")`.
 5. **Auth (optional)** — Use `deps.CurrentUser` (required) or `deps.OptionalUser` (optional) for auth-gated routes.
 6. **Migration (if new models)** — Run `python -m alembic revision --autogenerate -m "description"` then `python -m alembic upgrade head`.
 
@@ -78,7 +78,7 @@ See root [README.md](README.md) and `backend/README.md`, `frontend/README.md` fo
 
 ## Infrastructure notes
 
-- **Database:** All services use `AsyncSession` (from `sqlalchemy.ext.asyncio`). PostgreSQL (`asyncpg`) for production, SQLite (`aiosqlite`) for dev. In production, a specialized setup for PostgreSQL-compatible dialects (like CockroachDB) is used, scoping dialect version patches to engine connection events.
+- **Database:** All services use `AsyncSession` (from `sqlalchemy.ext.asyncio`). Models are defined using `SQLModel`. PostgreSQL (`asyncpg`) for production, SQLite (`aiosqlite`) for dev. In production, a specialized setup for PostgreSQL-compatible dialects (like CockroachDB) is used, scoping dialect version patches to engine connection events.
 - **Rate limiting & Lockouts:** Redis-backed (`INCR + EXPIRE`) with in-memory fallback for global rate limiting and Brute-force Account Lockout. Configured in `middleware.py` and `lockout.py`, initialized in `main.py` lifespan.
 - **LLM layer:** `services/llm.py` provides `generate_full()` (blocking) and `generate_stream()` (async iterator). Existing callers use `chat_completion` alias.
 - **Migrations:** Alembic reads `DATABASE_URL` from environment. Run `python -m alembic upgrade head` after model changes.
