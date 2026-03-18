@@ -33,26 +33,34 @@ async def list_chat_sessions(
     count_stmt = select(func.count()).select_from(ChatSession).where(ChatSession.user_id == user.id)
     total = (await session.execute(count_stmt)).scalar() or 0
 
+    # Single query: join ChatSession with Document and aggregate message count
+    # Avoids N+1 — one extra SELECT per session for msg count + document title.
     stmt = (
-        select(ChatSession)
+        select(
+            ChatSession,
+            Document.title.label("document_title"),  # type: ignore[attr-defined]
+            func.count(ChatMessage.id).label("msg_count"),
+        )
+        .outerjoin(Document, ChatSession.document_id == Document.id)
+        .outerjoin(ChatMessage, ChatMessage.session_id == ChatSession.id)
         .where(ChatSession.user_id == user.id)
+        .group_by(ChatSession.id, Document.title)
         .order_by(ChatSession.created_at.desc())  # type: ignore[attr-defined]
         .offset(offset)
         .limit(per_page)
     )
     result = await session.execute(stmt)
-    sessions_list = list(result.scalars().all())
+    rows = result.all()
 
     items = []
-    for s in sessions_list:
-        msg_count_stmt = select(func.count()).select_from(ChatMessage).where(ChatMessage.session_id == s.id)
-        msg_count = (await session.execute(msg_count_stmt)).scalar() or 0
-        # Get document title
-        doc = await session.get(Document, s.document_id)
+    for row in rows:
+        s = row[0]
+        doc_title = row[1]
+        msg_count = row[2] or 0
         items.append({
             "id": s.id,
             "document_id": s.document_id,
-            "document_title": doc.title if doc else None,
+            "document_title": doc_title,
             "message_count": msg_count,
             "created_at": s.created_at.isoformat() if s.created_at else None,
         })

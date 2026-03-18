@@ -83,3 +83,40 @@ async def test_list_session_messages_not_found(authed_client: AsyncClient):
 async def test_list_session_messages_unauthenticated(client: AsyncClient):
     res = await client.get("/chat/sessions/1/messages")
     assert res.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# N-11: assert session_id is not None replaced with proper ValueError guard
+# ---------------------------------------------------------------------------
+
+def test_prepare_chat_context_uses_value_error_not_assert():
+    """prepare_chat_context must raise ValueError, not assert, for missing session_id."""
+    import inspect
+    from app.services import chat
+    src = inspect.getsource(chat.prepare_chat_context)
+    assert 'assert session_id' not in src, (
+        "assert session_id is not None must be replaced with an explicit ValueError guard"
+    )
+    assert 'session_id is None' in src, (
+        "prepare_chat_context must have an explicit session_id is None check"
+    )
+
+
+# ---------------------------------------------------------------------------
+# N-07: list_chat_sessions uses a single aggregated query (no N+1)
+# ---------------------------------------------------------------------------
+
+def test_list_chat_sessions_no_loop_query():
+    """list_chat_sessions must not execute a DB query per session in a loop."""
+    import inspect
+    from app.routers import chat as chat_router
+    src = inspect.getsource(chat_router.list_chat_sessions)
+    # The old N+1 pattern: for s in sessions_list: await session.execute(...)
+    # New pattern uses outerjoin + GROUP BY in a single query
+    assert 'outerjoin' in src, (
+        "list_chat_sessions must use outerjoin to avoid N+1 queries"
+    )
+    # Must NOT contain a per-row execute inside the loop
+    assert 'for s in sessions_list' not in src, (
+        "list_chat_sessions must not loop over sessions and query each one individually"
+    )

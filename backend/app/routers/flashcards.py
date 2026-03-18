@@ -43,15 +43,25 @@ async def list_flashcard_sets(
     result = await session.execute(stmt)
     sets = list(result.scalars().all())
 
-    # Card count per set
+    # Single query: aggregate card count per set — avoids N+1
+    # (previously ran one extra SELECT per set in a Python loop)
+    set_ids = [s.id for s in sets]
+    card_counts: dict[int, int] = {}
+    if set_ids:
+        count_stmt = (
+            select(Flashcard.set_id, func.count(Flashcard.id).label("cnt"))
+            .where(Flashcard.set_id.in_(set_ids))  # type: ignore[attr-defined]
+            .group_by(Flashcard.set_id)
+        )
+        count_rows = (await session.execute(count_stmt)).all()
+        card_counts = {row[0]: row[1] for row in count_rows}
+
     items = []
     for s in sets:
-        card_count_stmt = select(func.count()).select_from(Flashcard).where(Flashcard.set_id == s.id)
-        card_count = (await session.execute(card_count_stmt)).scalar() or 0
         items.append({
             "id": s.id,
             "document_id": s.document_id,
-            "card_count": card_count,
+            "card_count": card_counts.get(s.id, 0),
             "created_at": s.created_at.isoformat() if s.created_at else None,
         })
 

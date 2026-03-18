@@ -116,7 +116,8 @@ async def prepare_chat_context(
         content = sanitize_user_prompt(m.content) if m.role == "user" else m.content
         messages_payload.append({"role": m.role, "content": content})
 
-    assert session_id is not None
+    if session_id is None:
+        raise ValueError("session_id must be set before building ChatContext")
     return ChatContext(messages_payload=messages_payload, session_id=session_id)
 
 

@@ -16,8 +16,8 @@ async def send_account_exists_email(to_email: str, login_link: str) -> None:
     cfg = get_config()
 
     if not cfg.smtp_host:
-        logger.info(f"ACCOUNT EXISTS EMAIL for {to_email}: {login_link}")
-        print(f"\n[DEVELOPMENT] ACCOUNT EXISTS EMAIL for {to_email}: {login_link}\n")
+        logger.info("Account-exists email queued for %s", to_email)
+        logger.debug("[DEV] Account-exists email for %s: %s", to_email, login_link)
         return
 
     msg = EmailMessage()
@@ -59,9 +59,9 @@ The PROBEXR Team
                 if cfg.smtp_user and cfg.smtp_password:
                     server.login(cfg.smtp_user, cfg.smtp_password)
                 server.send_message(msg)
-                logger.info(f"Account-exists email sent to {to_email}")
+                logger.info("Account-exists email sent to %s", to_email)
         except Exception as e:
-            logger.error(f"SMTP error sending account-exists email to {to_email}: {str(e)}")
+            logger.error("SMTP error sending account-exists email to %s: %s", to_email, e)
             raise
 
     try:
@@ -75,8 +75,8 @@ async def send_verification_email(to_email: str, verification_link: str) -> None
     cfg = get_config()
 
     if not cfg.smtp_host:
-        logger.info(f"EMAIL VERIFICATION LINK for {to_email}: {verification_link}")
-        print(f"\n[DEVELOPMENT] EMAIL VERIFICATION LINK for {to_email}: {verification_link}\n")
+        logger.info("Verification email queued for %s", to_email)
+        logger.debug("[DEV] Verification link for %s: %s", to_email, verification_link)
         return
 
     msg = EmailMessage()
@@ -117,9 +117,9 @@ The PROBEXR Team
                 if cfg.smtp_user and cfg.smtp_password:
                     server.login(cfg.smtp_user, cfg.smtp_password)
                 server.send_message(msg)
-                logger.info(f"Verification email sent to {to_email}")
+                logger.info("Verification email sent to %s", to_email)
         except Exception as e:
-            logger.error(f"SMTP error sending verification email to {to_email}: {str(e)}")
+            logger.error("SMTP error sending verification email to %s: %s", to_email, e)
             raise
 
     try:
@@ -133,8 +133,8 @@ async def send_password_reset_email(to_email: str, reset_link: str) -> None:
     cfg = get_config()
 
     if not cfg.smtp_host:
-        logger.info(f"PASSWORD RESET LINK for {to_email}: {reset_link}")
-        print(f"\n[DEVELOPMENT] PASSWORD RESET LINK for {to_email}: {reset_link}\n")
+        logger.info("Password reset email queued for %s", to_email)
+        logger.debug("[DEV] Password reset link for %s: %s", to_email, reset_link)
         return
 
     msg = EmailMessage()
@@ -178,9 +178,9 @@ The PROBEXR Team
                 if cfg.smtp_user and cfg.smtp_password:
                     server.login(cfg.smtp_user, cfg.smtp_password)
                 server.send_message(msg)
-                logger.info(f"Password reset email sent to {to_email}")
+                logger.info("Password reset email sent to %s", to_email)
         except Exception as e:
-            logger.error(f"SMTP error while sending reset email to {to_email}: {str(e)}")
+            logger.error("SMTP error sending password reset email to %s: %s", to_email, e)
             raise
 
     try:
@@ -195,8 +195,8 @@ async def send_magic_link_email(to_email: str, magic_link: str) -> None:
     
     # If no SMTP host is configured, fallback to console (useful for development)
     if not cfg.smtp_host:
-        logger.info(f"MAGIC LINK for {to_email}: {magic_link}")
-        print(f"\n[DEVELOPMENT] MAGIC LINK for {to_email}: {magic_link}\n")
+        logger.info("Magic link email queued for %s", to_email)
+        logger.debug("[DEV] Magic link for %s: %s", to_email, magic_link)
         return
 
     msg = EmailMessage()
@@ -236,9 +236,9 @@ The PROBEXR Team
                 if cfg.smtp_user and cfg.smtp_password:
                     server.login(cfg.smtp_user, cfg.smtp_password)
                 server.send_message(msg)
-                logger.info(f"Magic link email sent successfully to {to_email}")
+                logger.info("Magic link email sent to %s", to_email)
         except Exception as e:
-            logger.error(f"SMTP error while sending email to {to_email}: {str(e)}")
+            logger.error("SMTP error sending magic link email to %s: %s", to_email, e)
             raise
             
     try:

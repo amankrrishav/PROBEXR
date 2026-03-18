@@ -112,3 +112,29 @@ async def test_create_flashcards_no_llm_error_message_is_actionable(
     detail = res.json()["detail"].lower()
     # Should mention setting a key — actionable guidance
     assert "groq_api_key" in detail or "openai_api_key" in detail or "api key" in detail
+
+
+# ---------------------------------------------------------------------------
+# N-07: list_flashcard_sets uses a single aggregated query (no N+1)
+# ---------------------------------------------------------------------------
+
+def test_list_flashcard_sets_no_loop_query():
+    """list_flashcard_sets must aggregate card counts in one query, not per-set loops."""
+    import inspect
+    from app.routers import flashcards as fc_router
+    src = inspect.getsource(fc_router.list_flashcard_sets)
+    # New pattern: single IN query with GROUP BY before the loop
+    assert 'set_ids' in src, (
+        "list_flashcard_sets must batch card count lookup using set_ids"
+    )
+    assert '.in_(set_ids)' in src, (
+        "list_flashcard_sets must use .in_(set_ids) to batch the card count query"
+    )
+    # The loop must only build the response list — no DB call inside it.
+    # Check that 'await session.execute' does NOT appear after 'for s in sets:'
+    loop_start = src.find('for s in sets:')
+    assert loop_start != -1, "Expected 'for s in sets:' loop in list_flashcard_sets"
+    src_after_loop = src[loop_start:]
+    assert 'await session.execute' not in src_after_loop, (
+        "list_flashcard_sets must not call session.execute() inside the 'for s in sets' loop"
+    )

@@ -152,3 +152,20 @@ async def test_analytics_heatmap_structure(authed_client: AsyncClient):
         assert "count" in entry
         assert isinstance(entry["count"], int)
         assert entry["count"] >= 0
+
+# ---------------------------------------------------------------------------
+# N-10: analytics router uses HTTPException not assert for user.id guard
+# ---------------------------------------------------------------------------
+
+def test_analytics_router_no_assert_on_user_id():
+    """dashboard route must not use assert for user.id — assert is stripped by -O."""
+    import inspect
+    from app.routers import analytics as analytics_router
+    src = inspect.getsource(analytics_router.dashboard)
+    assert 'assert user.id' not in src, (
+        "assert user.id is not None is stripped by Python -O. "
+        "Use an explicit HTTPException guard instead."
+    )
+    assert 'HTTPException' in src or 'user.id is None' in src, (
+        "dashboard must have an explicit user.id None check"
+    )
