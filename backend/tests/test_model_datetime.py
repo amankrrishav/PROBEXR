@@ -57,3 +57,31 @@ def test_all_models_use_timezone_utc():
         assert "timezone.utc" in src, (
             f"{module_path} must use datetime.now(timezone.utc) for created_at"
         )
+
+# ---------------------------------------------------------------------------
+# R-04: User.created_at has a timezone-aware default factory (not None)
+# ---------------------------------------------------------------------------
+
+def test_user_created_at_has_default_factory():
+    """User.created_at must not default to None — needs a proper datetime factory."""
+    src = open('app/models/user.py').read()
+    created_lines = [l for l in src.split('\n') if 'created_at' in l]
+    # Must NOT have default=None
+    assert not any('default=None' in l for l in created_lines), (
+        "User.created_at must use default_factory, not default=None. "
+        f"Found: {[l for l in created_lines if 'default=None' in l]}"
+    )
+    # Must have default_factory
+    assert any('default_factory' in l or 'default_factory' in '\n'.join(
+        src.split('\n')[i:i+3]
+    ) for i, l in enumerate(src.split('\n')) if 'created_at' in l), (
+        "User.created_at must have a default_factory"
+    )
+
+
+def test_user_created_at_uses_timezone_utc():
+    """User.created_at default must use timezone.utc — consistent with all other models."""
+    src = open('app/models/user.py').read()
+    assert 'timezone.utc' in src, (
+        "User model must use datetime.now(timezone.utc) for created_at default"
+    )

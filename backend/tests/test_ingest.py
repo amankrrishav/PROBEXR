@@ -155,3 +155,74 @@ async def test_assert_safe_url_rejects_link_local():
 
     with pytest.raises(ValueError, match="not allowed"):
         await _assert_safe_url("http://169.254.169.254/latest/meta-data/")
+
+# ---------------------------------------------------------------------------
+# R-07: Ingest router does not leak raw exception messages to clients
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_ingest_url_unexpected_error_returns_generic_message(
+    authed_client: AsyncClient,
+):
+    """Unexpected exceptions must return a generic message, not raw str(e)."""
+    from unittest.mock import patch, AsyncMock
+
+    # Patch at the router's import site — where the name is looked up at call time
+    with patch(
+        "app.routers.ingest.fetch_and_clean_url",
+        new=AsyncMock(side_effect=RuntimeError("internal db connection pool exhausted")),
+    ):
+        res = await authed_client.post(
+            "/ingest/url",
+            json={"url": "https://example.com/article"},
+        )
+
+    assert res.status_code == 400
+    detail = res.json()["detail"]
+    assert "db connection pool" not in detail.lower(), (
+        "Ingest router must not leak raw exception messages to clients"
+    )
+    assert "try again" in detail.lower() or "failed" in detail.lower()
+
+
+@pytest.mark.asyncio
+async def test_ingest_text_unexpected_error_returns_generic_message(
+    authed_client: AsyncClient,
+):
+    """Unexpected text ingest exceptions must not expose internal details."""
+    from unittest.mock import patch, AsyncMock
+
+    with patch(
+        "app.routers.ingest.ingest_text_document",
+        new=AsyncMock(side_effect=RuntimeError("filesystem quota exceeded")),
+    ):
+        res = await authed_client.post(
+            "/ingest/text",
+            json={"text": "Some article text here. " * 10, "title": "Test"},
+        )
+
+    assert res.status_code == 400
+    detail = res.json()["detail"]
+    assert "filesystem quota" not in detail.lower(), (
+        "Ingest router must not leak raw exception messages to clients"
+    )
+    assert "try again" in detail.lower() or "failed" in detail.lower()
+
+
+@pytest.mark.asyncio
+async def test_ingest_url_value_error_is_surfaced(authed_client: AsyncClient):
+    """ValueError (user-facing validation) must be returned as-is to the client."""
+    from unittest.mock import patch, AsyncMock
+
+    # Patch at router import site so the ValueError reaches the router's except ValueError handler
+    with patch(
+        "app.routers.ingest.fetch_and_clean_url",
+        new=AsyncMock(side_effect=ValueError("URL returned unsupported content type 'application/pdf'")),
+    ):
+        res = await authed_client.post(
+            "/ingest/url",
+            json={"url": "https://example.com/file.pdf"},
+        )
+
+    assert res.status_code == 400
+    assert "application/pdf" in res.json()["detail"]

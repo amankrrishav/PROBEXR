@@ -19,7 +19,9 @@ class User(SQLModel, table=True):
     # Auth / lifecycle
     is_active: bool = True
     is_verified: bool = Field(default=False)
-    created_at: Optional[datetime] = Field(default=None)
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
+    )
     last_login_at: Optional[datetime] = None
     signup_source: Optional[str] = Field(default=None, index=True)
 

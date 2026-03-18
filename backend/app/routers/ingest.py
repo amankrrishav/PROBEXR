@@ -25,11 +25,19 @@ async def ingest_url(
     try:
         doc = await fetch_and_clean_url(str(request.url), user.id, session)
         return doc
-    except Exception as e:
+    except ValueError as e:
+        # ValueError = expected failure (SSRF, content-type, too large, etc.)
+        # Safe to surface — these are user-facing validation messages.
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception:
+        # Unexpected failure — log full detail server-side, return generic message
         logger.exception("URL ingestion failed for user_id=%s", user.id)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to ingest URL: {str(e)}"
+            detail="Failed to ingest URL. Please check the URL and try again."
         )
 
 @router.post("/text", response_model=Document)
@@ -46,9 +54,15 @@ async def ingest_text(
     try:
         doc = await ingest_text_document(user.id, request.text, request.title, session)
         return doc
-    except Exception as e:
+    except ValueError as e:
+        # ValueError = expected failure (too long, etc.) — safe to surface.
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception:
         logger.exception("Text ingestion failed for user_id=%s", user.id)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to save text document: {str(e)}"
+            detail="Failed to save document. Please try again."
         )
