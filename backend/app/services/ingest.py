@@ -11,6 +11,7 @@ Security hardening:
   - DNS: resolution is non-blocking via run_in_executor.
 """
 import asyncio
+import hashlib
 import ipaddress
 import socket
 import uuid
@@ -131,6 +132,16 @@ async def fetch_and_clean_url(url: str, user_id: int, session: AsyncSession) -> 
 
             response.raise_for_status()
 
+            # Content-Type validation — reject binary files early
+            # Fetching a PDF, image, or video wastes bandwidth and produces garbage text.
+            content_type = response.headers.get("content-type", "").lower().split(";")[0].strip()
+            _ALLOWED_CONTENT_TYPES = ("text/html", "text/plain", "application/xhtml+xml")
+            if content_type and not any(content_type.startswith(ct) for ct in _ALLOWED_CONTENT_TYPES):
+                raise ValueError(
+                    f"URL returned unsupported content type '{content_type}'. "
+                    "Only HTML and plain text pages are supported."
+                )
+
             # Content-Length pre-check
             content_length = response.headers.get("content-length")
             if content_length and int(content_length) > MAX_HTML_BYTES:
@@ -217,7 +228,28 @@ async def fetch_and_clean_url(url: str, user_id: int, session: AsyncSession) -> 
 
 
 async def ingest_text_document(user_id: int, text: str, title: str, session: AsyncSession) -> Document:
-    """Save a pasted text document. Extracted from router to maintain service layer separation."""
+    """Save a pasted text document, deduplicating by content hash per user.
+
+    If the same user submits identical text twice (same paste, same article),
+    the existing document is returned rather than creating a duplicate.
+    The hash is stored in the url field as 'pasted_text:<sha256[:16]>' so it
+    acts as a natural dedup key without requiring a new DB column.
+    """
+    # Content hash — first 16 hex chars of SHA-256 give 64-bit collision resistance,
+    # more than sufficient for per-user dedup within a reasonable document volume.
+    content_hash = hashlib.sha256(text.strip().encode()).hexdigest()[:16]
+    dedup_key = f"pasted_text:{content_hash}"
+
+    # Return existing document if this user already ingested identical content
+    existing_stmt = select(Document).where(
+        Document.user_id == user_id,
+        Document.url == dedup_key,
+    )
+    result = await session.execute(existing_stmt)
+    existing = result.scalars().first()
+    if existing:
+        return existing
+
     # Auto-generate title from content when the caller passes a generic placeholder
     if not title or title.strip().lower() in ("pasted text", "untitled", ""):
         words = text.strip().split()[:12]
@@ -226,9 +258,10 @@ async def ingest_text_document(user_id: int, text: str, title: str, session: Asy
             title = title[:77] + "…"
         if not title:
             title = "Untitled Note"
+
     doc = Document(
         user_id=user_id,
-        url=f"pasted_text:{uuid.uuid4()}",
+        url=dedup_key,
         title=title[:200],
         cleaned_content=text[:MAX_TEXT_BYTES],
     )

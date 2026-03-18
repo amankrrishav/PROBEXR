@@ -89,7 +89,7 @@ async def prepare_chat_context(
     history_stmt = (
         select(ChatMessage)
         .where(ChatMessage.session_id == session_id)
-        .order_by(desc(ChatMessage.created_at))
+        .order_by(desc(ChatMessage.created_at), desc(ChatMessage.id))  # id tiebreaker for same-second messages
         .limit(HISTORY_LIMIT)
     )
     result = await session.execute(history_stmt)

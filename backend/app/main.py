@@ -53,7 +53,16 @@ async def lifespan(app_inst: FastAPI):
             "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
         )
 
-    # 2. Valid database URL
+    # 2. CORS wildcard guard — a wildcard in production allows any origin on
+    #    credentialed requests, defeating the same-origin security model entirely.
+    if cfg.environment == "production" and cfg.cors_origins.strip() == "*":
+        raise RuntimeError(
+            "FATAL: CORS_ORIGINS is set to '*' in production. "
+            "Set it to a comma-separated list of allowed origins, e.g. "
+            "https://yourdomain.com"
+        )
+
+    # 3. Valid database URL
     if not cfg.database_url:
         raise RuntimeError("FATAL: DATABASE_URL is not configured.")
 

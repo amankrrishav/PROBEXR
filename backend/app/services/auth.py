@@ -23,6 +23,18 @@ cfg = get_config()
 ALGORITHM = cfg.ALGORITHM
 
 
+class DuplicateEmailError(ValueError):
+    """Raised by register_user when the email is already registered.
+
+    Callers should catch this specific exception rather than the broad
+    ValueError so future code paths can handle duplicates cleanly without
+    accidentally catching unrelated ValueErrors.
+    """
+    def __init__(self, email: str) -> None:
+        self.email = email
+        super().__init__(f"Email already registered: {email}")
+
+
 def create_email_verification_token(email: str) -> str:
     """Create a short-lived token for email verification."""
     expire = datetime.now(timezone.utc) + timedelta(hours=24)
@@ -424,7 +436,7 @@ async def get_user_by_email(session: AsyncSession, email: str) -> Optional[User]
 async def register_user(session: AsyncSession, email: str, password: str) -> User:
     existing = await get_user_by_email(session, email)
     if existing:
-        raise ValueError("Email already registered")
+        raise DuplicateEmailError(email)
 
     user = User(
         email=email,
