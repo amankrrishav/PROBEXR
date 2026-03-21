@@ -229,3 +229,9 @@ from app.metrics import metrics_endpoint
 v1_router.add_api_route("/metrics", metrics_endpoint, tags=["Observability"], include_in_schema=False)
 
 app.include_router(v1_router)
+
+
+# Root health endpoint — Render's health check hits GET / and expects 200.
+@app.get("/", include_in_schema=False)
+def root_health():
+    return {"status": "ok"}
