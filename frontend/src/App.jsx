@@ -62,6 +62,47 @@ export default function App() {
     document.documentElement.classList.toggle("light", !dark);
   }, [dark]);
 
+  function markFeatureUsedOnce() {
+    if (!isBrowser()) return;
+    try { window.localStorage.setItem(USAGE_KEY, "true"); } catch { /* ignore */ }
+  }
+
+  function handleOpenAuth(mode = "signup") {
+    setAuthModalMode(mode);
+    setAuthModalOpen(true);
+  }
+
+  function showSnackbar(message) {
+    setSnackbar(message);
+    window.setTimeout(() => setSnackbar(null), 2500);
+  }
+
+  function handleLogout() {
+    auth.logout();
+    showSnackbar("Logged out.");
+  }
+
+  // B3/B4: Wrap onSummarize to also add to persistent history
+  function doSummarize() {
+    summarizer.onSummarize();
+    // Add to persistent history after a delay (give time for summary to complete)
+    // The actual persistence happens via a listener in the summarizer hook
+  }
+
+  const handleSummarizeWithGate = useCallback(() => {
+    if (!hasUsedFeatureOnce) {
+      setHasUsedFeatureOnce(true);
+      markFeatureUsedOnce();
+      doSummarize();
+      return;
+    }
+    if (!auth.isAuthenticated) {
+      handleOpenAuth("signup");
+      return;
+    }
+    doSummarize();
+  }, [hasUsedFeatureOnce, auth.isAuthenticated, summarizer]);
+
   // C3: Global keyboard shortcuts
   // useCallback with stable primitive deps prevents the handler from being
   // re-registered on every render (A-25: summarizer is a new object each render).
@@ -123,47 +164,6 @@ export default function App() {
     setActiveTab(tab);
     setPageKey((k) => k + 1);
   }, []);
-
-  function markFeatureUsedOnce() {
-    if (!isBrowser()) return;
-    try { window.localStorage.setItem(USAGE_KEY, "true"); } catch { /* ignore */ }
-  }
-
-  function handleOpenAuth(mode = "signup") {
-    setAuthModalMode(mode);
-    setAuthModalOpen(true);
-  }
-
-  function showSnackbar(message) {
-    setSnackbar(message);
-    window.setTimeout(() => setSnackbar(null), 2500);
-  }
-
-  function handleLogout() {
-    auth.logout();
-    showSnackbar("Logged out.");
-  }
-
-  const handleSummarizeWithGate = useCallback(() => {
-    if (!hasUsedFeatureOnce) {
-      setHasUsedFeatureOnce(true);
-      markFeatureUsedOnce();
-      doSummarize();
-      return;
-    }
-    if (!auth.isAuthenticated) {
-      handleOpenAuth("signup");
-      return;
-    }
-    doSummarize();
-  }, [hasUsedFeatureOnce, auth.isAuthenticated, summarizer]);
-
-  // B3/B4: Wrap onSummarize to also add to persistent history
-  function doSummarize() {
-    summarizer.onSummarize();
-    // Add to persistent history after a delay (give time for summary to complete)
-    // The actual persistence happens via a listener in the summarizer hook
-  }
 
   // B3/B4: Watch for successful summaries and add to persistent history
   useEffect(() => {
