@@ -31,6 +31,7 @@ def upgrade() -> None:
         'refreshtoken',
         ['expires_at'],
         unique=False,
+        if_not_exists=True,
     )
 
 
