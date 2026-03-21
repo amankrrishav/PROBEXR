@@ -21,9 +21,9 @@ React + Vite frontend. Structure matches backend: config, services (API), hooks,
 
 ## Production Deployment
 
-1. **Connect your repo:** Deploy the `/frontend` subdirectory on your preferred hosting platform.
-2. **Build Settings:** Use `netlify.toml` or equivalent config for your platform.
-3. **Env Vars:** Set `VITE_API_URL` to your backend URL.
+1. **Import repo on Vercel:** Set **Root Directory** to `frontend`. Vercel auto-detects Vite.
+2. **Build Settings:** The `vercel.json` at the repo root handles SPA rewrites and build config.
+3. **Env Vars:** In Vercel dashboard → Settings → Environment Variables, set `VITE_API_URL` to your backend URL.
 
 ## Env
 

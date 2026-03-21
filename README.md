@@ -3,7 +3,7 @@
 PROBEXR is a full-stack article summarizer and learning platform: paste text or URLs, get a short, human-like summary, chat with the document, and export flashcards.  
 *Extract signal. Ignore noise.*
 
-**Live App:** [https://probefy.netlify.app/](https://probefy.netlify.app/)
+**Live App:** *Deploy on Vercel — URL will be added after deployment.*
 
 **100% free and open-source.** No plans, no paywalls, no limits. **Backend:** Scalable FastAPI app with async PostgreSQL (asyncpg), Redis rate limiting, and streaming-ready LLM layer. **$0 options:** no API key = extractive summarization; or Groq/OpenRouter free tier for human-like summaries. No need to spend $5–10/month. Runs locally with SQLite + no Redis for easy development.
 
@@ -77,7 +77,6 @@ backend/
 │   └── services/         # Business logic (summarizer, llm, auth, social, email, chat, etc.)
 ├── alembic/              # Database migrations (env-driven URL)
 ├── requirements.txt      # Dependencies
-├── .env.example          # Environment variables template
 └── run.py                # Local: python run.py (from backend/)
 ```
 

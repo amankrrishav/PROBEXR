@@ -26,8 +26,8 @@ function PasswordStrengthHint({ password }) {
           <div
             key={i}
             className={`h-1 flex-1 rounded-full transition-colors ${i < passed
-                ? allGood ? "bg-emerald-500" : "bg-amber-400"
-                : "bg-gray-200 dark:bg-gray-700"
+              ? allGood ? "bg-emerald-500" : "bg-amber-400"
+              : "bg-gray-200 dark:bg-gray-700"
               }`}
           />
         ))}
@@ -329,8 +329,8 @@ export default function AuthModal({
             type="button"
             onClick={() => { onModeChange("signup"); setView("signup"); setLocalError(null); }}
             className={`flex-1 rounded-full px-3 py-1 transition ${isSignup
-                ? "bg-black text-white dark:bg-white dark:text-black shadow-sm"
-                : "text-gray-500 dark:text-gray-400"
+              ? "bg-black text-white dark:bg-white dark:text-black shadow-sm"
+              : "text-gray-500 dark:text-gray-400"
               }`}
           >
             Sign up
@@ -339,8 +339,8 @@ export default function AuthModal({
             type="button"
             onClick={() => { onModeChange("login"); setView("login"); setLocalError(null); }}
             className={`flex-1 rounded-full px-3 py-1 transition ${!isSignup
-                ? "bg-black text-white dark:bg-white dark:text-black shadow-sm"
-                : "text-gray-500 dark:text-gray-400"
+              ? "bg-black text-white dark:bg-white dark:text-black shadow-sm"
+              : "text-gray-500 dark:text-gray-400"
               }`}
           >
             Log in

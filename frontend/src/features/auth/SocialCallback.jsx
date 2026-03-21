@@ -36,7 +36,7 @@ export default function SocialCallback({ provider, onResult }) {
 
         const data = await resp.json();
         // The backend sets the auth cookies, but we might need to refresh local state
-        await auth.refreshUser(); 
+        await auth.refreshUser();
         setStatus("Success! Redirecting...");
         onResult?.(true);
       } catch (err) {
