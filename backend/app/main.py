@@ -156,7 +156,7 @@ app = FastAPI(
 async def http_exception_handler(request: Request, exc: HTTPException):
     # Ensure CORS headers for cross-domain auth failures
     cfg = get_config()
-    origins = [o.strip() for o in cfg.cors_origins.split(",") if o.strip()]
+    origins = [o.strip().rstrip("/") for o in cfg.cors_origins.split(",") if o.strip()]
     origin = request.headers.get("origin")
     headers = {}
     if origin in origins or "*" in origins:
@@ -174,7 +174,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 async def global_exception_handler(request: Request, exc: Exception):
     logger.exception("Global exception caught: %s", str(exc))
     cfg = get_config()
-    origins = [o.strip() for o in cfg.cors_origins.split(",") if o.strip()]
+    origins = [o.strip().rstrip("/") for o in cfg.cors_origins.split(",") if o.strip()]
     origin = request.headers.get("origin")
     headers = {}
     if origin in origins or "*" in origins:
@@ -193,7 +193,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 cfg = get_config()
-origins = [o.strip() for o in cfg.cors_origins.split(",") if o.strip()]
+origins = [o.strip().rstrip("/") for o in cfg.cors_origins.split(",") if o.strip()]
 
 app.add_middleware(LoggingMiddleware)
 app.add_middleware(CSRFMiddleware)
