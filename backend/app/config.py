@@ -233,3 +233,8 @@ class AppConfig(BaseSettings):
 @lru_cache
 def get_config() -> AppConfig:
     return AppConfig()
+
+
+def clear_config() -> None:
+    """Clear cached config — test utility only. Call before overriding env vars."""
+    get_config.cache_clear()

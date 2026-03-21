@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from typing import Optional, TYPE_CHECKING
 
-from sqlmodel import Field, SQLModel, Relationship, UniqueConstraint
+from sqlmodel import Field, SQLModel, Relationship, UniqueConstraint, Index
 
 if TYPE_CHECKING:
     from app.models.user import User
@@ -14,7 +14,10 @@ from app.models.synthesis import SynthesisDocumentLink
 
 
 class Document(SQLModel, table=True):
-    __table_args__ = (UniqueConstraint("user_id", "url", name="uq_document_user_url"),)
+    __table_args__ = (
+        UniqueConstraint("user_id", "url", name="uq_document_user_url"),
+        Index("ix_document_user_created", "user_id", "created_at"),
+    )
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True)
     url: str = Field(max_length=2048)  # Ingest service caps at 2048; model enforces at schema level

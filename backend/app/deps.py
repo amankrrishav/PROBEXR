@@ -4,7 +4,7 @@ Route handlers should import these aliases instead of touching auth internals.
 """
 from typing import Annotated, Optional
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_session
@@ -38,3 +38,19 @@ async def _get_optional_verified_user(user: Optional[User] = Depends(get_optiona
 
 VerifiedUser = Annotated[User, Depends(_get_verified_user)]
 OptionalVerifiedUser = Annotated[Optional[User], Depends(_get_optional_verified_user)]
+
+
+# --- Pagination ---
+class PaginationParams:
+    """Reusable pagination dependency. Max 100 items per page."""
+
+    def __init__(
+        self,
+        skip: int = Query(default=0, ge=0, description="Number of items to skip"),
+        limit: int = Query(default=50, ge=1, le=100, description="Max items to return (1-100)"),
+    ):
+        self.skip = skip
+        self.limit = limit
+
+
+Pagination = Annotated[PaginationParams, Depends()]

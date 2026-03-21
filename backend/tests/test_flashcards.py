@@ -85,10 +85,13 @@ async def test_create_flashcards_no_llm_provider_returns_400(
     the endpoint must return 400 with a user-safe message — NOT a 500
     leaking the internal ValueError from config.get_llm_base_url().
     """
-    res = await authed_client.post(
-        "/flashcards/",
-        json={"document_id": document_id, "count": 5},
-    )
+    from unittest.mock import PropertyMock, patch
+    with patch("app.services.flashcards.get_config") as mock_cfg:
+        mock_cfg.return_value.has_llm_provider = False
+        res = await authed_client.post(
+            "/flashcards/",
+            json={"document_id": document_id, "count": 5},
+        )
     # Must be 400 (user-safe), not 500 (internal leak)
     assert res.status_code == 400
     detail = res.json()["detail"].lower()
@@ -104,10 +107,13 @@ async def test_create_flashcards_no_llm_error_message_is_actionable(
     authed_client: AsyncClient, document_id: int
 ):
     """Error message tells the user what to do (set an API key)."""
-    res = await authed_client.post(
-        "/flashcards/",
-        json={"document_id": document_id, "count": 5},
-    )
+    from unittest.mock import patch
+    with patch("app.services.flashcards.get_config") as mock_cfg:
+        mock_cfg.return_value.has_llm_provider = False
+        res = await authed_client.post(
+            "/flashcards/",
+            json={"document_id": document_id, "count": 5},
+        )
     assert res.status_code == 400
     detail = res.json()["detail"].lower()
     # Should mention setting a key — actionable guidance

@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_config
 from app.routers import health, summarize, auth, ingest, synthesis, chat, flashcards, tts, streaming, documents, analytics
-from app.db import async_engine
+from app.db import get_engine
 from sqlmodel import SQLModel
 from app.middleware import (
     LoggingMiddleware,
@@ -121,9 +121,11 @@ async def lifespan(app_inst: FastAPI):
     )
 
     # 7. Auto-create tables for SQLite (dev) — production uses Alembic migrations
+    engine = get_engine()
+
     if cfg.is_sqlite:
         import app.models  # noqa: F401 — ensure all models are registered
-        async with async_engine.begin() as conn:
+        async with engine.begin() as conn:
             await conn.run_sync(SQLModel.metadata.create_all)
         logger.info("SQLite tables auto-created from models.")
 
@@ -131,12 +133,12 @@ async def lifespan(app_inst: FastAPI):
     http_client.client = httpx.AsyncClient()
 
     # 9. Start refresh token garbage collection
-    start_token_gc(async_engine)
+    start_token_gc(engine)
 
     yield
 
     # --- Shutdown ---
-    await async_engine.dispose()
+    await engine.dispose()
     if redis_client:
         await redis_client.aclose()
         logger.info("Redis connection closed.")
@@ -195,6 +197,9 @@ async def global_exception_handler(request: Request, exc: Exception):
 cfg = get_config()
 origins = [o.strip().rstrip("/") for o in cfg.cors_origins.split(",") if o.strip()]
 
+# Middleware execution order (Starlette reverses add-order):
+#   Request  → CORSMiddleware → RateLimitingMiddleware → CSRFMiddleware → LoggingMiddleware → Route handler
+#   Response ← CORSMiddleware ← RateLimitingMiddleware ← CSRFMiddleware ← LoggingMiddleware ← Route handler
 app.add_middleware(LoggingMiddleware)
 app.add_middleware(CSRFMiddleware)
 app.add_middleware(RateLimitingMiddleware)

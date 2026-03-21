@@ -201,7 +201,7 @@ export default function AuthModal({
         await requestMagicLink(email.trim());
         onSuccess?.("Magic link sent! Check your inbox.");
         onClose();
-      } catch { setLocalError("Failed to send magic link."); }
+      } catch { setLocalError("Failed to send magic link. Please try again."); }
       finally { setLocalSubmitting(false); }
       return;
     }

@@ -316,11 +316,16 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
 # Certain paths (health, metrics, OAuth callbacks) are exempt.
 # ---------------------------------------------------------------------------
 
-# Paths that are exempt from CSRF checks (public APIs and OAuth redirects)
+# Paths that are exempt from CSRF checks (public APIs, OAuth redirects, pre-auth endpoints)
+# Login/register are intentionally NOT exempt — they're protected by either:
+#   - Origin-header check (cross-domain deployments)
+#   - Dual-submit cookie (same-domain fallback)
 _CSRF_EXEMPT_PREFIXES: tuple[str, ...] = (
     "/api/v1/health",
     "/api/v1/metrics",
-    "/api/v1/auth/",               # All auth endpoints — Origin-header CSRF covers cross-domain
+    "/api/v1/auth/google/callback",     # OAuth callback (state cookie validates CSRF)
+    "/api/v1/auth/github/callback",     # OAuth callback (state cookie validates CSRF)
+    "/api/v1/auth/verify-email",        # GET-only, but exempt for safety
     "/docs",
     "/openapi.json",
     "/redoc",

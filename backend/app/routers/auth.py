@@ -1,4 +1,5 @@
 import logging
+import secrets
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, status, Response, Request
@@ -207,7 +208,7 @@ async def google_callback(
 
     # Validate state CSRF parameter
     cookie_state = request.cookies.get("oauth_state")
-    if not state or not cookie_state or state != cookie_state:
+    if not state or not cookie_state or not secrets.compare_digest(state, cookie_state):
         raise HTTPException(status_code=400, detail="Invalid OAuth state (CSRF possible)")
     
     cfg = get_config()

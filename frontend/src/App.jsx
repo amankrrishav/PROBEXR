@@ -4,7 +4,7 @@
  * C3: Keyboard shortcuts, ? tooltip
  * B3/B4: History integration via AppContext
  */
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, lazy, Suspense } from "react";
 import { config } from "./config.js";
 import { useAppContext } from "./contexts/AppContext.jsx";
 import { useSummarizerContext } from "./contexts/SummarizerContext.jsx";
@@ -12,9 +12,14 @@ import { Sidebar } from "./features/layout";
 import { Editor, OutputCard, SummaryHistory } from "./features/summarizer";
 import { SynthesisWorkspace } from "./features/summarizer";
 import { AuthModal, SocialCallback } from "./features/auth";
-import { AnalyticsDashboard } from "./features/analytics";
+import { ErrorBoundary } from "./components/ErrorBoundary.jsx";
 import CustomCursor from "./components/CustomCursor.jsx";
 import KeyboardShortcuts from "./components/KeyboardShortcuts.jsx";
+
+// Lazy-loaded pages — loaded only when the user navigates to them
+const AnalyticsDashboard = lazy(() =>
+  import("./features/analytics").then(m => ({ default: m.AnalyticsDashboard }))
+);
 
 const USAGE_KEY = "probexr.hasUsedFeatureOnce";
 
@@ -215,6 +220,7 @@ export default function App() {
 
       {/* Main content */}
       <main style={{ flex: 1, minWidth: 0, overflowY: "auto", minHeight: "100vh", position: "relative", zIndex: 1 }}>
+        <ErrorBoundary>
         <div key={pageKey} className="page-enter" style={{ padding: "48px 40px" }}>
 
           {activeTab === "summarize" ? (
@@ -255,7 +261,13 @@ export default function App() {
                   Your summarization insights and history
                 </p>
               </div>
-              <AnalyticsDashboard />
+              <Suspense fallback={
+                <div style={{ display: "flex", justifyContent: "center", padding: 80 }}>
+                  <div style={{ color: "var(--ink-tertiary)" }}>Loading analytics…</div>
+                </div>
+              }>
+                <AnalyticsDashboard />
+              </Suspense>
             </div>
           ) : (
             <div style={{ maxWidth: 960, margin: "0 auto" }}>
@@ -271,6 +283,7 @@ export default function App() {
             </div>
           )}
         </div>
+        </ErrorBoundary>
       </main>
 
       {/* Auth Modal */}
