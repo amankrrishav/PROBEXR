@@ -20,12 +20,14 @@ def _register_cockroachdb_version_fix(engine) -> None:
     """Patch the dialect's version parser so CockroachDB version strings don't crash."""
     original = engine.dialect.__class__._get_server_version_info
 
-    def _patched_get_server_version_info(dialect_self, connection):
+    def _patched_get_server_version_info(*args):
+        # When set as an instance attr, Python does NOT auto-pass `self`.
+        # SQLAlchemy calls self._get_server_version_info(connection),
+        # so args = (connection,) here. But `original` is an unbound class
+        # method expecting (self, connection), so we prepend the dialect.
         try:
-            return original(dialect_self, connection)
+            return original(engine.dialect, args[-1])
         except (AssertionError, Exception):
-            # CockroachDB returns e.g. 'CockroachDB CCL v25.4.5 ...'
-            # Return a fake PG version so SQLAlchemy is happy
             return (13, 0, 0)
 
     engine.dialect._get_server_version_info = _patched_get_server_version_info
