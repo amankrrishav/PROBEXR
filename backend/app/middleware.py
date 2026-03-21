@@ -320,9 +320,17 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
 _CSRF_EXEMPT_PREFIXES: tuple[str, ...] = (
     "/api/v1/health",
     "/api/v1/metrics",
+    "/api/v1/auth/register",         # pre-auth, no session to protect
+    "/api/v1/auth/login",            # pre-auth, no session to protect
+    "/api/v1/auth/magic-link",       # pre-auth, no session to protect
+    "/api/v1/auth/forgot-password",  # pre-auth, no session to protect
+    "/api/v1/auth/reset-password",   # pre-auth, token-based
+    "/api/v1/auth/resend-verification",  # pre-auth
     "/api/v1/auth/google/callback",
     "/api/v1/auth/github/callback",
-    "/api/v1/auth/verify",          # magic link verification (GET with token param)
+    "/api/v1/auth/google/login",     # OAuth redirect
+    "/api/v1/auth/github/login",     # OAuth redirect
+    "/api/v1/auth/verify",           # magic link verification (GET with token param)
     "/docs",
     "/openapi.json",
     "/redoc",
