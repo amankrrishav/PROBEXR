@@ -345,11 +345,20 @@ CSRF_HEADER_NAME = "x-csrf-token"
 
 class CSRFMiddleware(BaseHTTPMiddleware):
     """
-    Dual-submit cookie CSRF protection.
+    CSRF protection that works for both same-domain and cross-domain deployments.
 
-    - Sets a `csrf_token` cookie (readable by JS) on every response.
-    - Validates that `X-CSRF-Token` header matches the cookie on mutating requests.
-    - Exempt paths and safe HTTP methods are allowed through unconditionally.
+    Two complementary strategies:
+      1. **Origin-header check** (cross-domain):
+         If the request has an `Origin` header and it matches one of the allowed
+         CORS origins, the request is trusted.  Browsers always attach `Origin`
+         on cross-origin requests, and it CANNOT be forged by JavaScript — an
+         attacker site would send its own origin, which won't be in our allow list.
+
+      2. **Dual-submit cookie** (same-domain fallback):
+         If no `Origin` header is present (e.g. same-origin requests on some
+         older browsers), fall back to the classic cookie-vs-header check.
+
+    Exempt paths and safe HTTP methods are always allowed through.
     """
 
     async def dispatch(
@@ -372,7 +381,31 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             self._ensure_csrf_cookie(response, request, cfg)
             return response
 
-        # --- Validate CSRF on mutating requests ---
+        # --- Strategy 1: Origin-header check (cross-domain) ---
+        origin = request.headers.get("origin")
+        if origin:
+            allowed_origins = [
+                o.strip().rstrip("/")
+                for o in cfg.cors_origins.split(",")
+                if o.strip()
+            ]
+            if origin.rstrip("/") in allowed_origins or "*" in allowed_origins:
+                # Origin matches our CORS allow list → trusted
+                response = await call_next(request)
+                self._ensure_csrf_cookie(response, request, cfg)
+                return response
+
+            # Origin present but NOT in allow list → reject
+            logger.warning(
+                "CSRF rejected: origin not allowed",
+                extra={"path": path, "origin": origin},
+            )
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "Origin not allowed."},
+            )
+
+        # --- Strategy 2: Dual-submit cookie (same-domain fallback) ---
         cookie_token = request.cookies.get(CSRF_COOKIE_NAME)
         header_token = request.headers.get(CSRF_HEADER_NAME)
 

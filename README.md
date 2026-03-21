@@ -3,7 +3,7 @@
 PROBEXR is a full-stack article summarizer and learning platform: paste text or URLs, get a short, human-like summary, chat with the document, and export flashcards.  
 *Extract signal. Ignore noise.*
 
-**Live App:** *Deploy on Vercel — URL will be added after deployment.*
+**Live App:** *https://probexr.vercel.app*
 
 **100% free and open-source.** No plans, no paywalls, no limits. **Backend:** Scalable FastAPI app with async PostgreSQL (asyncpg), Redis rate limiting, and streaming-ready LLM layer. **$0 options:** no API key = extractive summarization; or Groq/OpenRouter free tier for human-like summaries. No need to spend $5–10/month. Runs locally with SQLite + no Redis for easy development.
 
