@@ -275,6 +275,7 @@ def set_auth_cookie(response: Response, token: str) -> None:
         samesite="none" if is_prod else "lax",
         secure=is_prod,  # Mandatory for samesite=none
         max_age=get_config().access_token_expire_minutes * 60,
+        path="/",         # Send on all paths, not just /api/v1/auth
     )
 
 
@@ -416,7 +417,7 @@ def delete_auth_cookies(response: Response) -> None:
     is_prod = get_config().environment == "production"
     samesite_value = "none" if is_prod else "lax"
     response.delete_cookie(
-        "access_token", httponly=True, samesite=samesite_value, secure=is_prod
+        "access_token", httponly=True, samesite=samesite_value, secure=is_prod, path="/"
     )
     response.delete_cookie(
         "refresh_token", httponly=True, samesite=samesite_value, secure=is_prod, path="/api/v1/auth"
