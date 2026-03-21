@@ -12,7 +12,7 @@ PROBEXR is **100% free and open-source**. This doc outlines completed work and u
 - **Testing:** Comprehensive backend (pytest) and frontend (vitest) test suites covering auth, flashcards, and component rendering.
 - **Production Hardening:** Live deployment with SSL/TLS, CORS configuration, and managed database/Redis.
 - **Session Sync:** Multi-device session support with Refresh Token rotation and reuse detection.
-- **Security & Performance:** Enterprise-grade Auth (Account Lockout, Email Enumeration Defense, NIST Passwords, One-time Magic Links), Strict CSRF middleware (dual-submit cookie pattern), OAuth state validation, global shared HTTPX connections, robust error masking, and Content-Type validation for URL ingest.
+- **Security & Performance:** Enterprise-grade Auth (Account Lockout, Email Enumeration Defense, NIST Passwords, One-time Magic Links), cross-domain CSRF protection (Origin-header validation + dual-submit cookie fallback), OAuth state validation, `SameSite=None; Secure` cookies for split deployments, global shared HTTPX connections, robust error masking, and Content-Type validation for URL ingest.
 - **CI/CD Pipeline:** Fully automated GitHub Actions checks (mypy, pytest, eslint, vitest) on PRs/pushes.
 - **Email Delivery:** Universal asynchronous SMTP service for passwordless Magic Link dispatch.
 - **Robustness:** CockroachDB compatibility via scoped connection events, deterministic chat history ordering, domain-specific auth exceptions, and frontend React hook optimizations.

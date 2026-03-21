@@ -29,6 +29,8 @@ React + Vite frontend. Structure matches backend: config, services (API), hooks,
 
 | Env | Purpose |
 |-----|--------|
-| `VITE_API_URL` | Backend base URL. |
+| `VITE_API_URL` | Backend base URL **including `/api/v1`** (e.g. `https://your-backend.onrender.com/api/v1`). |
 | `VITE_APP_NAME` | Defaults to `PROBEXR`. |
 | `VITE_SUMMARIZE_MIN_WORDS` | Min word count to trigger summarization (default 30). |
+
+> **Note:** `VITE_` env vars are baked into the JS bundle at build time. Set them in Vercel → Settings → Environment Variables, then redeploy.

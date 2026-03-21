@@ -35,7 +35,7 @@ PROBEXR is a full-stack article summarizer and learning platform: paste text or 
 - **Serverless/cloud-friendly:** Minimal deps (FastAPI, httpx, pydantic, uvicorn). No PyTorch, no local LLM. Deploy on Railway, Render, Fly, or serverless (e.g. Mangum for AWS Lambda).  
 - **$0 modes:** No API key → extractive summarization (sentence selection). Groq or OpenRouter free tier → human-like LLM summaries. No credit card or monthly spend required.
 - **Provider-agnostic:** Set one of `GROQ_API_KEY`, `OPENAI_API_KEY`, or `OPENROUTER_API_KEY`; provider and default model are auto-detected.  
-- **Enterprise-grade Auth:** Email/password + Social (Google/GitHub) with dynamic redirect URI support. Designed with advanced security: **Account Lockout** (Redis-backed anti-bruteforce), **Email Enumeration Defense**, strict **NIST SP 800-63B password policies**, and **one-time use Magic Links**. Secure by default with CSRF middleware and OAuth state validation.
+- **Enterprise-grade Auth:** Email/password + Social (Google/GitHub) with dynamic redirect URI support. Designed with advanced security: **Account Lockout** (Redis-backed anti-bruteforce), **Email Enumeration Defense**, strict **NIST SP 800-63B password policies**, and **one-time use Magic Links**. Secure by default with **cross-domain CSRF protection** (Origin-header check + dual-submit cookie fallback), OAuth state validation, and `SameSite=None; Secure` cookies for split deployments (e.g. Vercel + Render).
 - **CI/CD pipeline:** Automated GitHub Actions pipeline for frontend (vitest, eslint) and backend (pytest, mypy) on push/PR.
 
 ---
@@ -96,5 +96,5 @@ backend/
 - Clear errors (validation, timeout, rate limit, API key)
 - **Frictionless Auth** (Google / GitHub / Magic Links via SMTP)
 - **Profile Customization** (Full Name, Avatar URL)
-- **Secure Sessions** with HttpOnly JWT cookies and CSRF protection
+- **Secure Sessions** with HttpOnly JWT cookies (`path=/`, `SameSite=None; Secure` in production) and cross-domain CSRF protection (Origin-header validation + dual-submit cookie fallback)
 - **Automated CI** with GitHub Actions Pipeline

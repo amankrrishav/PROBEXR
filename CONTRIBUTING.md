@@ -14,7 +14,7 @@ probexr/
 │   │   ├── config.py     # Env and constants; add keys for new features
 │   │   ├── db.py         # Async engine (asyncpg/aiosqlite), session factory
 │   │   ├── deps.py       # Auth + DB dependencies (CurrentUser, OptionalUser, DbSession)
-│   │   ├── middleware.py  # CSRF + Logging + rate limiting (Redis/in-memory)
+│   │   ├── middleware.py  # Cross-domain CSRF + Logging + rate limiting (Redis/in-memory)
 │   │   ├── schemas/      # Request/response models
 │   │   ├── routers/      # Async route modules (health, summarize, auth, chat, ingest, flashcards, tts, synthesis, streaming, documents, analytics, social)
 │   │   └── services/     # Async business logic (summarizer, llm, auth, chat, email, social, etc.)
@@ -70,7 +70,7 @@ probexr/
   uvicorn app.main:app --reload
   ```
 - **Frontend:** `cd frontend && npm install && npm run dev`
-- **Env:** Backend uses SQLite by default (no PostgreSQL needed for dev). Redis is optional (falls back to in-memory). Set `GROQ_API_KEY` for LLM summaries; no key = free extractive. Frontend uses `VITE_API_URL` (default `http://127.0.0.1:8000`).
+- **Env:** Backend uses SQLite by default (no PostgreSQL needed for dev). Redis is optional (falls back to in-memory). Set `GROQ_API_KEY` for LLM summaries; no key = free extractive. Frontend uses `VITE_API_URL` (default `http://localhost:8000/api/v1`; must include `/api/v1`).
 
 See root [README.md](README.md) and `backend/README.md`, `frontend/README.md` for details.
 
@@ -80,6 +80,7 @@ See root [README.md](README.md) and `backend/README.md`, `frontend/README.md` fo
 
 - **Database:** All services use `AsyncSession` (from `sqlalchemy.ext.asyncio`). Models are defined using `SQLModel`. PostgreSQL (`asyncpg`) for production, SQLite (`aiosqlite`) for dev. In production, a specialized setup for PostgreSQL-compatible dialects (like CockroachDB) is used, scoping dialect version patches to engine connection events.
 - **Rate limiting & Lockouts:** Redis-backed (`INCR + EXPIRE`) with in-memory fallback for global rate limiting and Brute-force Account Lockout. Configured in `middleware.py` and `lockout.py`, initialized in `main.py` lifespan.
+- **CSRF:** Two-strategy approach in `middleware.py`: (1) Origin-header check for cross-domain requests (used when frontend and backend are on different domains), (2) dual-submit cookie pattern for same-domain fallback. Auth endpoints (`/api/v1/auth/`) are exempt as they have no session to protect.
 - **LLM layer:** `services/llm.py` provides `generate_full()` (blocking) and `generate_stream()` (async iterator). Existing callers use `chat_completion` alias.
 - **Migrations:** Alembic reads `DATABASE_URL` from environment. Run `python -m alembic upgrade head` after model changes.
 - **CI/CD Pipeline:** GitHub Actions automatically runs tests (pytest, vitest) and linters (mypy, eslint) on all pushes and PRs to `main`.
