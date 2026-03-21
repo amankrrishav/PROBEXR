@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { config } from "../../config.js";
 import {
   requestMagicLink,
   forgotPassword as forgotPasswordApi,
