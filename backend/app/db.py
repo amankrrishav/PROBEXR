@@ -13,24 +13,22 @@ from typing import Any, AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 # CockroachDB version strings often break SQLAlchemy's standard Postgres parser.
-# Scoped via an engine event listener rather than a global class mutation (A-19).
+# We patch the dialect method directly (not via event) because _get_server_version_info
+# is called *during* the first connect inside dialect.initialize() — an event listener
+# would fire too late.
 def _register_cockroachdb_version_fix(engine) -> None:
-    """Attach a connect event that overrides the server version check for this
-    engine only — does NOT mutate PGDialect globally.
+    """Patch the dialect's version parser so CockroachDB version strings don't crash."""
+    original = engine.dialect.__class__._get_server_version_info
 
-    Must attach to sync_engine because SQLAlchemy does not support async
-    engine events directly.
-    """
-    from sqlalchemy import event
+    def _patched_get_server_version_info(dialect_self, connection):
+        try:
+            return original(dialect_self, connection)
+        except (AssertionError, Exception):
+            # CockroachDB returns e.g. 'CockroachDB CCL v25.4.5 ...'
+            # Return a fake PG version so SQLAlchemy is happy
+            return (13, 0, 0)
 
-    # AsyncEngine exposes sync_engine for synchronous event listeners
-    sync_engine = getattr(engine, "sync_engine", engine)
-
-    @event.listens_for(sync_engine, "connect")
-    def _set_version(dbapi_conn, connection_record):
-        # Patch the dialect instance on this engine only
-        if hasattr(engine.dialect, "_get_server_version_info"):
-            engine.dialect._get_server_version_info = lambda self, conn: (13, 0, 0)
+    engine.dialect._get_server_version_info = _patched_get_server_version_info
 
 from app.config import get_config
 
