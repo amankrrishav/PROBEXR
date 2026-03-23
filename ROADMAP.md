@@ -14,7 +14,7 @@ This doc outlines completed work and upcoming phases.
 - Cross-domain CSRF protection and timing-safe OAuth
 - Lazy-initialized async database with composite indexes
 - React Error Boundary and lazy-loaded pages
-- 348 backend + 108 frontend tests — 100% pass rate
+- 344 backend + 108 frontend tests — 100% pass rate
 - CI/CD pipeline (GitHub Actions)
 
 ---

@@ -31,7 +31,7 @@ To contribute, please reach out to the maintainer to discuss the feature or fix 
 
 - Backend tests use `pytest` with async fixtures.
 - Frontend tests use `vitest` with `@testing-library/react`.
-- All PRs must maintain 100% pass rate (currently 348 backend + 108 frontend tests).
+- All PRs must maintain 100% pass rate (currently 344 backend + 108 frontend tests).
 
 ---
 

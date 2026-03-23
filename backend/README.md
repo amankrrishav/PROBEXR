@@ -11,4 +11,4 @@ Scalable async FastAPI backend for human-like summarization, contextual chat, fl
 - Lazy-initialized DB engine for serverless compatibility
 - Consistent API response envelope with pagination
 - Prometheus observability metrics
-- 348 tests — 100% pass rate
+- 344 tests — 100% pass rate
