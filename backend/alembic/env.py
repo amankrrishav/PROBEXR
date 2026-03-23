@@ -23,26 +23,20 @@ if config.config_file_name is not None:
 # Override sqlalchemy.url from environment if available
 _db_url = os.environ.get("DATABASE_URL")
 if _db_url:
-    # 1. Robust Scheme Construction
-    is_cockroach = "cockroachlabs.cloud" in _db_url
+    # Rewrite scheme for sync psycopg driver
     if "://" in _db_url:
         _scheme_part, _rest = _db_url.split("://", 1)
-        scheme = "cockroachdb+psycopg" if is_cockroach else "postgresql+psycopg"
-        _db_url = f"{scheme}://{_rest}"
+        _db_url = f"postgresql+psycopg://{_rest}"
     
-    # 2. Aggressive SSL Purification for Render CockroachDB
-    # We strip sslrootcert/sslcert/sslkey because they point to paths that don't exist in the build container,
-    # and we force sslmode=require which is safer and doesn't need them.
+    # Strip SSL params that psycopg handles via connect_args
     from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
     
     _u = urlparse(_db_url)
     _q = parse_qs(_u.query)
     
-    # Remove junk
     for k in ["sslrootcert", "sslcert", "sslkey"]:
         _q.pop(k, None)
     
-    # Force safe mode
     _q["sslmode"] = ["require"]
     
     _u = _u._replace(query=urlencode(_q, doseq=True))
@@ -72,15 +66,6 @@ def run_migrations_online() -> None:
             poolclass=pool.NullPool,
         )
         
-        # CockroachDB Version Bypass (IN-PLACE FOR ALEMBIC ENGNE)
-        from sqlalchemy import event
-        @event.listens_for(connectable, "connect")
-        def _receive_connect(dbapi_connection, connection_record):
-            """Bypass version check to prevent SQLAlchemy from crashing on CockroachDB."""
-            def _get_server_version_info(connection):
-                return (13, 0, 0)
-            dbapi_connection.get_server_version_info = _get_server_version_info
-
         with connectable.connect() as connection:
             context.configure(
                 connection=connection, target_metadata=target_metadata

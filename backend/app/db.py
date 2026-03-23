@@ -20,21 +20,6 @@ from sqlalchemy.pool import StaticPool
 logger = logging.getLogger(__name__)
 
 
-# ---------------------------------------------------------------------------
-# CockroachDB version fix
-# ---------------------------------------------------------------------------
-
-def _register_cockroachdb_version_fix(engine) -> None:
-    """Patch the dialect's version parser so CockroachDB version strings don't crash."""
-    original = engine.dialect.__class__._get_server_version_info
-
-    def _patched_get_server_version_info(*args):
-        try:
-            return original(engine.dialect, args[-1])
-        except (AssertionError, Exception):
-            return (13, 0, 0)
-
-    engine.dialect._get_server_version_info = _patched_get_server_version_info
 
 
 # ---------------------------------------------------------------------------
@@ -76,7 +61,6 @@ def get_engine():
         kwargs = _build_engine_kwargs()
         logger.info("Initializing Async Engine (scheme=%s)", cfg.async_database_url.split("://")[0])
         _async_engine = create_async_engine(cfg.async_database_url, **kwargs)
-        _register_cockroachdb_version_fix(_async_engine)
     return _async_engine
 
 
@@ -121,11 +105,9 @@ def _build_sync_url() -> str:
     cfg = get_config()
     _sync_url = cfg.database_url
     if _sync_url and not cfg.is_sqlite:
-        _is_cockroach = "cockroachlabs.cloud" in _sync_url
         if "://" in _sync_url:
             _, _rest = _sync_url.split("://", 1)
-            _scheme = "cockroachdb+psycopg" if _is_cockroach else "postgresql+psycopg"
-            _sync_url = f"{_scheme}://{_rest}"
+            _sync_url = f"postgresql+psycopg://{_rest}"
 
         if "sslmode=verify-full" in _sync_url:
             _sync_url = _sync_url.replace("sslmode=verify-full", "sslmode=require")

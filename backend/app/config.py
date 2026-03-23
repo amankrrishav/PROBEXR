@@ -190,41 +190,29 @@ class AppConfig(BaseSettings):
 
     @property
     def async_database_url(self) -> str:
-        """Convert DATABASE_URL to async driver variant with robust cloud fixes."""
+        """Convert DATABASE_URL to async driver variant."""
         url = self.database_url
         if not url:
             return ""
 
-        # 1. Normalise driver prefixes
-        is_cloud = any(x in url for x in ["cockroachlabs.cloud", "render.com", "amazonaws.com"])
+        # Normalise driver prefixes
         if url.startswith("sqlite:///"):
             url = url.replace("sqlite:///", "sqlite+aiosqlite:///", 1)
         elif url.startswith("postgresql://") or url.startswith("postgres://"):
-            prefix = "postgresql"
-            if is_cloud:
-                prefix = "cockroachdb"
-            url = url.replace("postgresql://", f"{prefix}+asyncpg://", 1)
-            url = url.replace("postgres://", f"{prefix}+asyncpg://", 1)
+            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+            url = url.replace("postgres://", "postgresql+asyncpg://", 1)
 
-        # 2. Aggressive Purification for Cloud/CockroachDB
         if self.is_sqlite:
             return url
 
+        # Strip sslmode — asyncpg handles SSL via connect_args
         try:
             u = urlparse(url)
             q = parse_qs(u.query)
-
-            # Remove junk that causes driver failures if local files are missing
-            for k in ["sslrootcert", "sslcert", "sslkey"]:
-                q.pop(k, None)
-
-            # Ensure we strip sslmode for asyncpg (handled in connect_args)
             q.pop("sslmode", None)
-
             u = u._replace(query=urlencode(q, doseq=True))
             url = urlunparse(u)
         except Exception:
-            # Fallback to original if parsing fails
             pass
 
         return url
