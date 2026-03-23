@@ -12,6 +12,7 @@ time. This allows tests to override config before engine creation and avoids
 paying connection-pool costs on serverless cold starts that only hit /health.
 """
 import logging
+import ssl
 from typing import Any, AsyncGenerator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -42,13 +43,18 @@ def _build_engine_kwargs() -> dict[str, Any]:
             "echo": False,
         }
     else:
+        # Supabase pooler uses a self-signed certificate — create an SSL
+        # context that encrypts traffic but skips certificate verification.
+        ssl_ctx = ssl.create_default_context()
+        ssl_ctx.check_hostname = False
+        ssl_ctx.verify_mode = ssl.CERT_NONE
         return {
             "pool_size": cfg.db_pool_size,
             "max_overflow": cfg.db_max_overflow,
             "pool_timeout": cfg.db_pool_timeout,
             "pool_pre_ping": True,
             "echo": False,
-            "connect_args": {"ssl": True},
+            "connect_args": {"ssl": ssl_ctx},
         }
 
 
