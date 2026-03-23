@@ -42,7 +42,7 @@ if _db_url:
     _u = _u._replace(query=urlencode(_q, doseq=True))
     _db_url = urlunparse(_u)
     
-    config.set_main_option("sqlalchemy.url", _db_url)
+    config.set_main_option("sqlalchemy.url", _db_url.replace("%", "%%"))
 
 
 def run_migrations_offline() -> None:
