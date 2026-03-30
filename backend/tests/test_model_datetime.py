@@ -51,7 +51,7 @@ def test_tts_model_no_utcnow():
 
 def test_all_models_use_timezone_utc():
     """All affected models must use datetime.now(UTC) or datetime.now(timezone.utc) pattern."""
-    for module_path, class_name in AFFECTED_MODELS:
+    for module_path, _class_name in AFFECTED_MODELS:
         src = _get_model_source(module_path)
         assert "timezone.utc" in src or "UTC" in src, (
             f"{module_path} must use datetime.now(UTC) or datetime.now(timezone.utc) for created_at"
@@ -63,7 +63,8 @@ def test_all_models_use_timezone_utc():
 
 def test_user_created_at_has_default_factory():
     """User.created_at must not default to None — needs a proper datetime factory."""
-    src = open('app/models/user.py').read()
+    from pathlib import Path
+    src = Path('app/models/user.py').read_text()
     created_lines = [l for l in src.split('\n') if 'created_at' in l]
     # Must NOT have default=None
     assert not any('default=None' in l for l in created_lines), (
@@ -80,7 +81,8 @@ def test_user_created_at_has_default_factory():
 
 def test_user_created_at_uses_timezone_utc():
     """User.created_at default must use UTC — consistent with all other models."""
-    src = open('app/models/user.py').read()
+    from pathlib import Path
+    src = Path('app/models/user.py').read_text()
     assert 'timezone.utc' in src or 'UTC' in src, (
         "User model must use datetime.now(UTC) or datetime.now(timezone.utc) for created_at default"
     )

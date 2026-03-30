@@ -11,58 +11,40 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ingest", tags=["ingest"])
 
+
 @router.post("/url", response_model=Document)
-async def ingest_url(
-    request: URLRequest,
-    user: OptionalVerifiedUser,
-    session: DbSession
-) -> Document:
+async def ingest_url(request: URLRequest, user: OptionalVerifiedUser, session: DbSession) -> Document:
     if not user or user.id is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required to ingest URLs"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required to ingest URLs")
     try:
         doc = await fetch_and_clean_url(str(request.url), user.id, session)
         return doc
     except ValueError as e:
         # ValueError = expected failure (SSRF, content-type, too large, etc.)
         # Safe to surface — these are user-facing validation messages.
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     except Exception:
         # Unexpected failure — log full detail server-side, return generic message
         logger.exception("URL ingestion failed for user_id=%s", user.id)
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Failed to ingest URL. Please check the URL and try again."
-        )
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to ingest URL. Please check the URL and try again."
+        ) from None
+
 
 @router.post("/text", response_model=Document)
-async def ingest_text(
-    request: TextIngestRequest,
-    user: OptionalVerifiedUser,
-    session: DbSession
-) -> Document:
+async def ingest_text(request: TextIngestRequest, user: OptionalVerifiedUser, session: DbSession) -> Document:
     if not user or user.id is None:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required to save documents"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required to save documents"
         )
     try:
         doc = await ingest_text_document(user.id, request.text, request.title, session)
         return doc
     except ValueError as e:
         # ValueError = expected failure (too long, etc.) — safe to surface.
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
     except Exception:
         logger.exception("Text ingestion failed for user_id=%s", user.id)
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Failed to save document. Please try again."
-        )
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to save document. Please try again."
+        ) from None

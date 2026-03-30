@@ -2,6 +2,7 @@
 Streaming endpoint tests — summarize/stream and chat/stream SSE endpoints.
 Tests auth guards, validation, and SSE protocol for the extractive path (no LLM key needed).
 """
+import contextlib
 import json
 
 import pytest
@@ -43,10 +44,8 @@ async def test_summarize_stream_extractive(client: AsyncClient):
     events = []
     for line in lines:
         data_str = line[6:]  # strip "data: "
-        try:
+        with contextlib.suppress(json.JSONDecodeError):
             events.append(json.loads(data_str))
-        except json.JSONDecodeError:
-            pass
 
     # Should have at least one token event and a done event
     token_events = [e for e in events if "token" in e]

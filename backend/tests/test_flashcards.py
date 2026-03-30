@@ -152,7 +152,8 @@ def test_list_flashcard_sets_no_loop_query():
 
 def test_flashcard_front_has_max_length():
     """Flashcard.front must have a max_length constraint."""
-    src = open('app/models/flashcards.py').read()
+    from pathlib import Path
+    src = Path('app/models/flashcards.py').read_text()
     front_lines = [l for l in src.split('\n') if 'front' in l and 'Field' in l]
     assert front_lines, "Flashcard must have a front field with Field()"
     assert any('max_length' in l for l in front_lines), (
@@ -162,8 +163,8 @@ def test_flashcard_front_has_max_length():
 
 def test_flashcard_back_has_max_length():
     """Flashcard.back must have a max_length constraint."""
-    src = open('app/models/flashcards.py').read()
-    back_lines = [l for l in src.split('\n') if "'back'" in l or ('"back"' in l) or ('back' in l and 'Field' in l and 'set_id' not in l and 'flashcard_set' not in l)]
+    from pathlib import Path
+    src = Path('app/models/flashcards.py').read_text()
     back_field_lines = [l for l in src.split('\n') if l.strip().startswith('back') and 'Field' in l]
     assert back_field_lines, "Flashcard must have a back field with Field()"
     assert any('max_length' in l for l in back_field_lines), (

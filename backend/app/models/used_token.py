@@ -7,6 +7,7 @@ Design:
   - A background GC job (or periodic alembic cleanup) removes expired rows.
     Until then, rows are cheap — only magic link + verification tokens land here.
 """
+
 from datetime import UTC, datetime
 
 from sqlmodel import Field, SQLModel
@@ -30,6 +31,4 @@ class UsedToken(SQLModel, table=True):
     expires_at: datetime = Field(index=True)  # Indexed — token GC WHERE expires_at < now scans this hourly
 
     # When this record was created
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(UTC).replace(tzinfo=None)
-    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))

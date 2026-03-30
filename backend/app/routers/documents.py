@@ -1,6 +1,7 @@
 """
 Document management router — list and delete user's ingested documents.
 """
+
 import logging
 from typing import Any
 

@@ -8,6 +8,7 @@ Key invariants:
   - The returned ChatMessage row is augmented with session_id so the frontend
     can maintain session continuity across turns.
 """
+
 from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,6 +28,7 @@ DOC_CONTEXT_CHARS = 5_000
 @dataclass
 class ChatReply:
     """Thin envelope so the router can return both the message and its session."""
+
     id: int | None
     session_id: int
     role: str
@@ -37,6 +39,7 @@ class ChatReply:
 @dataclass
 class ChatContext:
     """Prepared context for chat LLM call — shared by streaming and non-streaming paths."""
+
     messages_payload: list[dict[str, str]]
     session_id: int
 
@@ -67,11 +70,7 @@ async def prepare_chat_context(
     # 2. Get or create chat session
     if session_id:
         chat_session = await session.get(ChatSession, session_id)
-        if (
-            not chat_session
-            or chat_session.user_id != user_id
-            or chat_session.document_id != document_id
-        ):
+        if not chat_session or chat_session.user_id != user_id or chat_session.document_id != document_id:
             raise ValueError("Chat session not found or mismatched")
     else:
         chat_session = ChatSession(user_id=user_id, document_id=document_id)
@@ -98,9 +97,7 @@ async def prepare_chat_context(
 
     # 5. Build LLM payload — sanitize all user-controlled content before injection
     safe_title = sanitize_document_content(doc.title or "")
-    safe_content = sanitize_document_content(
-        (doc.cleaned_content or "")[:DOC_CONTEXT_CHARS]
-    )
+    safe_content = sanitize_document_content((doc.cleaned_content or "")[:DOC_CONTEXT_CHARS])
     messages_payload: list[dict[str, str]] = [
         {
             "role": "system",

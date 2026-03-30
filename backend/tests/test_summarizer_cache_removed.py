@@ -23,7 +23,7 @@ def test_cache_module_not_importable():
     """app.services.summarizer.cache must not be importable."""
     try:
         importlib.import_module('app.services.summarizer.cache')
-        assert False, "summarizer.cache must not be importable — it should be deleted"
+        raise AssertionError("summarizer.cache must not be importable — it should be deleted")
     except ModuleNotFoundError:
         pass  # expected
 

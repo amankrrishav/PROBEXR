@@ -2,6 +2,7 @@
 Summarizer Service: Unified API for high-density autonomous summaries.
 Exposes the modular sub-services for architecture-clean integration.
 """
+
 from .core import (
     LENGTH_PRESETS,
     SummarizePrepResult,

@@ -2,6 +2,7 @@
 Dependencies for routes — auth, rate limits, etc.
 Route handlers should import these aliases instead of touching auth internals.
 """
+
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status

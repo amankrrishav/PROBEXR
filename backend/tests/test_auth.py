@@ -362,7 +362,8 @@ def test_secret_key_entropy_check():
 
 def test_user_full_name_has_max_length():
     """User.full_name must have a max_length constraint."""
-    src = open('app/models/user.py').read()
+    from pathlib import Path
+    src = Path('app/models/user.py').read_text()
     lines = [l for l in src.split('\n') if 'full_name' in l and 'Field' in l]
     assert lines, "User must have a full_name field with Field()"
     assert any('max_length' in l for l in lines), (
@@ -372,7 +373,8 @@ def test_user_full_name_has_max_length():
 
 def test_user_avatar_url_has_max_length():
     """User.avatar_url must have a max_length constraint."""
-    src = open('app/models/user.py').read()
+    from pathlib import Path
+    src = Path('app/models/user.py').read_text()
     lines = [l for l in src.split('\n') if 'avatar_url' in l and 'Field' in l]
     assert lines, "User must have an avatar_url field with Field()"
     assert any('max_length' in l for l in lines), (

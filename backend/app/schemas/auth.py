@@ -16,25 +16,37 @@ _MAX_PASSWORD_LENGTH = 128
 _SPECIAL_CHARS = set("!@#$%^&*()_+-=[]{}|;:',.<>?/~`\"\\")
 
 _COMMON_PASSWORDS = {
-    "password", "password1", "password12", "password123",
-    "12345678", "123456789", "1234567890", "qwerty123",
-    "iloveyou", "sunshine", "princess", "letmein1",
-    "welcome1", "monkey123", "dragon123", "master123",
-    "passw0rd", "pass1234", "abc12345", "admin1234",
+    "password",
+    "password1",
+    "password12",
+    "password123",
+    "12345678",
+    "123456789",
+    "1234567890",
+    "qwerty123",
+    "iloveyou",
+    "sunshine",
+    "princess",
+    "letmein1",
+    "welcome1",
+    "monkey123",
+    "dragon123",
+    "master123",
+    "passw0rd",
+    "pass1234",
+    "abc12345",
+    "admin1234",
 }
 
 
 def _validate_password_strength(password: str) -> str:
     """Shared password strength validator — raises ValueError on failure."""
     import re
+
     if len(password) < _MIN_PASSWORD_LENGTH:
-        raise ValueError(
-            f"Password must be at least {_MIN_PASSWORD_LENGTH} characters long."
-        )
+        raise ValueError(f"Password must be at least {_MIN_PASSWORD_LENGTH} characters long.")
     if len(password) > _MAX_PASSWORD_LENGTH:
-        raise ValueError(
-            f"Password must be no longer than {_MAX_PASSWORD_LENGTH} characters."
-        )
+        raise ValueError(f"Password must be no longer than {_MAX_PASSWORD_LENGTH} characters.")
     if not any(c.isupper() for c in password):
         raise ValueError("Password must contain at least one uppercase letter.")
     if not any(c.islower() for c in password):
@@ -42,10 +54,7 @@ def _validate_password_strength(password: str) -> str:
     if not any(c.isdigit() for c in password):
         raise ValueError("Password must contain at least one digit.")
     if not any(c in _SPECIAL_CHARS for c in password):
-        raise ValueError(
-            "Password must contain at least one special character "
-            "(!@#$%^&*()_+-=[]{}|;:',.<>?/~`\"\\)."
-        )
+        raise ValueError("Password must contain at least one special character (!@#$%^&*()_+-=[]{}|;:',.<>?/~`\"\\).")
     # Strip punctuation/spaces before common-password check so that
     # "Password123!" is still caught as a variant of "password123".
     base = re.sub(r"[^a-z0-9]", "", password.lower())
@@ -116,5 +125,6 @@ class ResendVerificationRequest(BaseModel):
 
 class OAuthCallbackRequest(BaseModel):
     """Request body for OAuth provider callbacks (Google, GitHub)."""
+
     code: str = Field(..., min_length=1, max_length=2048, description="Authorization code from OAuth provider")
     state: str = Field(..., min_length=1, max_length=2048, description="CSRF state token")

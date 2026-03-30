@@ -15,8 +15,17 @@ logger = logging.getLogger(__name__)
 # accounting for system prompt, user prompt wrapper, and response tokens.
 COMBINED_CONTENT_CAP = 16_000
 
-async def synthesize_documents(document_ids: list[int], user_id: int, session: AsyncSession, prompt: str | None = None) -> Synthesis:
-    statement = select(Document).where(Document.id.in_(document_ids), Document.user_id == user_id)  # type: ignore
+
+async def synthesize_documents(
+    document_ids: list[int],
+    user_id: int,
+    session: AsyncSession,
+    prompt: str | None = None,
+) -> Synthesis:
+    statement = select(Document).where(
+        Document.id.in_(document_ids),
+        Document.user_id == user_id,  # type: ignore
+    )
     result = await session.execute(statement)
     docs = list(result.scalars().all())
 
@@ -35,17 +44,23 @@ async def synthesize_documents(document_ids: list[int], user_id: int, session: A
         if len(content) > per_doc_cap:
             logger.warning(
                 "Synthesis: document %d ('%s') truncated from %d to %d chars",
-                d.id, d.title, len(content), per_doc_cap,
+                d.id,
+                d.title,
+                len(content),
+                per_doc_cap,
             )
             content = content[:per_doc_cap]
         # Sanitize document content and title before injecting into prompt
         safe_content = sanitize_document_content(content)
         safe_title = sanitize_document_content(d.title or "")
-        parts.append(f"--- Document {i+1}: {safe_title} ---\n{safe_content}")
+        parts.append(f"--- Document {i + 1}: {safe_title} ---\n{safe_content}")
 
     combined_text = "\n\n".join(parts)
 
-    system_prompt = "You are an expert analyst. Synthesize the following documents, extracting common themes, contrasting viewpoints, and providing a comprehensive overview."
+    system_prompt = (
+        "You are an expert analyst. Synthesize the following documents, "
+        "extracting common themes, contrasting viewpoints, and providing a comprehensive overview."
+    )
     if prompt:
         # Sanitize the user-supplied synthesis instruction before injecting
         safe_prompt = sanitize_user_prompt(prompt)
@@ -59,14 +74,10 @@ async def synthesize_documents(document_ids: list[int], user_id: int, session: A
             {"role": "user", "content": user_prompt},
         ],
         max_tokens=1500,
-        temperature=0.3
+        temperature=0.3,
     )
 
-    synthesis_record = Synthesis(
-        user_id=user_id,
-        summary=summary,
-        documents=docs
-    )
+    synthesis_record = Synthesis(user_id=user_id, summary=summary, documents=docs)
     session.add(synthesis_record)
     await session.commit()
     await session.refresh(synthesis_record)

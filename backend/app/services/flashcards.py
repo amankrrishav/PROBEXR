@@ -35,12 +35,9 @@ async def generate_flashcards(document_id: int, user_id: int, session: AsyncSess
     user_prompt = f"Document Title: {safe_title}\n\nDocument Content:\n{safe_content}"
 
     reply = await chat_completion(
-        [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ],
+        [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
         max_tokens=2000,
-        temperature=0.3
+        temperature=0.3,
     )
 
     try:
@@ -53,7 +50,7 @@ async def generate_flashcards(document_id: int, user_id: int, session: AsyncSess
 
         flashcards_data = json.loads(json_str.strip())
     except json.JSONDecodeError:
-        raise ValueError("Failed to parse LLM flashcards output as JSON")
+        raise ValueError("Failed to parse LLM flashcards output as JSON") from None
 
     # Create Set
     fc_set = FlashcardSet(user_id=user_id, document_id=document_id)
@@ -70,6 +67,7 @@ async def generate_flashcards(document_id: int, user_id: int, session: AsyncSess
     await session.commit()
     await session.refresh(fc_set)
     return fc_set
+
 
 def generate_csv_export(flashcards: list[Flashcard]) -> str:
     """
@@ -95,9 +93,7 @@ async def export_flashcards(session: AsyncSession, set_id: int, user_id: int) ->
     if not fc_set or fc_set.user_id != user_id:
         raise ValueError("Flashcard set not found or unauthorized")
 
-    result = await session.execute(
-        select(Flashcard).where(Flashcard.set_id == set_id)
-    )
+    result = await session.execute(select(Flashcard).where(Flashcard.set_id == set_id))
     flashcards = list(result.scalars().all())
 
     return generate_csv_export(flashcards)

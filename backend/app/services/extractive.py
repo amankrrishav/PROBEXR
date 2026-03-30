@@ -10,6 +10,7 @@ Uses TextRank (graph-based) + TF-IDF hybrid scoring with:
 
 Quality comparable to early-2020s NLP research systems.
 """
+
 import math
 import re
 from collections import Counter
@@ -19,12 +20,45 @@ from typing import Any
 # Text cleaning & sentence segmentation
 # ---------------------------------------------------------------------------
 
-_ABBREVIATIONS = frozenset([
-    "mr", "mrs", "ms", "dr", "prof", "sr", "jr", "st", "vs", "etc",
-    "inc", "ltd", "co", "corp", "dept", "univ", "govt", "approx",
-    "fig", "vol", "no", "jan", "feb", "mar", "apr", "jun", "jul",
-    "aug", "sep", "oct", "nov", "dec", "al", "e.g", "i.e",
-])
+_ABBREVIATIONS = frozenset(
+    [
+        "mr",
+        "mrs",
+        "ms",
+        "dr",
+        "prof",
+        "sr",
+        "jr",
+        "st",
+        "vs",
+        "etc",
+        "inc",
+        "ltd",
+        "co",
+        "corp",
+        "dept",
+        "univ",
+        "govt",
+        "approx",
+        "fig",
+        "vol",
+        "no",
+        "jan",
+        "feb",
+        "mar",
+        "apr",
+        "jun",
+        "jul",
+        "aug",
+        "sep",
+        "oct",
+        "nov",
+        "dec",
+        "al",
+        "e.g",
+        "i.e",
+    ]
+)
 
 _BOILERPLATE_PATTERNS = [
     re.compile(r"(?i)\b(cookie|privacy)\s+(policy|notice|settings?)\b"),
@@ -39,24 +73,147 @@ _BOILERPLATE_PATTERNS = [
     re.compile(r"(?i)\b(click|tap)\s+here\b"),
 ]
 
-_STOP_WORDS = frozenset([
-    "a", "an", "the", "and", "or", "but", "in", "on", "at", "to", "for",
-    "of", "with", "by", "from", "is", "are", "was", "were", "be", "been",
-    "being", "have", "has", "had", "do", "does", "did", "will", "would",
-    "could", "should", "may", "might", "shall", "can", "it", "its",
-    "this", "that", "these", "those", "he", "she", "they", "we", "you",
-    "i", "me", "him", "her", "them", "us", "my", "your", "his", "our",
-    "their", "not", "no", "nor", "so", "if", "then", "than", "too",
-    "very", "just", "about", "also", "as", "into", "more", "some", "such",
-    "what", "which", "who", "whom", "how", "when", "where", "why",
-    "all", "each", "every", "both", "few", "many", "much", "own", "other",
-    "any", "only", "same", "up", "out", "over", "after", "before",
-    "between", "under", "again", "further", "once", "there", "here",
-    "most", "such", "through", "during", "because", "while", "although",
-    "since", "until", "whether", "though", "even", "still", "already",
-    "yet", "now", "well", "back", "get", "got", "make", "made",
-    "said", "like", "new", "one", "two", "first", "last", "way",
-])
+_STOP_WORDS = frozenset(
+    [
+        "a",
+        "an",
+        "the",
+        "and",
+        "or",
+        "but",
+        "in",
+        "on",
+        "at",
+        "to",
+        "for",
+        "of",
+        "with",
+        "by",
+        "from",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "have",
+        "has",
+        "had",
+        "do",
+        "does",
+        "did",
+        "will",
+        "would",
+        "could",
+        "should",
+        "may",
+        "might",
+        "shall",
+        "can",
+        "it",
+        "its",
+        "this",
+        "that",
+        "these",
+        "those",
+        "he",
+        "she",
+        "they",
+        "we",
+        "you",
+        "i",
+        "me",
+        "him",
+        "her",
+        "them",
+        "us",
+        "my",
+        "your",
+        "his",
+        "our",
+        "their",
+        "not",
+        "no",
+        "nor",
+        "so",
+        "if",
+        "then",
+        "than",
+        "too",
+        "very",
+        "just",
+        "about",
+        "also",
+        "as",
+        "into",
+        "more",
+        "some",
+        "such",
+        "what",
+        "which",
+        "who",
+        "whom",
+        "how",
+        "when",
+        "where",
+        "why",
+        "all",
+        "each",
+        "every",
+        "both",
+        "few",
+        "many",
+        "much",
+        "own",
+        "other",
+        "any",
+        "only",
+        "same",
+        "up",
+        "out",
+        "over",
+        "after",
+        "before",
+        "between",
+        "under",
+        "again",
+        "further",
+        "once",
+        "there",
+        "here",
+        "most",
+        "such",
+        "through",
+        "during",
+        "because",
+        "while",
+        "although",
+        "since",
+        "until",
+        "whether",
+        "though",
+        "even",
+        "still",
+        "already",
+        "yet",
+        "now",
+        "well",
+        "back",
+        "get",
+        "got",
+        "make",
+        "made",
+        "said",
+        "like",
+        "new",
+        "one",
+        "two",
+        "first",
+        "last",
+        "way",
+    ]
+)
 
 # Cue phrases that signal important sentences
 _CUE_PHRASES_STRONG = [
@@ -121,6 +278,7 @@ def _tokenize(text: str) -> list[str]:
 # TF-IDF computation
 # ---------------------------------------------------------------------------
 
+
 def _compute_tfidf(sentences: list[str]) -> list[dict[str, float]]:
     """Compute TF-IDF vectors for each sentence."""
     n = len(sentences)
@@ -180,6 +338,7 @@ def _sentence_centroid(tfidf_vectors: list[dict[str, float]]) -> dict[str, float
 # ---------------------------------------------------------------------------
 # TextRank — graph-based sentence ranking (PageRank on similarity graph)
 # ---------------------------------------------------------------------------
+
 
 def _textrank_scores(
     sentences: list[str],
@@ -245,6 +404,7 @@ def _textrank_scores(
 # Topic clustering — ensure summary covers all major themes
 # ---------------------------------------------------------------------------
 
+
 def _cluster_sentences(
     tfidf_vectors: list[dict[str, float]],
     n_clusters: int = 4,
@@ -266,10 +426,7 @@ def _cluster_sentences(
         for i in range(n):
             if i in centroid_indices:
                 continue
-            min_dist = min(
-                _cosine_similarity(tfidf_vectors[i], tfidf_vectors[c])
-                for c in centroid_indices
-            )
+            min_dist = min(_cosine_similarity(tfidf_vectors[i], tfidf_vectors[c]) for c in centroid_indices)
             # We want the sentence most DIFFERENT from existing centroids
             # so we maximize the minimum distance (furthest from all centroids)
             if (1.0 - min_dist) > max_min_dist:
@@ -297,6 +454,7 @@ def _cluster_sentences(
 # Cue phrase and content signal scoring
 # ---------------------------------------------------------------------------
 
+
 def _cue_phrase_score(sentence: str) -> float:
     """Score based on presence of discourse markers that signal importance."""
     score = 0.0
@@ -316,7 +474,11 @@ def _content_signal_score(sentence: str) -> float:
     score = 0.0
 
     # Numbers with context (percentages, dollar amounts, specific quantities)
-    if re.search(r"\d+(?:\.\d+)?\s*(?:percent|%)", sentence, re.IGNORECASE) or re.search(r"\$\d+|\d+(?:\.\d+)?\s*(?:billion|million|trillion|thousand)", sentence, re.IGNORECASE):
+    if re.search(r"\d+(?:\.\d+)?\s*(?:percent|%)", sentence, re.IGNORECASE) or re.search(
+        r"\$\d+|\d+(?:\.\d+)?\s*(?:billion|million|trillion|thousand)",
+        sentence,
+        re.IGNORECASE,
+    ):
         score += 0.12
     elif re.search(r"\d+(?:\.\d+)?", sentence):
         score += 0.06
@@ -370,6 +532,7 @@ def _position_score(idx: int, total_sentences: int, original_idx: int, original_
 # Hybrid scoring — combines all signals
 # ---------------------------------------------------------------------------
 
+
 def _compute_hybrid_scores(
     sentences: list[str],
     original_indices: list[int],
@@ -418,6 +581,7 @@ def _compute_hybrid_scores(
 # ---------------------------------------------------------------------------
 # Selection with topic coverage + MMR diversity
 # ---------------------------------------------------------------------------
+
 
 def _select_sentences_with_coverage(
     sentences: list[str],
@@ -474,10 +638,7 @@ def _select_sentences_with_coverage(
             # Diversity penalty (max similarity to already selected)
             max_sim = 0.0
             if selected_vecs:
-                max_sim = max(
-                    _cosine_similarity(tfidf_vectors[idx], sv)
-                    for sv in selected_vecs
-                )
+                max_sim = max(_cosine_similarity(tfidf_vectors[idx], sv) for sv in selected_vecs)
 
             mmr = lambda_param * relevance - (1 - lambda_param) * max_sim
             if mmr > best_mmr:
@@ -500,6 +661,7 @@ def _select_sentences_with_coverage(
 # ---------------------------------------------------------------------------
 # Smart takeaway extraction
 # ---------------------------------------------------------------------------
+
 
 def extract_takeaways(
     sentences: list[str],
@@ -549,8 +711,7 @@ def extract_takeaways(
         # Cue phrases boost
         cue_bonus = _cue_phrase_score(sentences[i]) * 0.5
 
-        total = (content_score * 0.35 + hybrid_score * 0.35 +
-                 cue_bonus * 0.15 + length_bonus + self_contained_penalty)
+        total = content_score * 0.35 + hybrid_score * 0.35 + cue_bonus * 0.15 + length_bonus + self_contained_penalty
         takeaway_scores.append((total, i))
 
     # Sort by score, then select with diversity
@@ -559,16 +720,13 @@ def extract_takeaways(
     selected: list[int] = []
     selected_vecs: list[dict[str, float]] = []
 
-    for score, idx in takeaway_scores:
+    for _score, idx in takeaway_scores:
         if len(selected) >= count:
             break
 
         # Diversity check: reject if too similar to already picked takeaway
         if selected_vecs and idx < len(tfidf_vectors):
-            max_sim = max(
-                _cosine_similarity(tfidf_vectors[idx], sv)
-                for sv in selected_vecs
-            )
+            max_sim = max(_cosine_similarity(tfidf_vectors[idx], sv) for sv in selected_vecs)
             if max_sim > 0.6:  # 60% similarity threshold
                 continue
 
@@ -584,6 +742,7 @@ def extract_takeaways(
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def _target_word_count(num_words: int, min_w: int = 80, max_w: int = 300, ratio: float = 0.25) -> int:
     target = max(min_w, int(num_words * ratio))
@@ -632,20 +791,18 @@ def summarize_extractive(
     # which carry the most signal.
     _SENTENCE_LIMIT = 300
     if len(clean_sentences) > _SENTENCE_LIMIT:
-        keep_head = _SENTENCE_LIMIT // 3          # first ~100 sentences
-        keep_tail = _SENTENCE_LIMIT // 6          # last ~50 sentences
-        keep_mid  = _SENTENCE_LIMIT - keep_head - keep_tail  # middle ~150
+        keep_head = _SENTENCE_LIMIT // 3  # first ~100 sentences
+        keep_tail = _SENTENCE_LIMIT // 6  # last ~50 sentences
+        keep_mid = _SENTENCE_LIMIT - keep_head - keep_tail  # middle ~150
         mid_start = keep_head
-        mid_end   = len(clean_sentences) - keep_tail
-        mid_step  = max(1, (mid_end - mid_start) // keep_mid)
+        mid_end = len(clean_sentences) - keep_tail
+        mid_step = max(1, (mid_end - mid_start) // keep_mid)
         mid_indices = list(range(mid_start, mid_end, mid_step))[:keep_mid]
         selected = (
-            list(range(keep_head))
-            + mid_indices
-            + list(range(len(clean_sentences) - keep_tail, len(clean_sentences)))
+            list(range(keep_head)) + mid_indices + list(range(len(clean_sentences) - keep_tail, len(clean_sentences)))
         )
         clean_sentences = [clean_sentences[i] for i in selected]
-        clean_indices   = [clean_indices[i]   for i in selected]
+        clean_indices = [clean_indices[i] for i in selected]
 
     target_words = _target_word_count(len(words), target_min, target_max, ratio=word_ratio)
     n = len(clean_sentences)
@@ -660,8 +817,12 @@ def summarize_extractive(
 
     # 3. Compute hybrid scores
     hybrid_scores = _compute_hybrid_scores(
-        clean_sentences, clean_indices, total_original,
-        tfidf_vectors, centroid, tr_scores,
+        clean_sentences,
+        clean_indices,
+        total_original,
+        tfidf_vectors,
+        centroid,
+        tr_scores,
     )
 
     # 4. Cluster sentences for topic coverage
@@ -670,8 +831,11 @@ def summarize_extractive(
 
     # 5. Select sentences with coverage + diversity
     selected_indices = _select_sentences_with_coverage(
-        clean_sentences, hybrid_scores, tfidf_vectors,
-        cluster_assignments, target_words,
+        clean_sentences,
+        hybrid_scores,
+        tfidf_vectors,
+        cluster_assignments,
+        target_words,
     )
 
     if not selected_indices:
@@ -681,7 +845,10 @@ def summarize_extractive(
 
     # 6. Extract smart takeaways (different from summary selection!)
     takeaways = extract_takeaways(
-        clean_sentences, hybrid_scores, tfidf_vectors, count=takeaway_count,
+        clean_sentences,
+        hybrid_scores,
+        tfidf_vectors,
+        count=takeaway_count,
     )
 
     return {

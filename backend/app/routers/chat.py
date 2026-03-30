@@ -57,13 +57,15 @@ async def list_chat_sessions(
         s = row[0]
         doc_title = row[1]
         msg_count = row[2] or 0
-        items.append({
-            "id": s.id,
-            "document_id": s.document_id,
-            "document_title": doc_title,
-            "message_count": msg_count,
-            "created_at": s.created_at.isoformat() if s.created_at else None,
-        })
+        items.append(
+            {
+                "id": s.id,
+                "document_id": s.document_id,
+                "document_title": doc_title,
+                "message_count": msg_count,
+                "created_at": s.created_at.isoformat() if s.created_at else None,
+            }
+        )
 
     return {
         "sessions": items,
@@ -147,7 +149,7 @@ async def chat_endpoint(
         )
         return reply
     except ValueError as ve:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(ve))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(ve)) from ve
     except Exception as e:
         logger.exception("Chat failed for user_id=%s", user.id)
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Chat failed: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Chat failed: {str(e)}") from e

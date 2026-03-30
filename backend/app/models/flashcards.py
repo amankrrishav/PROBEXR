@@ -16,10 +16,11 @@ class FlashcardSet(SQLModel, table=True):
     document: Optional["Document"] = Relationship(back_populates="flashcard_sets")
     flashcards: list["Flashcard"] = Relationship(back_populates="flashcard_set", cascade_delete=True)
 
+
 class Flashcard(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     set_id: int = Field(foreign_key="flashcardset.id", index=True)
     front: str = Field(max_length=2000)  # Anki card front face
-    back: str = Field(max_length=2000)   # Anki card back face
+    back: str = Field(max_length=2000)  # Anki card back face
 
     flashcard_set: Optional["FlashcardSet"] = Relationship(back_populates="flashcards")

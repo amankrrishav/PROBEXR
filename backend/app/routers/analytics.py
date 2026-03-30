@@ -1,6 +1,7 @@
 """
 Analytics router — reading dashboard metrics.
 """
+
 import logging
 from typing import Any
 

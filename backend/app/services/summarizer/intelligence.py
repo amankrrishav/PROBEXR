@@ -2,6 +2,7 @@
 Summarizer Intelligence: NLP utilities for text cleaning, content-type detection,
 readability scoring, quotes, entities, and sentiment analysis.
 """
+
 import re
 from typing import Any
 
@@ -46,6 +47,7 @@ _OPINION_SIGNALS = re.compile(
     r"|commentary|my\s+take|i\s+(?:strongly|firmly))\b"
 )
 
+
 def clean_text(text: str) -> str:
     """Aggressively clean text: remove boilerplate, normalize unicode, collapse whitespace."""
     # Remove citation markers [1], [2], etc.
@@ -77,6 +79,7 @@ def clean_text(text: str) -> str:
 
     return text.strip()
 
+
 def detect_content_type(text: str) -> str:
     """Classify content as: academic, news, technical, opinion, or general."""
     academic = len(_ACADEMIC_SIGNALS.findall(text))
@@ -96,9 +99,10 @@ def detect_content_type(text: str) -> str:
         return "general"
     return best
 
+
 def readability_score(text: str) -> tuple[float, str]:
     """Compute Flesch Reading Ease score and human label."""
-    sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+    sentences = re.split(r"(?<=[.!?])\s+", text.strip())
     sentences = [s for s in sentences if s.strip()]
     words = re.findall(r"[a-zA-Z']+", text)
 
@@ -114,14 +118,21 @@ def readability_score(text: str) -> tuple[float, str]:
     score = 206.835 - (1.015 * asl) - (84.6 * asw)
     score = round(max(0, min(100, int(score))), 1)
 
-    if score >= 80: label = "Very Easy"
-    elif score >= 65: label = "Easy"
-    elif score >= 50: label = "Average"
-    elif score >= 35: label = "Moderate"
-    elif score >= 20: label = "Difficult"
-    else: label = "Very Difficult"
+    if score >= 80:
+        label = "Very Easy"
+    elif score >= 65:
+        label = "Easy"
+    elif score >= 50:
+        label = "Average"
+    elif score >= 35:
+        label = "Moderate"
+    elif score >= 20:
+        label = "Difficult"
+    else:
+        label = "Very Difficult"
 
     return score, label
+
 
 def extract_notable_quotes(text: str, max_quotes: int = 3) -> list[str]:
     """Extract notable substantive direct quotes from source."""
@@ -144,22 +155,21 @@ def extract_notable_quotes(text: str, max_quotes: int = 3) -> list[str]:
             unique.append(quote_str)
     return unique[:max_quotes]
 
+
 def extract_entities_fallback(text: str) -> dict[str, list[str]]:
     """Regex-based fallback for entity extraction if LLM fails or for augmentation."""
     # Simple Capitalized Word sequences (crude but effective fallback)
     people = re.findall(r"\b[A-Z][a-z]+ [A-Z][a-z]+\b", text)
-    orgs = re.findall(r"\b[A-Z][A-Z\d]+\b", text) # Acronyms
+    orgs = re.findall(r"\b[A-Z][A-Z\d]+\b", text)  # Acronyms
 
-    return {
-        "people": list(set(people))[:5],
-        "orgs": list(set(orgs))[:5],
-        "concepts": []
-    }
+    return {"people": list(set(people))[:5], "orgs": list(set(orgs))[:5], "concepts": []}
+
 
 def compute_complexity_score(text: str) -> int:
     """Combines readability, vocabulary variety, and sentence length into a 1-10 score."""
     words = re.findall(r"\w+", text.lower())
-    if not words: return 5
+    if not words:
+        return 5
 
     unique_ratio = len(set(words)) / len(words)
     avg_word_len = sum(len(w) for w in words) / len(words)
@@ -168,7 +178,12 @@ def compute_complexity_score(text: str) -> int:
     score = (avg_word_len * 2) + (unique_ratio * 5)
     return max(1, min(10, round(score)))
 
-def compute_metadata(original_text: str, summary_text: str, llm_metadata: dict[str, Any] | None = None) -> dict[str, Any]:
+
+def compute_metadata(
+    original_text: str,
+    summary_text: str,
+    llm_metadata: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Assembles all rich intelligence metadata."""
     orig_words = original_text.split()
     summ_words = summary_text.split()
@@ -187,11 +202,13 @@ def compute_metadata(original_text: str, summary_text: str, llm_metadata: dict[s
 
     # NLP stats
     r_score, r_label = readability_score(summary_text)
-    meta.update({
-        "readability_score": r_score,
-        "readability_label": r_label,
-        "notable_quotes": extract_notable_quotes(original_text),
-    })
+    meta.update(
+        {
+            "readability_score": r_score,
+            "readability_label": r_label,
+            "notable_quotes": extract_notable_quotes(original_text),
+        }
+    )
 
     # Integrate/Augment LLM-provided metadata
     llm = llm_metadata or {}
@@ -206,10 +223,12 @@ def compute_metadata(original_text: str, summary_text: str, llm_metadata: dict[s
         "concepts": llm_entities.get("concepts", [])[:8],
     }
 
-    meta.update({
-        "tldr": llm.get("tldr", ""),
-        "sentiment": llm.get("sentiment", "Neutral"),
-        "tone": llm.get("professional_tone", "Professional"),
-    })
+    meta.update(
+        {
+            "tldr": llm.get("tldr", ""),
+            "sentiment": llm.get("sentiment", "Neutral"),
+            "tone": llm.get("professional_tone", "Professional"),
+        }
+    )
 
     return meta

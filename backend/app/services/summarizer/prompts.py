@@ -5,14 +5,14 @@ Key design: NO JSON separator in the output. The LLM produces ONLY the summary.
 All metadata (entities, compression ratio, etc.) is computed in intelligence.py.
 This prevents the #1 bug: free-tier LLMs leaking separator/JSON into the visible stream.
 """
+
 from typing import Any
 
 # ── Mode-specific format instructions ──────────────────────────────────────
 
 _MODE_INSTRUCTIONS = {
     "paragraph": (
-        "Write the summary as flowing, natural prose paragraphs. "
-        "Do NOT use bullet points, lists, or headings."
+        "Write the summary as flowing, natural prose paragraphs. Do NOT use bullet points, lists, or headings."
     ),
     "bullets": (
         "Write the summary as a clean bullet-point list. "
@@ -78,21 +78,27 @@ def build_unified_prompt(
         kw_str = ", ".join(keywords[:5])
         keyword_block = f"\n- **Focus Keywords**: Emphasize themes related to: {kw_str}"
 
-    system = f"""You are an expert summarization engine. You produce high-quality, human-like summaries that are accurate, coherent, and preserve the key ideas of the original.
-
-## Rules
-1. Target approximately {target_words} words.
-2. NEVER hallucinate facts not in the source text.
-3. NEVER add opinions unless the tone explicitly calls for it.
-4. NEVER use meta-discourse like "The article discusses", "In this text", "The author argues".
-5. Every sentence must carry information — no filler.
-6. Produce ONLY the summary. No preamble, no commentary, no titles, no labels like "Summary:".
-
-## Output Format
-{mode_instruction}
-
-## Tone
-{tone_instruction}{keyword_block}"""
+    system = (
+        f"You are an expert summarization engine. You produce high-quality, "
+        f"human-like summaries that are accurate, coherent, and preserve "
+        f"the key ideas of the original.\n"
+        f"\n"
+        f"## Rules\n"
+        f"1. Target approximately {target_words} words.\n"
+        f"2. NEVER hallucinate facts not in the source text.\n"
+        f"3. NEVER add opinions unless the tone explicitly calls for it.\n"
+        f'4. NEVER use meta-discourse like "The article discusses", '
+        f'"In this text", "The author argues".\n'
+        f"5. Every sentence must carry information — no filler.\n"
+        f"6. Produce ONLY the summary. No preamble, no commentary, "
+        f'no titles, no labels like "Summary:".\n'
+        f"\n"
+        f"## Output Format\n"
+        f"{mode_instruction}\n"
+        f"\n"
+        f"## Tone\n"
+        f"{tone_instruction}{keyword_block}"
+    )
 
     user = f"Summarize the following text:\n\n{text}"
 
@@ -137,19 +143,25 @@ def build_reduce_prompt(
         kw_str = ", ".join(keywords[:5])
         keyword_block = f"\n- **Focus Keywords**: Emphasize themes related to: {kw_str}"
 
-    system = f"""You are a synthesis expert. Merge the provided section summaries into a single, seamless narrative of approximately {target_words} words.
-
-## Rules
-1. The output must read as one unified piece — not a list of summaries stitched together.
-2. Aggressively de-duplicate overlapping points.
-3. Prioritize the most important information.
-4. Produce ONLY the merged summary. No preamble, no commentary.
-
-## Output Format
-{mode_instruction}
-
-## Tone
-{tone_instruction}{keyword_block}"""
+    system = (
+        f"You are a synthesis expert. Merge the provided section summaries "
+        f"into a single, seamless narrative of approximately "
+        f"{target_words} words.\n"
+        f"\n"
+        f"## Rules\n"
+        f"1. The output must read as one unified piece "
+        f"— not a list of summaries stitched together.\n"
+        f"2. Aggressively de-duplicate overlapping points.\n"
+        f"3. Prioritize the most important information.\n"
+        f"4. Produce ONLY the merged summary. No preamble, "
+        f"no commentary.\n"
+        f"\n"
+        f"## Output Format\n"
+        f"{mode_instruction}\n"
+        f"\n"
+        f"## Tone\n"
+        f"{tone_instruction}{keyword_block}"
+    )
 
     return [
         {"role": "system", "content": system},

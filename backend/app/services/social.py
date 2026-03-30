@@ -29,6 +29,7 @@ async def get_google_user_info(code: str, redirect_uri: str) -> dict[str, Any]:
     result: dict[str, Any] = user_resp.json()
     return result
 
+
 async def get_github_user_info(code: str) -> dict[str, Any]:
     """Exchange GitHub OAuth2 code for user profile info."""
     cfg = get_config()

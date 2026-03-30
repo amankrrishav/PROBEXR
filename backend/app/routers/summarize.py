@@ -8,6 +8,7 @@ from app.services.summarizer import process_summarize
 
 router = APIRouter(prefix="", tags=["summarize"])
 
+
 @router.post("/summarize")
 async def summarize_endpoint(
     request: TextRequest,
@@ -16,9 +17,13 @@ async def summarize_endpoint(
 ) -> dict[str, Any]:
     try:
         return await process_summarize(
-            request.text, user, session,
-            length=request.length, mode=request.mode,
-            tone=request.tone, keywords=request.keywords,
+            request.text,
+            user,
+            session,
+            length=request.length,
+            mode=request.mode,
+            tone=request.tone,
+            keywords=request.keywords,
         )
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e

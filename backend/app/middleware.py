@@ -12,6 +12,7 @@ try:
     from pythonjsonlogger.json import JsonFormatter as jsonlogger_JsonFormatter
 except ImportError:
     from pythonjsonlogger import jsonlogger as _jl
+
     jsonlogger_JsonFormatter = _jl.JsonFormatter  # type: ignore[misc,attr-defined]
 from fastapi import Request
 from fastapi.responses import JSONResponse
@@ -30,9 +31,7 @@ def setup_logging() -> None:
         root_logger.removeHandler(handler)
 
     logHandler = logging.StreamHandler()
-    formatter = jsonlogger_JsonFormatter(
-        '%(asctime)s %(levelname)s %(name)s %(message)s'
-    )
+    formatter = jsonlogger_JsonFormatter("%(asctime)s %(levelname)s %(name)s %(message)s")
     logHandler.setFormatter(formatter)
     root_logger.addHandler(logHandler)
 
@@ -98,8 +97,10 @@ class LoggingMiddleware(BaseHTTPMiddleware):
 
 # --- Rate Limiter Abstraction ---
 
+
 class RateLimiterBackend(Protocol):
     """Protocol for rate limiter backends. Implementations can use Redis, in-memory, etc."""
+
     async def check_and_increment(self, key: str, limit: int) -> tuple[bool, int]:
         """Return (allowed, current_count). allowed=True if under limit."""
         ...
@@ -107,6 +108,7 @@ class RateLimiterBackend(Protocol):
 
 class InMemoryRateLimiter:
     """In-memory rate limiter. Suitable for single-process deployments and dev fallback."""
+
     def __init__(self) -> None:
         self._data: dict[str, int] = {}
         self._current_minute: int = 0
@@ -127,7 +129,8 @@ class InMemoryRateLimiter:
 
 class RedisRateLimiter:
     """Redis-backed rate limiter using atomic INCR + EXPIRE."""
-    def __init__(self, redis_client: "redis.asyncio.Redis") -> None:  # type: ignore
+
+    def __init__(self, redis_client: object) -> None:  # type: ignore[override]
         self._redis = redis_client
 
     async def check_and_increment(self, key: str, limit: int) -> tuple[bool, int]:
@@ -165,8 +168,8 @@ _AUTH_RATE_LIMITED_PATHS = (
     "/api/v1/auth/login",
     "/api/v1/auth/register",
     "/api/v1/auth/magic-link",
-    "/api/v1/auth/forgot-password",    # triggers SMTP send — prevent email spam
-    "/api/v1/auth/resend-verification", # triggers SMTP send — prevent email spam
+    "/api/v1/auth/forgot-password",  # triggers SMTP send — prevent email spam
+    "/api/v1/auth/resend-verification",  # triggers SMTP send — prevent email spam
 )
 
 
@@ -187,9 +190,7 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
             "/api/v1/tts",
             "/api/v1/ingest",
         )
-        is_llm_route = not is_auth_route and any(
-            path.startswith(p) for p in _LLM_ROUTE_PREFIXES
-        )
+        is_llm_route = not is_auth_route and any(path.startswith(p) for p in _LLM_ROUTE_PREFIXES)
 
         if is_auth_route:
             tier = "auth"
@@ -233,7 +234,7 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
         if not is_auth_route:
             raw_token = request.cookies.get("access_token", "")
             if raw_token.startswith("Bearer "):
-                raw_token = raw_token[len("Bearer "):]
+                raw_token = raw_token[len("Bearer ") :]
             if raw_token:
                 try:
                     payload = jwt.decode(
@@ -335,9 +336,9 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
 _CSRF_EXEMPT_PREFIXES: tuple[str, ...] = (
     "/api/v1/health",
     "/api/v1/metrics",
-    "/api/v1/auth/google/callback",     # OAuth callback (state cookie validates CSRF)
-    "/api/v1/auth/github/callback",     # OAuth callback (state cookie validates CSRF)
-    "/api/v1/auth/verify-email",        # GET-only, but exempt for safety
+    "/api/v1/auth/google/callback",  # OAuth callback (state cookie validates CSRF)
+    "/api/v1/auth/github/callback",  # OAuth callback (state cookie validates CSRF)
+    "/api/v1/auth/verify-email",  # GET-only, but exempt for safety
     "/docs",
     "/openapi.json",
     "/redoc",
@@ -391,11 +392,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         # --- Strategy 1: Origin-header check (cross-domain) ---
         origin = request.headers.get("origin")
         if origin:
-            allowed_origins = [
-                o.strip().rstrip("/")
-                for o in cfg.cors_origins.split(",")
-                if o.strip()
-            ]
+            allowed_origins = [o.strip().rstrip("/") for o in cfg.cors_origins.split(",") if o.strip()]
             if origin.rstrip("/") in allowed_origins or "*" in allowed_origins:
                 # Origin matches our CORS allow list → trusted
                 response = await call_next(request)
@@ -419,7 +416,12 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         if not cookie_token or not header_token:
             logger.warning(
                 "CSRF token missing",
-                extra={"path": path, "method": request.method, "has_cookie": bool(cookie_token), "has_header": bool(header_token)},
+                extra={
+                    "path": path,
+                    "method": request.method,
+                    "has_cookie": bool(cookie_token),
+                    "has_header": bool(header_token),
+                },
             )
             response = JSONResponse(
                 status_code=403,
@@ -447,7 +449,6 @@ class CSRFMiddleware(BaseHTTPMiddleware):
 
     @staticmethod
     def _ensure_csrf_cookie(response: Response, request: Request, cfg: Any) -> None:
-
         """Set or refresh the CSRF cookie on every response."""
         existing = request.cookies.get(CSRF_COOKIE_NAME)
         token = existing or secrets.token_urlsafe(32)
@@ -455,7 +456,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         response.set_cookie(
             key=CSRF_COOKIE_NAME,
             value=token,
-            httponly=False,        # Frontend JS must be able to read this
+            httponly=False,  # Frontend JS must be able to read this
             samesite="none" if is_prod else "lax",
             secure=is_prod,
             max_age=60 * 60 * 24,  # 24 hours
@@ -484,17 +485,19 @@ class CSRFMiddleware(BaseHTTPMiddleware):
 #   form-action 'self'          — restrict form submissions to same origin
 # ---------------------------------------------------------------------------
 
-_CSP_POLICY = "; ".join([
-    "default-src 'self'",
-    "script-src 'self'",
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: https:",
-    "font-src 'self' https:",
-    "connect-src 'self' https:",
-    "frame-ancestors 'none'",
-    "base-uri 'self'",
-    "form-action 'self'",
-])
+_CSP_POLICY = "; ".join(
+    [
+        "default-src 'self'",
+        "script-src 'self'",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data: https:",
+        "font-src 'self' https:",
+        "connect-src 'self' https:",
+        "frame-ancestors 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+    ]
+)
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -510,13 +513,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Permissions-Policy"] = (
-            "camera=(), microphone=(), geolocation=()"
-        )
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
         # HSTS — only in production to avoid breaking local HTTP dev servers
         cfg = get_config()
         if cfg.environment == "production":
-            response.headers["Strict-Transport-Security"] = (
-                "max-age=31536000; includeSubDomains"
-            )
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         return response

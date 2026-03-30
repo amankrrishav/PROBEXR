@@ -16,6 +16,7 @@ Lockout flow in authenticate_user:
   2. password check fails       →  record_failure(email)
   3. password check succeeds    →  reset(email)
 """
+
 import hashlib
 import logging
 import time
@@ -28,6 +29,7 @@ logger = logging.getLogger(__name__)
 # Protocol (interface)
 # ---------------------------------------------------------------------------
 
+
 class LockoutBackend(Protocol):
     async def is_locked(self, email: str) -> bool: ...
     async def record_failure(self, email: str) -> int: ...  # returns new count
@@ -38,6 +40,7 @@ class LockoutBackend(Protocol):
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _email_key(email: str) -> str:
     """Hash email → safe Redis/dict key. No PII stored."""
     return hashlib.sha256(email.strip().lower().encode()).hexdigest()[:32]
@@ -46,6 +49,7 @@ def _email_key(email: str) -> str:
 # ---------------------------------------------------------------------------
 # In-memory implementation
 # ---------------------------------------------------------------------------
+
 
 class InMemoryLockoutStore:
     """
@@ -93,6 +97,7 @@ class InMemoryLockoutStore:
 # Redis implementation
 # ---------------------------------------------------------------------------
 
+
 class RedisLockoutStore:
     """
     Redis-backed lockout store using INCR + EXPIRE.
@@ -101,7 +106,7 @@ class RedisLockoutStore:
 
     def __init__(
         self,
-        redis_client: "redis.asyncio.Redis",  # type: ignore[name-defined]
+        redis_client: object,  # type: ignore[override]
         max_attempts: int = 5,
         window_seconds: int = 900,
     ) -> None:
@@ -144,6 +149,7 @@ class RedisLockoutStore:
 # ---------------------------------------------------------------------------
 # No-op implementation (tests)
 # ---------------------------------------------------------------------------
+
 
 class NoOpLockoutStore:
     """Always allows — used in tests to prevent inter-test lockout bleed."""

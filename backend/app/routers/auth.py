@@ -83,7 +83,8 @@ async def register(
         except Exception as e:
             logger.warning(
                 "Failed to send account-exists email to %s: %s",
-                existing.email, str(e),
+                existing.email,
+                str(e),
             )
         # Return 200 (not 201, not 400) with a generic message — same
         # surface area as a real registration from the caller's perspective.
@@ -91,8 +92,7 @@ async def register(
             status_code=200,
             content={
                 "message": (
-                    "If this email is new here, your account has been created. "
-                    "Please check your inbox to verify it."
+                    "If this email is new here, your account has been created. Please check your inbox to verify it."
                 )
             },
         )
@@ -120,16 +120,12 @@ async def register(
 
 
 @router.post("/login", response_model=Token)
-async def login(
-    payload: LoginRequest,
-    response: Response,
-    session: DbSession
-) -> Token:
+async def login(payload: LoginRequest, response: Response, session: DbSession) -> Token:
     try:
         user = await authenticate_user(session, payload.email, payload.password)
     except ValueError as e:
         AUTH_EVENTS_TOTAL.labels(event="login_failure").inc()
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e)) from e
 
     if user.id is None:
         raise HTTPException(status_code=500, detail="User lookup failed")
@@ -167,6 +163,7 @@ async def refresh(
 
 # --- Social Login (Google) ---
 
+
 @router.get("/google/login")
 async def google_login(response: Response) -> RedirectResponse:
     cfg = get_config()
@@ -182,7 +179,7 @@ async def google_login(response: Response) -> RedirectResponse:
         secure=is_prod,
         samesite="lax",
         max_age=600,
-        path="/api/v1/auth"
+        path="/api/v1/auth",
     )
 
     params = {
@@ -195,16 +192,14 @@ async def google_login(response: Response) -> RedirectResponse:
         "state": state_token,
     }
     from urllib.parse import urlencode
+
     url = f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}"
     return RedirectResponse(url)
 
 
 @router.post("/google/callback", response_model=Token)
 async def google_callback(
-    body: OAuthCallbackRequest,
-    request: Request,
-    response: Response,
-    session: DbSession
+    body: OAuthCallbackRequest, request: Request, response: Response, session: DbSession
 ) -> Token:
     code = body.code
     state = body.state
@@ -219,7 +214,7 @@ async def google_callback(
         # Verify state is valid and hasn't expired
         jwt.decode(state, cfg.secret_key, algorithms=[cfg.algorithm])
     except Exception:
-        raise HTTPException(status_code=400, detail="OAuth state expired or invalid")
+        raise HTTPException(status_code=400, detail="OAuth state expired or invalid") from None
 
     # Delete state cookie immediately after validation.
     # Note: concurrent tab race is inherent to cookie-based OAuth state
@@ -230,7 +225,7 @@ async def google_callback(
         user_info = await get_google_user_info(code, f"{cfg.frontend_url}/auth/callback/google")
         user = await handle_social_login(session, "google", user_info)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     if user.id is None:
         raise HTTPException(status_code=500, detail="User lookup failed")
@@ -243,6 +238,7 @@ async def google_callback(
 
 
 # --- Social Login (GitHub) ---
+
 
 @router.get("/github/login")
 async def github_login(response: Response) -> RedirectResponse:
@@ -258,7 +254,7 @@ async def github_login(response: Response) -> RedirectResponse:
         secure=is_prod,
         samesite="lax",
         max_age=600,
-        path="/api/v1/auth"
+        path="/api/v1/auth",
     )
 
     params = {
@@ -267,16 +263,14 @@ async def github_login(response: Response) -> RedirectResponse:
         "state": state_token,
     }
     from urllib.parse import urlencode
+
     url = f"https://github.com/login/oauth/authorize?{urlencode(params)}"
     return RedirectResponse(url)
 
 
 @router.post("/github/callback", response_model=Token)
 async def github_callback(
-    body: OAuthCallbackRequest,
-    request: Request,
-    response: Response,
-    session: DbSession
+    body: OAuthCallbackRequest, request: Request, response: Response, session: DbSession
 ) -> Token:
     code = body.code
     state = body.state
@@ -289,7 +283,7 @@ async def github_callback(
     try:
         jwt.decode(state, cfg.secret_key, algorithms=[cfg.algorithm])
     except Exception:
-        raise HTTPException(status_code=400, detail="OAuth state expired or invalid")
+        raise HTTPException(status_code=400, detail="OAuth state expired or invalid") from None
 
     # Delete state cookie immediately after validation.
     # Note: concurrent tab race is inherent to cookie-based OAuth state
@@ -302,7 +296,7 @@ async def github_callback(
         # but we use frontend_url consistently.
         user = await handle_social_login(session, "github", user_info)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     if user.id is None:
         raise HTTPException(status_code=500, detail="User lookup failed")
@@ -316,6 +310,7 @@ async def github_callback(
 
 # --- Magic Links (Phase 3) ---
 
+
 @router.post("/magic-link")
 async def request_magic_link(payload: MagicLinkRequest) -> dict[str, str]:
     token = create_magic_link_token(payload.email)
@@ -325,21 +320,17 @@ async def request_magic_link(payload: MagicLinkRequest) -> dict[str, str]:
     try:
         await send_magic_link_email(payload.email, magic_link)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}") from e
 
     return {"message": "Magic link sent! Check your email (or server logs in Dev Mode)."}
 
 
 @router.get("/verify", response_model=Token)
-async def verify_magic_link(
-    token: str,
-    response: Response,
-    session: DbSession
-) -> Token:
+async def verify_magic_link(token: str, response: Response, session: DbSession) -> Token:
     try:
         user = await verify_magic_link_token(session, token)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     if user.id is None:
         raise HTTPException(status_code=500, detail="User lookup failed")
@@ -352,6 +343,7 @@ async def verify_magic_link(
 
 
 # --- Email Verification ---
+
 
 @router.get("/verify-email")
 async def verify_email(
@@ -380,11 +372,12 @@ async def resend_verification(
             verification_link = f"{cfg.frontend_url}/auth/verify-email?token={token}"
             await send_verification_email(user.email, verification_link)
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}") from e
     return {"message": "If your email is registered and unverified, a new verification link has been sent."}
 
 
 # --- Password Reset ---
+
 
 @router.post("/forgot-password")
 async def forgot_password(
@@ -404,7 +397,7 @@ async def forgot_password(
         try:
             await send_password_reset_email(payload.email, reset_link)
         except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}") from e
     return {"message": "If an account with that email exists, a reset link has been sent."}
 
 
@@ -420,12 +413,9 @@ async def reset_password(
 
 # --- Profile (Phase 4) ---
 
+
 @router.put("/me", response_model=UserRead)
-async def update_profile(
-    payload: ProfileUpdate,
-    current_user: CurrentUser,
-    session: DbSession
-) -> UserRead:
+async def update_profile(payload: ProfileUpdate, current_user: CurrentUser, session: DbSession) -> UserRead:
     if payload.full_name is not None:
         current_user.full_name = payload.full_name
     if payload.avatar_url is not None:

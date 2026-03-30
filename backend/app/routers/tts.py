@@ -40,6 +40,7 @@ async def create_tts(
         )
 
     from app.services.tts import generate_audio_summary
+
     try:
         audio = await generate_audio_summary(
             document_id=request.document_id,
@@ -49,13 +50,13 @@ async def create_tts(
         )
         return audio
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     except Exception as e:
         logger.exception("TTS generation failed for user_id=%s", user.id)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"TTS generation failed: {str(e)}",
-        )
+        ) from e
 
 
 @router.get("/status")

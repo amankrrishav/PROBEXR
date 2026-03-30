@@ -13,7 +13,9 @@ Protocol: text/event-stream
 v2: No more JSON_SEP filtering. The LLM now outputs ONLY clean summary text.
 Metadata is computed from intelligence.py after the stream completes.
 """
+
 import asyncio
+import contextlib
 import json
 import logging
 import time
@@ -44,6 +46,7 @@ router = APIRouter(tags=["streaming"])
 # ---------------------------------------------------------------------------
 # SSE helpers
 # ---------------------------------------------------------------------------
+
 
 def _sse_token(token: str) -> str:
     """Format a single token as an SSE data line."""
@@ -109,6 +112,7 @@ async def _stream_llm(
 # POST /summarize/stream
 # ---------------------------------------------------------------------------
 
+
 @router.post("/summarize/stream")
 async def summarize_stream(
     body: TextRequest,
@@ -150,6 +154,7 @@ async def summarize_stream(
             yield _sse_token(ext_res)
             yield f"data: {json.dumps({'takeaways': takeaways})}\n\n"
             yield _sse_done(0.0, 1, **meta, quality="extractive", length=prep.length, mode=prep.mode)
+
         return StreamingResponse(_extractive_gen(), media_type="text/event-stream")
 
     # LLM path — clean stream, no separator filtering
@@ -190,7 +195,7 @@ async def summarize_stream(
             try:
                 takeaway_msgs = build_takeaway_prompt(summary_text, prep.takeaway_count)
                 raw_takeaways = await generate_full(takeaway_msgs, max_tokens=400, temperature=0.2)
-                takeaways = parse_takeaways(raw_takeaways)[:prep.takeaway_count]
+                takeaways = parse_takeaways(raw_takeaways)[: prep.takeaway_count]
             except Exception:
                 logger.warning("Takeaway extraction failed in stream, skipping")
 
@@ -212,6 +217,7 @@ async def summarize_stream(
 # ---------------------------------------------------------------------------
 # POST /chat/stream
 # ---------------------------------------------------------------------------
+
 
 @router.post("/chat/stream")
 async def chat_stream(
@@ -240,11 +246,7 @@ async def chat_stream(
         )
     except ValueError as exc:
         error_msg = str(exc)
-        http_status = (
-            status.HTTP_404_NOT_FOUND
-            if "not found" in error_msg.lower()
-            else status.HTTP_400_BAD_REQUEST
-        )
+        http_status = status.HTTP_404_NOT_FOUND if "not found" in error_msg.lower() else status.HTTP_400_BAD_REQUEST
         return StreamingResponse(
             iter([_sse_error(error_msg), _sse_done(0, 0)]),
             media_type="text/event-stream",
@@ -258,9 +260,7 @@ async def chat_stream(
     async def _chat_stream_gen() -> AsyncIterator[str]:
         nonlocal token_count
         try:
-            async for delta in generate_stream(
-                ctx.messages_payload, max_tokens=1000, temperature=0.5
-            ):
+            async for delta in generate_stream(ctx.messages_payload, max_tokens=1000, temperature=0.5):
                 if await request.is_disconnected():
                     logger.info("Chat client disconnected after %d tokens", token_count)
                     return
@@ -276,7 +276,8 @@ async def chat_stream(
 
             duration = time.monotonic() - t0
             yield _sse_done(
-                duration, token_count,
+                duration,
+                token_count,
                 session_id=ctx.session_id,
                 message_id=assistant_msg.id,
             )
@@ -287,12 +288,14 @@ async def chat_stream(
         except asyncio.CancelledError:
             if collected_tokens:
                 partial = "".join(collected_tokens)
-                partial_msg = ChatMessage(session_id=ctx.session_id, role="assistant", content=partial + " [interrupted]")
+                partial_msg = ChatMessage(
+                    session_id=ctx.session_id,
+                    role="assistant",
+                    content=partial + " [interrupted]",
+                )
                 session.add(partial_msg)
-                try:
+                with contextlib.suppress(Exception):
                     await session.commit()
-                except Exception:
-                    pass
             logger.info("Chat stream cancelled after %d tokens", token_count)
             return
         except Exception as exc:

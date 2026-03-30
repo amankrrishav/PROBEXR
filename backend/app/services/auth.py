@@ -29,6 +29,7 @@ class DuplicateEmailError(ValueError):
     ValueError so future code paths can handle duplicates cleanly without
     accidentally catching unrelated ValueErrors.
     """
+
     def __init__(self, email: str) -> None:
         self.email = email
         super().__init__(f"Email already registered: {email}")
@@ -64,7 +65,7 @@ async def verify_email_token(session: AsyncSession, token: str) -> User:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Verification link is invalid or has expired",
-        )
+        ) from None
 
     user = await get_user_by_email(session, email)
     if not user:
@@ -107,7 +108,7 @@ async def verify_password_reset_token(session: AsyncSession, token: str, new_pas
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Reset link is invalid or has expired",
-        )
+        ) from None
 
     user = await get_user_by_email(session, email)
     if not user:
@@ -170,7 +171,7 @@ async def _mark_token_used(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="This link has already been used. Please request a new one.",
-        )
+        ) from None
 
 
 async def verify_magic_link_token(session: AsyncSession, token: str) -> User:
@@ -199,14 +200,15 @@ async def verify_magic_link_token(session: AsyncSession, token: str) -> User:
         exp_ts = payload.get("exp")
         expires_at = (
             datetime.fromtimestamp(exp_ts, tz=UTC).replace(tzinfo=None)
-            if exp_ts else datetime.now(UTC).replace(tzinfo=None)
+            if exp_ts
+            else datetime.now(UTC).replace(tzinfo=None)
         )
     except PyJWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from None
 
     # Enforce one-time use — raises 401 if already consumed
     await _mark_token_used(session, jti, "magic_link", expires_at)
@@ -235,6 +237,7 @@ def get_token_from_request(request: Request) -> str | None:
 
     return None
 
+
 # Argon2 hasher (modern, secure)
 ph = PasswordHasher()
 
@@ -242,6 +245,7 @@ ph = PasswordHasher()
 # -------------------------
 # Password Handling
 # -------------------------
+
 
 def hash_password(password: str) -> str:
     return ph.hash(password)
@@ -261,6 +265,7 @@ def verify_password(plain: str, hashed: str | None) -> bool:
 # JWT Access Token
 # -------------------------
 
+
 def create_access_token(data: dict[str, Any]) -> str:
     to_encode = data.copy()
     expire = datetime.now(UTC) + timedelta(minutes=get_config().access_token_expire_minutes)
@@ -277,13 +282,14 @@ def set_auth_cookie(response: Response, token: str) -> None:
         samesite="none" if is_prod else "lax",
         secure=is_prod,  # Mandatory for samesite=none
         max_age=get_config().access_token_expire_minutes * 60,
-        path="/",         # Send on all paths, not just /api/v1/auth
+        path="/",  # Send on all paths, not just /api/v1/auth
     )
 
 
 # -------------------------
 # Refresh Token
 # -------------------------
+
 
 async def create_refresh_token(session: AsyncSession, user_id: int) -> RefreshToken:
     """Create a new refresh token with a fresh family (new login session)."""
@@ -418,22 +424,20 @@ def delete_auth_cookies(response: Response) -> None:
     """
     is_prod = get_config().environment == "production"
     samesite_value: Literal["lax", "strict", "none"] = "none" if is_prod else "lax"
-    response.delete_cookie(
-        "access_token", httponly=True, samesite=samesite_value, secure=is_prod, path="/"
-    )
-    response.delete_cookie(
-        "refresh_token", httponly=True, samesite=samesite_value, secure=is_prod, path="/api/v1/auth"
-    )
+    response.delete_cookie("access_token", httponly=True, samesite=samesite_value, secure=is_prod, path="/")
+    response.delete_cookie("refresh_token", httponly=True, samesite=samesite_value, secure=is_prod, path="/api/v1/auth")
 
 
 # -------------------------
 # DB Utility
 # -------------------------
 
+
 async def get_user_by_email(session: AsyncSession, email: str) -> User | None:
     statement = select(User).where(User.email == email)
     result = await session.execute(statement)
     return result.scalars().first()
+
 
 async def register_user(session: AsyncSession, email: str, password: str) -> User:
     existing = await get_user_by_email(session, email)
@@ -451,8 +455,10 @@ async def register_user(session: AsyncSession, email: str, password: str) -> Use
     await session.refresh(user)
     return user
 
+
 async def authenticate_user(session: AsyncSession, email: str, password: str) -> User:
     from app.lockout import get_lockout_manager
+
     mgr = get_lockout_manager()
 
     # Check lockout BEFORE hitting the DB — fail fast, don't leak timing info
@@ -544,7 +550,6 @@ async def handle_social_login(session: AsyncSession, provider: str, user_info: d
     return user
 
 
-
 def _credentials_exception() -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -557,7 +562,7 @@ def _decode_token(token: str) -> dict[str, Any]:
     try:
         payload = jwt.decode(token, get_config().verification_key, algorithms=[ALGORITHM])
     except PyJWTError:
-        raise _credentials_exception()
+        raise _credentials_exception() from None
 
     if "sub" not in payload:
         raise _credentials_exception()

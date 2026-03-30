@@ -103,7 +103,8 @@ async def test_cleanup_purges_expired_refresh_tokens():
 
 def test_used_token_expires_at_has_index():
     """UsedToken.expires_at must have index=True — the GC query scans it hourly."""
-    src = open('app/models/used_token.py').read()
+    from pathlib import Path
+    src = Path('app/models/used_token.py').read_text()
     # Find the expires_at line and confirm index=True is on it
     lines = src.split('\n')
     expires_lines = [l for l in lines if 'expires_at' in l and 'Field' in l]

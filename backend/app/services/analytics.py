@@ -7,6 +7,7 @@ a rich analytics payload for the dashboard.
 Performance: uses SQL aggregates and lightweight column projections to avoid
 loading cleaned_content (up to 500 KB each) into Python memory.
 """
+
 import logging
 from collections import Counter
 from datetime import UTC, date, datetime, timedelta
@@ -41,13 +42,10 @@ async def get_dashboard(user_id: int, session: AsyncSession) -> dict[str, Any]:
     """
 
     # ---- 1. Summary stats via SQL aggregates (no content loaded) ----
-    stats_stmt = (
-        select(
-            func.count().label("total_docs"),
-            func.coalesce(func.sum(func.length(Document.cleaned_content)), 0).label("total_chars"),
-        )
-        .where(Document.user_id == user_id)
-    )
+    stats_stmt = select(
+        func.count().label("total_docs"),
+        func.coalesce(func.sum(func.length(Document.cleaned_content)), 0).label("total_chars"),
+    ).where(Document.user_id == user_id)
     stats_row = (await session.execute(stats_stmt)).one()
     total_documents: int = stats_row.total_docs
     total_chars: int = stats_row.total_chars
@@ -55,11 +53,7 @@ async def get_dashboard(user_id: int, session: AsyncSession) -> dict[str, Any]:
     time_saved_seconds = int(total_words / _WPM * 60) if total_words > 0 else 0
 
     # ---- 2. Flashcard sets count ----
-    fc_count_stmt = (
-        select(func.count())
-        .select_from(FlashcardSet)
-        .where(FlashcardSet.user_id == user_id)
-    )
+    fc_count_stmt = select(func.count()).select_from(FlashcardSet).where(FlashcardSet.user_id == user_id)
     total_flashcard_sets = (await session.execute(fc_count_stmt)).scalar() or 0
 
     # Total individual flashcards
@@ -72,11 +66,7 @@ async def get_dashboard(user_id: int, session: AsyncSession) -> dict[str, Any]:
     total_flashcards = (await session.execute(fc_card_stmt)).scalar() or 0
 
     # ---- 3. Chat sessions count ----
-    chat_count_stmt = (
-        select(func.count())
-        .select_from(ChatSession)
-        .where(ChatSession.user_id == user_id)
-    )
+    chat_count_stmt = select(func.count()).select_from(ChatSession).where(ChatSession.user_id == user_id)
     total_chat_sessions = (await session.execute(chat_count_stmt)).scalar() or 0
 
     # Total chat messages
@@ -93,11 +83,7 @@ async def get_dashboard(user_id: int, session: AsyncSession) -> dict[str, Any]:
     year_ago = today - timedelta(days=364)
 
     day_col = func.date(Document.created_at).label("day")
-    heatmap_stmt = (
-        select(day_col, func.count().label("cnt"))
-        .where(Document.user_id == user_id)
-        .group_by(day_col)
-    )
+    heatmap_stmt = select(day_col, func.count().label("cnt")).where(Document.user_id == user_id).group_by(day_col)
     heatmap_rows = (await session.execute(heatmap_stmt)).all()
 
     day_counts: dict[str, int] = {}
@@ -115,11 +101,7 @@ async def get_dashboard(user_id: int, session: AsyncSession) -> dict[str, Any]:
         heatmap.append({"date": day_str, "count": day_counts.get(day_str, 0)})
 
     # ---- 5. Top domains (fetch only url column — no content) ----
-    url_stmt = (
-        select(Document.url)
-        .where(Document.user_id == user_id)
-        .where(col(Document.url).isnot(None))
-    )
+    url_stmt = select(Document.url).where(Document.user_id == user_id).where(col(Document.url).isnot(None))
     url_rows = (await session.execute(url_stmt)).all()
 
     domain_counter: Counter[str] = Counter()
@@ -141,8 +123,7 @@ async def get_dashboard(user_id: int, session: AsyncSession) -> dict[str, Any]:
             pass
 
     top_domains: list[dict[str, str | int]] = [
-        {"domain": domain, "count": count}
-        for domain, count in domain_counter.most_common(8)
+        {"domain": domain, "count": count} for domain, count in domain_counter.most_common(8)
     ]
     if pasted_count > 0:
         top_domains.append({"domain": "Pasted Text", "count": pasted_count})

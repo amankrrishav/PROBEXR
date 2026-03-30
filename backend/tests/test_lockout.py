@@ -103,7 +103,7 @@ async def test_lockout_wrong_password_increments_counter(lockout_client):
 async def test_lockout_multiple_failures_before_threshold(lockout_client):
     c, store, user = lockout_client
 
-    for i in range(_MAX_ATTEMPTS - 1):
+    for _i in range(_MAX_ATTEMPTS - 1):
         res = await c.post(
             "/auth/login",
             json={"email": user["email"], "password": "WrongPass1!"},

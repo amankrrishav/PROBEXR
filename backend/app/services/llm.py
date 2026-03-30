@@ -7,6 +7,7 @@ Provides two interfaces:
   - generate_stream() — returns async iterator of content deltas (Phase 2B transport)
   - chat_completion() — backward-compatible alias for generate_full()
 """
+
 import logging
 import time
 from collections.abc import AsyncIterator
@@ -116,23 +117,40 @@ async def generate_full(
 
             logger.info(
                 "LLM call completed",
-                extra={"elapsed_s": round(elapsed, 2), "model": resolved_model,
-                       "status": status_code, "attempt": attempt + 1},
+                extra={
+                    "elapsed_s": round(elapsed, 2),
+                    "model": resolved_model,
+                    "status": status_code,
+                    "attempt": attempt + 1,
+                },
             )
 
             if response.status_code in _RETRYABLE_STATUSES and attempt < _MAX_RETRIES:
-                LLM_CALLS_TOTAL.labels(model=resolved_model, method="generate_full", status=status_code, result="retry").inc()
-                wait = (2 ** attempt) + 0.5  # 1.5s, 2.5s
+                LLM_CALLS_TOTAL.labels(
+                    model=resolved_model,
+                    method="generate_full",
+                    status=status_code,
+                    result="retry",
+                ).inc()
+                wait = (2**attempt) + 0.5  # 1.5s, 2.5s
                 logger.warning(
                     "Retryable LLM error %d, waiting %.1fs (attempt %d/%d)",
-                    response.status_code, wait, attempt + 1, _MAX_RETRIES + 1,
+                    response.status_code,
+                    wait,
+                    attempt + 1,
+                    _MAX_RETRIES + 1,
                 )
                 await asyncio.sleep(wait)
                 continue
 
             _handle_error_status(response)
 
-            LLM_CALLS_TOTAL.labels(model=resolved_model, method="generate_full", status=status_code, result="success").inc()
+            LLM_CALLS_TOTAL.labels(
+                model=resolved_model,
+                method="generate_full",
+                status=status_code,
+                result="success",
+            ).inc()
 
             data = response.json()
             choice = (data.get("choices") or [None])[0]
@@ -150,14 +168,17 @@ async def generate_full(
                 model=resolved_model,
                 method="generate_full",
                 status=getattr(getattr(e, "response", None), "status_code", 0),
-                result="failure"
+                result="failure",
             ).inc()
 
             if isinstance(e, httpx.RequestError) and attempt < _MAX_RETRIES:
-                wait = (2 ** attempt) + 0.5
+                wait = (2**attempt) + 0.5
                 logger.warning(
                     "LLM request error: %s, retrying in %.1fs (attempt %d/%d)",
-                    str(e), wait, attempt + 1, _MAX_RETRIES + 1,
+                    str(e),
+                    wait,
+                    attempt + 1,
+                    _MAX_RETRIES + 1,
                 )
                 await asyncio.sleep(wait)
             else:
@@ -220,7 +241,7 @@ async def generate_stream(
             model=resolved_model,
             method="generate_stream",
             status=getattr(getattr(e, "response", None), "status_code", 0),
-            result="failure"
+            result="failure",
         ).inc()
         raise
 

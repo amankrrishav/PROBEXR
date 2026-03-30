@@ -6,6 +6,7 @@ from app.config import get_config
 
 router = APIRouter(tags=["health"])
 
+
 @router.get("/")
 def health() -> dict[str, Any]:
     """Public health + capabilities. Frontend can show mode, version."""

@@ -11,6 +11,7 @@ Design: Lazy initialization — engine is created on first access, not at import
 time. This allows tests to override config before engine creation and avoids
 paying connection-pool costs on serverless cold starts that only hit /health.
 """
+
 import logging
 import ssl
 from collections.abc import AsyncGenerator
@@ -20,8 +21,6 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlalchemy.pool import StaticPool
 
 logger = logging.getLogger(__name__)
-
-
 
 
 # ---------------------------------------------------------------------------
@@ -35,6 +34,7 @@ _async_session_factory = None
 def _build_engine_kwargs() -> dict[str, Any]:
     """Build engine kwargs based on current config (SQLite vs PostgreSQL)."""
     from app.config import get_config
+
     cfg = get_config()
 
     if cfg.is_sqlite:
@@ -72,6 +72,7 @@ def get_engine() -> AsyncEngine:
     global _async_engine
     if _async_engine is None:
         from app.config import get_config
+
         cfg = get_config()
         kwargs = _build_engine_kwargs()
         logger.info("Initializing Async Engine (scheme=%s)", cfg.async_database_url.split("://")[0])
@@ -105,8 +106,10 @@ def reset_engine() -> None:
 # triggers lazy creation on first use.
 class _EngineProxy:
     """Proxy that lazily creates the engine on attribute access."""
+
     def __getattr__(self, name: str) -> Any:
         return getattr(get_engine(), name)
+
 
 async_engine = _EngineProxy()
 
@@ -117,6 +120,7 @@ from sqlalchemy import create_engine as _sa_create_engine  # noqa: E402
 
 def _build_sync_url() -> str:
     from app.config import get_config
+
     cfg = get_config()
     _sync_url = cfg.database_url
     if _sync_url and not cfg.is_sqlite:
@@ -134,6 +138,7 @@ def _build_sync_url() -> str:
 def get_sync_engine() -> Any:
     """Build sync engine for Alembic migrations."""
     from app.config import get_config
+
     cfg = get_config()
     kwargs: dict[str, Any] = {}
     if cfg.is_sqlite:

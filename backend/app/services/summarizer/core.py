@@ -6,6 +6,7 @@ Key change from v1: NO JSON parsing from LLM output. The LLM produces
 ONLY clean summary text. Metadata is computed purely in intelligence.py.
 Takeaways extracted via a lightweight second LLM call.
 """
+
 import asyncio
 import logging
 from dataclasses import dataclass, field
@@ -28,24 +29,34 @@ _CHUNK_WORD_LIMIT = 3000
 
 LENGTH_PRESETS: dict[str, dict[str, Any]] = {
     "brief": {
-        "word_ratio": 0.12, "min_target": 40, "max_target": 120,
+        "word_ratio": 0.12,
+        "min_target": 40,
+        "max_target": 120,
         "paragraphs": "one short paragraph",
-        "tone": "extremely concise, zero filler", "takeaway_count": 3,
-        "structure_guidance": "Distill to the single most critical narrative thread."
+        "tone": "extremely concise, zero filler",
+        "takeaway_count": 3,
+        "structure_guidance": "Distill to the single most critical narrative thread.",
     },
     "standard": {
-        "word_ratio": 0.25, "min_target": 80, "max_target": 300,
+        "word_ratio": 0.25,
+        "min_target": 80,
+        "max_target": 300,
         "paragraphs": "two short paragraphs",
-        "tone": "clear, natural prose", "takeaway_count": 5,
-        "structure_guidance": "Cover the thesis, 2-3 key arguments, and a conclusion."
+        "tone": "clear, natural prose",
+        "takeaway_count": 5,
+        "structure_guidance": "Cover the thesis, 2-3 key arguments, and a conclusion.",
     },
     "detailed": {
-        "word_ratio": 0.40, "min_target": 150, "max_target": 600,
+        "word_ratio": 0.40,
+        "min_target": 150,
+        "max_target": 600,
         "paragraphs": "three or four paragraphs",
-        "tone": "thorough and nuanced", "takeaway_count": 7,
-        "structure_guidance": "Preserve the full argumentative arc and subtle counterpoints."
+        "tone": "thorough and nuanced",
+        "takeaway_count": 7,
+        "structure_guidance": "Preserve the full argumentative arc and subtle counterpoints.",
     },
 }
+
 
 def _target_words(original_count: int, length: str) -> int:
     preset = LENGTH_PRESETS.get(length, LENGTH_PRESETS["standard"])
@@ -64,7 +75,7 @@ def parse_takeaways(raw: str) -> list[str]:
         # Strip bullet prefixes
         for prefix in ("•", "-", "*", "·"):
             if line.startswith(prefix):
-                line = line[len(prefix):].strip()
+                line = line[len(prefix) :].strip()
                 break
         # Strip numbered prefixes like "1.", "2."
         if len(line) > 2 and line[0].isdigit() and line[1] in (".", ")"):
@@ -100,9 +111,12 @@ async def summarize(
     if not cfg.has_llm_provider:
         preset = LENGTH_PRESETS.get(length, LENGTH_PRESETS["standard"])
         ext_res = summarize_extractive(
-            text, min_words=cfg.min_words,
-            target_min=int(preset.get("min_target", 80)), target_max=int(preset.get("max_target", 300)),
-            word_ratio=float(preset.get("word_ratio", 0.25)), takeaway_count=int(preset.get("takeaway_count", 5))
+            text,
+            min_words=cfg.min_words,
+            target_min=int(preset.get("min_target", 80)),
+            target_max=int(preset.get("max_target", 300)),
+            word_ratio=float(preset.get("word_ratio", 0.25)),
+            takeaway_count=int(preset.get("takeaway_count", 5)),
         )
         result = {
             "summary": ext_res["summary"],
@@ -124,11 +138,13 @@ async def summarize(
     else:
         result = await _single_call_flow(text, target, preset, length, mode=mode, tone=tone, keywords=keywords)
 
-    result.update({
-        "quality": "full",
-        "length": length,
-        "mode": mode,
-    })
+    result.update(
+        {
+            "quality": "full",
+            "length": length,
+            "mode": mode,
+        }
+    )
     return result
 
 
@@ -163,23 +179,30 @@ async def process_summarize(
             "quality": res["quality"],
             "length": res["length"],
             "mode": res.get("mode", "paragraph"),
-            **metadata
+            **metadata,
         }
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 429:
-            raise ValueError("Rate limit exceeded. Try again in a moment.")
+            raise ValueError("Rate limit exceeded. Try again in a moment.") from e
         if e.response.status_code == 401:
-            raise ValueError("Summarization service misconfigured. Check API key.")
-        raise ValueError(str(e) or "Summarization failed.")
+            raise ValueError("Summarization service misconfigured. Check API key.") from e
+        raise ValueError(str(e) or "Summarization failed.") from e
     except Exception as e:
-        if isinstance(e, ValueError): raise e
+        if isinstance(e, ValueError):
+            raise e
         logger.exception("Summarization failed unexpectedly")
-        raise ValueError("An unexpected error occurred during summarization.")
+        raise ValueError("An unexpected error occurred during summarization.") from e
 
 
 async def _single_call_flow(
-    text: str, target: int, preset: dict[str, Any], length: str,
-    *, mode: str = "paragraph", tone: str = "neutral", keywords: list[str] | None = None,
+    text: str,
+    target: int,
+    preset: dict[str, Any],
+    length: str,
+    *,
+    mode: str = "paragraph",
+    tone: str = "neutral",
+    keywords: list[str] | None = None,
 ) -> dict[str, Any]:
     from app.services import llm
 
@@ -206,8 +229,14 @@ async def _single_call_flow(
 
 
 async def _map_reduce_flow(
-    text: str, target: int, preset: dict[str, Any], length: str,
-    *, mode: str = "paragraph", tone: str = "neutral", keywords: list[str] | None = None,
+    text: str,
+    target: int,
+    preset: dict[str, Any],
+    length: str,
+    *,
+    mode: str = "paragraph",
+    tone: str = "neutral",
+    keywords: list[str] | None = None,
 ) -> dict[str, Any]:
 
     from app.services import llm
@@ -249,7 +278,8 @@ async def _map_reduce_flow(
 
 def _chunk_text(text: str) -> list[str]:
     import re
-    sentences = re.split(r'(?<=[.!?])\s+', text)
+
+    sentences = re.split(r"(?<=[.!?])\s+", text)
     chunks = []
     curr: list[str] = []
     curr_wc = 0
@@ -261,7 +291,8 @@ def _chunk_text(text: str) -> list[str]:
             curr_wc = sum(len(x.split()) for x in curr)
         curr.append(s)
         curr_wc += swc
-    if curr: chunks.append(" ".join(curr))
+    if curr:
+        chunks.append(" ".join(curr))
     return chunks
 
 
@@ -269,9 +300,11 @@ def _chunk_text(text: str) -> list[str]:
 # SummarizePrepResult — for streaming
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class SummarizePrepResult:
     """Result of prepare_summarize_messages — either extractive or LLM messages ready to stream."""
+
     extractive_result: str | None = None
     extractive_takeaways: list[str] | None = None
     messages: list[dict[str, str]] | None = None
@@ -312,9 +345,12 @@ async def prepare_summarize_messages(
     if not cfg.has_llm_provider:
         preset = LENGTH_PRESETS.get(length, LENGTH_PRESETS["standard"])
         ext_res = summarize_extractive(
-            text, min_words=cfg.min_words,
-            target_min=int(preset.get("min_target", 80)), target_max=int(preset.get("max_target", 300)),
-            word_ratio=float(preset.get("word_ratio", 0.25)), takeaway_count=int(preset.get("takeaway_count", 5))
+            text,
+            min_words=cfg.min_words,
+            target_min=int(preset.get("min_target", 80)),
+            target_max=int(preset.get("max_target", 300)),
+            word_ratio=float(preset.get("word_ratio", 0.25)),
+            takeaway_count=int(preset.get("takeaway_count", 5)),
         )
         return SummarizePrepResult(
             extractive_result=ext_res["summary"],

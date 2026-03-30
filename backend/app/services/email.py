@@ -7,6 +7,7 @@ from app.config import get_config
 
 logger = logging.getLogger(__name__)
 
+
 async def send_account_exists_email(to_email: str, login_link: str) -> None:
     """
     Notify an existing user that someone tried to register with their email.
@@ -39,18 +40,23 @@ Thanks,
 The PROBEXR Team
     """)
 
-    msg.add_alternative(f"""
+    msg.add_alternative(
+        f"""
     <html>
       <body>
         <p>Hi there,</p>
         <p>Someone just tried to create a PROBEXR account using your email address.</p>
         <p>If that was you and you already have an account, click below to log in:</p>
-        <a href="{login_link}" style="display:inline-block;padding:10px 20px;background-color:#000;color:#fff;text-decoration:none;border-radius:5px;font-weight:bold;">Log in to PROBEXR</a>
+        <a href="{login_link}" style="display:inline-block;padding:10px 20px;"
+           "background-color:#000;color:#fff;text-decoration:none;"
+           "border-radius:5px;font-weight:bold;">Log in to PROBEXR</a>
         <p>If that wasn't you, you can safely ignore this email — no changes were made.</p>
         <p>Thanks,<br>The PROBEXR Team</p>
       </body>
     </html>
-    """, subtype="html")
+    """,
+        subtype="html",
+    )
 
     def _send_email() -> None:
         try:
@@ -68,7 +74,7 @@ The PROBEXR Team
     try:
         await asyncio.to_thread(_send_email)
     except Exception as e:
-        raise ValueError(f"Failed to send email: {str(e)}")
+        raise ValueError(f"Failed to send email: {str(e)}") from e
 
 
 async def send_verification_email(to_email: str, verification_link: str) -> None:
@@ -97,19 +103,24 @@ Thanks,
 The PROBEXR Team
     """)
 
-    msg.add_alternative(f"""
+    msg.add_alternative(
+        f"""
     <html>
       <body>
         <p>Hi there,</p>
         <p>Thanks for signing up for PROBEXR! Please verify your email address:</p>
-        <a href="{verification_link}" style="display:inline-block;padding:10px 20px;background-color:#000;color:#fff;text-decoration:none;border-radius:5px;font-weight:bold;">Verify Email</a>
+        <a href="{verification_link}" style="display:inline-block;padding:10px 20px;"
+           "background-color:#000;color:#fff;text-decoration:none;"
+           "border-radius:5px;font-weight:bold;">Verify Email</a>
         <p>Or copy and paste this link:<br><a href="{verification_link}">{verification_link}</a></p>
         <p><strong>This link expires in 24 hours.</strong></p>
         <p>If you didn't create an account, you can safely ignore this email.</p>
         <p>Thanks,<br>The PROBEXR Team</p>
       </body>
     </html>
-    """, subtype="html")
+    """,
+        subtype="html",
+    )
 
     def _send_email() -> None:
         try:
@@ -127,7 +138,7 @@ The PROBEXR Team
     try:
         await asyncio.to_thread(_send_email)
     except Exception as e:
-        raise ValueError(f"Failed to send email: {str(e)}")
+        raise ValueError(f"Failed to send email: {str(e)}") from e
 
 
 async def send_password_reset_email(to_email: str, reset_link: str) -> None:
@@ -159,19 +170,24 @@ Thanks,
 The PROBEXR Team
     """)
 
-    msg.add_alternative(f"""
+    msg.add_alternative(
+        f"""
     <html>
       <body>
         <p>Hi there,</p>
         <p>We received a request to reset your PROBEXR password.</p>
-        <a href="{reset_link}" style="display:inline-block;padding:10px 20px;background-color:#000;color:#fff;text-decoration:none;border-radius:5px;font-weight:bold;">Reset Password</a>
+        <a href="{reset_link}" style="display:inline-block;padding:10px 20px;"
+           "background-color:#000;color:#fff;text-decoration:none;"
+           "border-radius:5px;font-weight:bold;">Reset Password</a>
         <p>Or copy and paste this link:<br><a href="{reset_link}">{reset_link}</a></p>
         <p><strong>This link expires in 30 minutes.</strong></p>
         <p>If you didn't request this, you can safely ignore this email.</p>
         <p>Thanks,<br>The PROBEXR Team</p>
       </body>
     </html>
-    """, subtype="html")
+    """,
+        subtype="html",
+    )
 
     def _send_email() -> None:
         try:
@@ -189,7 +205,7 @@ The PROBEXR Team
     try:
         await asyncio.to_thread(_send_email)
     except Exception as e:
-        raise ValueError(f"Failed to send email: {str(e)}")
+        raise ValueError(f"Failed to send email: {str(e)}") from e
 
 
 async def send_magic_link_email(to_email: str, magic_link: str) -> None:
@@ -219,18 +235,23 @@ Thanks,
 The PROBEXR Team
     """)
 
-    msg.add_alternative(f"""
+    msg.add_alternative(
+        f"""
     <html>
       <body>
         <p>Hi there,</p>
         <p>Click the button below to log in to PROBEXR:</p>
-        <a href="{magic_link}" style="display:inline-block;padding:10px 20px;background-color:#000;color:#fff;text-decoration:none;border-radius:5px;font-weight:bold;">Log in to PROBEXR</a>
+        <a href="{magic_link}" style="display:inline-block;padding:10px 20px;"
+           "background-color:#000;color:#fff;text-decoration:none;"
+           "border-radius:5px;font-weight:bold;">Log in to PROBEXR</a>
         <p>Or copy and paste this link into your browser:<br><a href="{magic_link}">{magic_link}</a></p>
         <p>If you didn't request this, you can safely ignore this email.</p>
         <p>Thanks,<br>The PROBEXR Team</p>
       </body>
     </html>
-    """, subtype="html")
+    """,
+        subtype="html",
+    )
 
     def _send_email() -> None:
         try:
@@ -248,4 +269,4 @@ The PROBEXR Team
     try:
         await asyncio.to_thread(_send_email)
     except Exception as e:
-        raise ValueError(f"Failed to send email: {str(e)}")
+        raise ValueError(f"Failed to send email: {str(e)}") from e

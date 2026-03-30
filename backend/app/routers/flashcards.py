@@ -58,12 +58,14 @@ async def list_flashcard_sets(
 
     items = []
     for s in sets:
-        items.append({
-            "id": s.id,
-            "document_id": s.document_id,
-            "card_count": card_counts.get(s.id or 0, 0),
-            "created_at": s.created_at.isoformat() if s.created_at else None,
-        })
+        items.append(
+            {
+                "id": s.id,
+                "document_id": s.document_id,
+                "card_count": card_counts.get(s.id or 0, 0),
+                "created_at": s.created_at.isoformat() if s.created_at else None,
+            }
+        )
 
     return {
         "flashcard_sets": items,
@@ -73,17 +75,11 @@ async def list_flashcard_sets(
         "pages": max(1, -(-total // per_page)),
     }
 
+
 @router.post("/", response_model=FlashcardSet)
-async def create_flashcards(
-    request: FlashcardRequest,
-    user: OptionalVerifiedUser,
-    session: DbSession
-) -> FlashcardSet:
+async def create_flashcards(request: FlashcardRequest, user: OptionalVerifiedUser, session: DbSession) -> FlashcardSet:
     if not user or user.id is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required for flashcards"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required for flashcards")
 
     try:
         fc_set = await generate_flashcards(request.document_id, user.id, session, request.count)
@@ -91,30 +87,22 @@ async def create_flashcards(
     except Exception as e:
         logger.exception("Flashcard generation failed for user_id=%s", user.id)
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Failed to generate flashcards: {str(e)}"
-        )
+            status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to generate flashcards: {str(e)}"
+        ) from e
+
 
 @router.get("/{set_id}/export", response_class=PlainTextResponse)
-async def export_flashcards_csv(
-    set_id: int,
-    user: OptionalVerifiedUser,
-    session: DbSession
-) -> PlainTextResponse:
+async def export_flashcards_csv(set_id: int, user: OptionalVerifiedUser, session: DbSession) -> PlainTextResponse:
     if not user or user.id is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required for flashcards"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required for flashcards")
 
     try:
         csv_data = await export_flashcards(session, set_id, user.id)
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
     return PlainTextResponse(
         content=csv_data,
         media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename=flashcards_{set_id}.csv"}
+        headers={"Content-Disposition": f"attachment; filename=flashcards_{set_id}.csv"},
     )

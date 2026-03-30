@@ -112,7 +112,8 @@ async def test_delete_document_wrong_user(client: AsyncClient, document_id: int)
 
 def test_document_url_has_max_length():
     """Document.url must define max_length to prevent unbounded storage."""
-    src = open('app/models/document.py').read()
+    from pathlib import Path
+    src = Path('app/models/document.py').read_text()
     url_lines = [l for l in src.split('\n') if 'url' in l and 'Field' in l]
     assert url_lines, "Document must have a url field with Field()"
     assert any('max_length' in l for l in url_lines), (

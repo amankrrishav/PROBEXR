@@ -2,6 +2,7 @@
 PROBEXR backend — scalable, serverless-ready.
 Add new routers in app/routers and mount here.
 """
+
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -64,7 +65,7 @@ async def lifespan(app_inst: FastAPI) -> AsyncGenerator[None, None]:
     if cfg.environment == "production" and len(cfg.SECRET_KEY) < 32:
         raise RuntimeError(
             "FATAL: SECRET_KEY is too short. Use at least 32 characters. "
-            "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+            'Generate one with: python -c "import secrets; print(secrets.token_hex(32))"'
         )
 
     # 2. CORS wildcard guard — a wildcard in production allows any origin on
@@ -82,10 +83,7 @@ async def lifespan(app_inst: FastAPI) -> AsyncGenerator[None, None]:
 
     # 3. SQLite in production warning
     if cfg.is_sqlite and cfg.environment == "production":
-        logger.warning(
-            "SQLite is not recommended for production. "
-            "Set DATABASE_URL to a PostgreSQL connection string."
-        )
+        logger.warning("SQLite is not recommended for production. Set DATABASE_URL to a PostgreSQL connection string.")
 
     # 4. LLM provider availability (warning, not fatal — extractive fallback exists)
     if not cfg.has_llm_provider:
@@ -95,13 +93,18 @@ async def lifespan(app_inst: FastAPI) -> AsyncGenerator[None, None]:
         )
 
     # 5. Database connection info
-    db_mode = "SQLite (aiosqlite)" if cfg.is_sqlite else f"PostgreSQL (asyncpg, pool={cfg.db_pool_size}+{cfg.db_max_overflow})"
+    db_mode = (
+        "SQLite (aiosqlite)"
+        if cfg.is_sqlite
+        else f"PostgreSQL (asyncpg, pool={cfg.db_pool_size}+{cfg.db_max_overflow})"
+    )
     logger.info("Database: %s", db_mode)
 
     # 6. Redis rate limiter initialization
     redis_client = None
     try:
         import redis.asyncio as aioredis
+
         redis_client = aioredis.from_url(
             cfg.redis_url,
             decode_responses=True,
@@ -109,22 +112,29 @@ async def lifespan(app_inst: FastAPI) -> AsyncGenerator[None, None]:
         )
         await redis_client.ping()  # type: ignore[misc]
         set_rate_limiter(RedisRateLimiter(redis_client))
-        set_lockout_manager(RedisLockoutStore(
-            redis_client,
-            max_attempts=cfg.lockout_max_attempts,
-            window_seconds=cfg.lockout_window_seconds,
-        ))
+        set_lockout_manager(
+            RedisLockoutStore(
+                redis_client,
+                max_attempts=cfg.lockout_max_attempts,
+                window_seconds=cfg.lockout_window_seconds,
+            )
+        )
         logger.info("Redis connected: %s", cfg.redis_url.split("@")[-1] if "@" in cfg.redis_url else cfg.redis_url)
     except Exception as e:
         if cfg.environment == "production":
             logger.warning("Redis unavailable in production: %s. Falling back to in-memory rate limiter.", str(e))
         else:
-            logger.info("Redis not available (%s). Using in-memory rate limiter (OK for development).", type(e).__name__)
+            logger.info(
+                "Redis not available (%s). Using in-memory rate limiter (OK for development).",
+                type(e).__name__,
+            )
         set_rate_limiter(InMemoryRateLimiter())
-        set_lockout_manager(InMemoryLockoutStore(
-            max_attempts=cfg.lockout_max_attempts,
-            window_seconds=cfg.lockout_window_seconds,
-        ))
+        set_lockout_manager(
+            InMemoryLockoutStore(
+                max_attempts=cfg.lockout_max_attempts,
+                window_seconds=cfg.lockout_window_seconds,
+            )
+        )
         redis_client = None
 
     logger.info(
@@ -139,6 +149,7 @@ async def lifespan(app_inst: FastAPI) -> AsyncGenerator[None, None]:
 
     if cfg.is_sqlite:
         import app.models  # noqa: F401 — ensure all models are registered
+
         async with engine.begin() as conn:
             await conn.run_sync(SQLModel.metadata.create_all)
         logger.info("SQLite tables auto-created from models.")
@@ -161,12 +172,14 @@ async def lifespan(app_inst: FastAPI) -> AsyncGenerator[None, None]:
         logger.info("Global HTTP client closed.")
     stop_token_gc()
 
+
 app = FastAPI(
     title="PROBEXR",
     description="Human-like article summarization API",
     version="1.0.0",
     lifespan=lifespan,
 )
+
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
@@ -208,12 +221,15 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
         headers=headers,
     )
 
+
 cfg = get_config()
 origins = [o.strip().rstrip("/") for o in cfg.cors_origins.split(",") if o.strip()]
 
 # Middleware execution order (Starlette reverses add-order):
-#   Request  → CORSMiddleware → SecurityHeadersMiddleware → RateLimitingMiddleware → CSRFMiddleware → LoggingMiddleware → Route handler
-#   Response ← CORSMiddleware ← SecurityHeadersMiddleware ← RateLimitingMiddleware ← CSRFMiddleware ← LoggingMiddleware ← Route handler
+#   Request  → CORSMiddleware → SecurityHeadersMiddleware
+#           → RateLimitingMiddleware → CSRFMiddleware → LoggingMiddleware → Route handler
+#   Response ← CORSMiddleware ← SecurityHeadersMiddleware
+#           ← RateLimitingMiddleware ← CSRFMiddleware ← LoggingMiddleware ← Route handler
 app.add_middleware(LoggingMiddleware)
 app.add_middleware(CSRFMiddleware)
 app.add_middleware(RateLimitingMiddleware)

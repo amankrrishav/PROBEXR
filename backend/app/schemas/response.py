@@ -9,6 +9,7 @@ Usage in routers:
         items = ...
         return paginated_response(items, total=100, skip=pagination.skip, limit=pagination.limit)
 """
+
 from typing import Any
 
 from pydantic import BaseModel
@@ -23,6 +24,7 @@ class PaginationMeta(BaseModel):
 
 class APIResponse(BaseModel):
     """Standard response envelope. All list/detail endpoints should use this."""
+
     success: bool = True
     data: Any = None
     error: str | None = None

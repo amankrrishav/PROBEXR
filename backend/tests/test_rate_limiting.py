@@ -185,7 +185,7 @@ async def test_auth_routes_exempt_from_per_user_check(
 
     from app.config import get_config
     cfg = get_config()
-    limit = cfg.rate_limit_auth_per_minute
+    _ = cfg.rate_limit_auth_per_minute  # verify config field exists
 
     # Set a token cookie (simulating a weird edge case)
     token = _make_token("someuser@example.com")

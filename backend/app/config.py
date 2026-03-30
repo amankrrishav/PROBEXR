@@ -2,6 +2,7 @@
 App configuration from environment using pydantic-settings BaseSettings.
 All fields have the same names, defaults, and behavior as the original config.
 """
+
 from functools import lru_cache
 from typing import Literal
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
@@ -82,8 +83,8 @@ class AppConfig(BaseSettings):
     algorithm: str = "HS256"
     # RS256 readiness: set these + algorithm="RS256" to switch to asymmetric JWTs.
     # Values are PEM-encoded keys (include \n literals or use multi-line env vars).
-    jwt_private_key: str | None = None   # Used for signing (auth service only)
-    jwt_public_key: str | None = None    # Used for verification (can be shared with other services)
+    jwt_private_key: str | None = None  # Used for signing (auth service only)
+    jwt_public_key: str | None = None  # Used for verification (can be shared with other services)
 
     # ── Rate Limiting ────────────────────────────────────────────
     rate_limit_per_minute: int = 60
@@ -91,8 +92,8 @@ class AppConfig(BaseSettings):
     rate_limit_auth_per_minute: int = 5  # Tight limit for login/register/magic-link
 
     # ── Account Lockout ──────────────────────────────────────────
-    lockout_max_attempts: int = 5        # Failed logins before lockout
-    lockout_window_seconds: int = 900    # 15 minutes
+    lockout_max_attempts: int = 5  # Failed logins before lockout
+    lockout_window_seconds: int = 900  # 15 minutes
 
     # ── Token Lifetimes ──────────────────────────────────────────
     access_token_expire_minutes: int = 15
@@ -120,9 +121,7 @@ class AppConfig(BaseSettings):
         """Key used for JWT signing — private key for RS256, secret_key for HS256."""
         if self.algorithm.startswith("RS") or self.algorithm.startswith("ES"):
             if not self.jwt_private_key:
-                raise RuntimeError(
-                    f"algorithm={self.algorithm} requires jwt_private_key to be set"
-                )
+                raise RuntimeError(f"algorithm={self.algorithm} requires jwt_private_key to be set")
             return self.jwt_private_key
         return self.secret_key
 
@@ -131,9 +130,7 @@ class AppConfig(BaseSettings):
         """Key used for JWT verification — public key for RS256, secret_key for HS256."""
         if self.algorithm.startswith("RS") or self.algorithm.startswith("ES"):
             if not self.jwt_public_key:
-                raise RuntimeError(
-                    f"algorithm={self.algorithm} requires jwt_public_key to be set"
-                )
+                raise RuntimeError(f"algorithm={self.algorithm} requires jwt_public_key to be set")
             return self.jwt_public_key
         return self.secret_key
 
