@@ -4,7 +4,6 @@ Document management tests — list, delete, pagination, auth guards.
 import pytest
 from httpx import AsyncClient
 
-
 # ---- List Documents ----
 
 @pytest.mark.asyncio
@@ -113,7 +112,6 @@ async def test_delete_document_wrong_user(client: AsyncClient, document_id: int)
 
 def test_document_url_has_max_length():
     """Document.url must define max_length to prevent unbounded storage."""
-    import inspect
     src = open('app/models/document.py').read()
     url_lines = [l for l in src.split('\n') if 'url' in l and 'Field' in l]
     assert url_lines, "Document must have a url field with Field()"

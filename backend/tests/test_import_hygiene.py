@@ -20,7 +20,7 @@ class TestAuthRouterImportHygiene:
         )
 
     def test_all_datetime_symbols_in_one_import(self):
-        """datetime, timedelta, and timezone must all be in one import statement."""
+        """datetime, timedelta, and UTC/timezone must all be in one import statement."""
         import app.routers.auth as auth_router
         src = inspect.getsource(auth_router)
         import_lines = [l.strip() for l in src.split('\n') if l.startswith('from datetime')]
@@ -30,7 +30,8 @@ class TestAuthRouterImportHygiene:
         single_import = import_lines[0]
         assert 'datetime' in single_import
         assert 'timedelta' in single_import
-        assert 'timezone' in single_import
+        # Accept either modern `UTC` constant or legacy `timezone`
+        assert 'timezone' in single_import or 'UTC' in single_import
 
 # ---------------------------------------------------------------------------
 # R-01: auth router has no unused imports (Depends, AsyncSession, get_session)
@@ -39,7 +40,9 @@ class TestAuthRouterImportHygiene:
 class TestAuthRouterNoUnusedImports:
     def test_no_unused_depends_import(self):
         """auth router must not import Depends — it uses DbSession/CurrentUser aliases."""
-        import inspect, app.routers.auth as r
+        import inspect
+
+        import app.routers.auth as r
         src = inspect.getsource(r)
         import_lines = [l for l in src.split('\n') if l.startswith('from fastapi import')]
         assert not any('Depends' in l for l in import_lines), (
@@ -48,7 +51,9 @@ class TestAuthRouterNoUnusedImports:
 
     def test_no_unused_async_session_import(self):
         """auth router must not import AsyncSession — uses DbSession alias from deps."""
-        import inspect, app.routers.auth as r
+        import inspect
+
+        import app.routers.auth as r
         src = inspect.getsource(r)
         assert 'from sqlalchemy.ext.asyncio import AsyncSession' not in src, (
             "auth router imports AsyncSession but never uses it — remove it"
@@ -56,7 +61,9 @@ class TestAuthRouterNoUnusedImports:
 
     def test_no_unused_get_session_import(self):
         """auth router must not import get_session — uses DbSession alias from deps."""
-        import inspect, app.routers.auth as r
+        import inspect
+
+        import app.routers.auth as r
         src = inspect.getsource(r)
         assert 'from app.db import get_session' not in src, (
             "auth router imports get_session but never uses it directly — remove it"
@@ -82,7 +89,9 @@ class TestImportsAtTopOfFile:
 
     def test_summarize_typing_import_before_router(self):
         """summarize.py must have 'from typing import' before router = APIRouter."""
-        import inspect, app.routers.summarize as m
+        import inspect
+
+        import app.routers.summarize as m
         src = inspect.getsource(m)
         typing_line = self._first_import_line(src)
         router_line = self._router_definition_line(src)
@@ -94,7 +103,9 @@ class TestImportsAtTopOfFile:
 
     def test_health_typing_import_before_router(self):
         """health.py must have 'from typing import' before router = APIRouter."""
-        import inspect, app.routers.health as m
+        import inspect
+
+        import app.routers.health as m
         src = inspect.getsource(m)
         typing_line = self._first_import_line(src)
         router_line = self._router_definition_line(src)

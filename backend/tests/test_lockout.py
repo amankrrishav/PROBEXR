@@ -20,18 +20,17 @@ What we verify:
   8. Counter resets after the window expires
 """
 import asyncio
-import time
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
-from app.main import app as fastapi_app
 from app.lockout import (
     InMemoryLockoutStore,
     NoOpLockoutStore,
     set_lockout_manager,
 )
+from app.main import app as fastapi_app
 from app.middleware import CSRF_COOKIE_NAME, CSRF_HEADER_NAME
 
 _TEST_CSRF_TOKEN = "test-csrf-token-for-testing"

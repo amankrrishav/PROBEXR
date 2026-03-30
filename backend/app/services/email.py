@@ -1,7 +1,7 @@
-import smtplib
-from email.message import EmailMessage
 import asyncio
 import logging
+import smtplib
+from email.message import EmailMessage
 
 from app.config import get_config
 
@@ -52,8 +52,9 @@ The PROBEXR Team
     </html>
     """, subtype="html")
 
-    def _send_email():
+    def _send_email() -> None:
         try:
+            assert cfg.smtp_host is not None
             with smtplib.SMTP(cfg.smtp_host, cfg.smtp_port) as server:
                 server.starttls()
                 if cfg.smtp_user and cfg.smtp_password:
@@ -110,8 +111,9 @@ The PROBEXR Team
     </html>
     """, subtype="html")
 
-    def _send_email():
+    def _send_email() -> None:
         try:
+            assert cfg.smtp_host is not None
             with smtplib.SMTP(cfg.smtp_host, cfg.smtp_port) as server:
                 server.starttls()
                 if cfg.smtp_user and cfg.smtp_password:
@@ -171,8 +173,9 @@ The PROBEXR Team
     </html>
     """, subtype="html")
 
-    def _send_email():
+    def _send_email() -> None:
         try:
+            assert cfg.smtp_host is not None
             with smtplib.SMTP(cfg.smtp_host, cfg.smtp_port) as server:
                 server.starttls()
                 if cfg.smtp_user and cfg.smtp_password:
@@ -192,7 +195,7 @@ The PROBEXR Team
 async def send_magic_link_email(to_email: str, magic_link: str) -> None:
     """Send a magic link via SMTP. Falls back to console log if no SMTP_HOST is configured."""
     cfg = get_config()
-    
+
     # If no SMTP host is configured, fallback to console (useful for development)
     if not cfg.smtp_host:
         logger.info("Magic link email queued for %s", to_email)
@@ -203,7 +206,7 @@ async def send_magic_link_email(to_email: str, magic_link: str) -> None:
     msg["Subject"] = "Your PROBEXR Login Link"
     msg["From"] = cfg.smtp_from_email
     msg["To"] = to_email
-    
+
     msg.set_content(f"""
 Hi there,
 
@@ -215,7 +218,7 @@ If you didn't request this, you can safely ignore this email.
 Thanks,
 The PROBEXR Team
     """)
-    
+
     msg.add_alternative(f"""
     <html>
       <body>
@@ -229,8 +232,9 @@ The PROBEXR Team
     </html>
     """, subtype="html")
 
-    def _send_email():
+    def _send_email() -> None:
         try:
+            assert cfg.smtp_host is not None
             with smtplib.SMTP(cfg.smtp_host, cfg.smtp_port) as server:
                 server.starttls()
                 if cfg.smtp_user and cfg.smtp_password:
@@ -240,7 +244,7 @@ The PROBEXR Team
         except Exception as e:
             logger.error("SMTP error sending magic link email to %s: %s", to_email, e)
             raise
-            
+
     try:
         await asyncio.to_thread(_send_email)
     except Exception as e:

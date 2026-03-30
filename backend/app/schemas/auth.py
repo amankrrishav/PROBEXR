@@ -1,8 +1,6 @@
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
-
 
 # ---------------------------------------------------------------------------
 # Password policy — applied on RegisterRequest and PasswordResetConfirm.
@@ -80,8 +78,8 @@ class Token(BaseModel):
 class UserRead(BaseModel):
     id: int
     email: EmailStr
-    full_name: Optional[str] = None
-    avatar_url: Optional[str] = None
+    full_name: str | None = None
+    avatar_url: str | None = None
     is_active: bool
     is_verified: bool
     created_at: datetime
@@ -94,8 +92,8 @@ class MagicLinkRequest(BaseModel):
 
 
 class ProfileUpdate(BaseModel):
-    full_name: Optional[str] = None
-    avatar_url: Optional[str] = None
+    full_name: str | None = None
+    avatar_url: str | None = None
 
 
 class PasswordResetRequest(BaseModel):

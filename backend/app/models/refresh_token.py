@@ -1,7 +1,6 @@
 """RefreshToken model — opaque refresh tokens with family-based rotation detection."""
 
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from sqlmodel import Field, SQLModel
 
@@ -9,7 +8,7 @@ from sqlmodel import Field, SQLModel
 class RefreshToken(SQLModel, table=True):
     """Server-side refresh token for JWT rotation and revocation."""
 
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     token: str = Field(index=True, unique=True)
     user_id: int = Field(foreign_key="user.id", index=True)
 
@@ -19,4 +18,4 @@ class RefreshToken(SQLModel, table=True):
 
     is_revoked: bool = Field(default=False)
     expires_at: datetime = Field(index=True)  # Indexed — token_gc WHERE expires_at < now scans this hourly
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))

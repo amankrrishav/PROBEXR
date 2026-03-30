@@ -33,8 +33,8 @@ Injection pattern families covered
   • (doc only) Markdown instruction headers: "## New Instructions"
 """
 
-import re
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 

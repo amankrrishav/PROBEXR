@@ -3,39 +3,53 @@ PROBEXR backend — scalable, serverless-ready.
 Add new routers in app/routers and mount here.
 """
 import logging
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
-from fastapi.middleware.cors import CORSMiddleware
 
-from app.config import get_config
-from app.routers import health, summarize, auth, ingest, synthesis, chat, flashcards, tts, streaming, documents, analytics
-from app.db import get_engine
+import httpx
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlmodel import SQLModel
-from app.middleware import (
-    LoggingMiddleware,
-    RateLimitingMiddleware,
-    CSRFMiddleware,
-    setup_logging,
-    set_rate_limiter,
-    InMemoryRateLimiter,
-    RedisRateLimiter,
-)
+
+from app import http_client
+from app.config import get_config
+from app.db import get_engine
 from app.lockout import (
-    set_lockout_manager,
     InMemoryLockoutStore,
     RedisLockoutStore,
+    set_lockout_manager,
 )
-from app import http_client
+from app.middleware import (
+    CSRFMiddleware,
+    InMemoryRateLimiter,
+    LoggingMiddleware,
+    RateLimitingMiddleware,
+    RedisRateLimiter,
+    SecurityHeadersMiddleware,
+    set_rate_limiter,
+    setup_logging,
+)
+from app.routers import (
+    analytics,
+    auth,
+    chat,
+    documents,
+    flashcards,
+    health,
+    ingest,
+    streaming,
+    summarize,
+    synthesis,
+    tts,
+)
 from app.services.token_gc import start_token_gc, stop_token_gc
-import httpx
 
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app_inst: FastAPI):
+async def lifespan(app_inst: FastAPI) -> AsyncGenerator[None, None]:
     setup_logging()
     cfg = get_config()
 
@@ -155,13 +169,13 @@ app = FastAPI(
 )
 
 @app.exception_handler(HTTPException)
-async def http_exception_handler(request: Request, exc: HTTPException):
+async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
     # Ensure CORS headers for cross-domain auth failures
     cfg = get_config()
     origins = [o.strip().rstrip("/") for o in cfg.cors_origins.split(",") if o.strip()]
     origin = request.headers.get("origin")
-    headers = {}
-    if origin in origins or "*" in origins:
+    headers: dict[str, str] = {}
+    if origin and (origin in origins or "*" in origins):
         headers["Access-Control-Allow-Origin"] = origin
         headers["Access-Control-Allow-Credentials"] = "true"
 
@@ -173,18 +187,18 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 
 @app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     logger.exception("Global exception caught: %s", str(exc))
     cfg = get_config()
     origins = [o.strip().rstrip("/") for o in cfg.cors_origins.split(",") if o.strip()]
     origin = request.headers.get("origin")
-    headers = {}
-    if origin in origins or "*" in origins:
+    headers: dict[str, str] = {}
+    if origin and (origin in origins or "*" in origins):
         headers["Access-Control-Allow-Origin"] = origin
         headers["Access-Control-Allow-Credentials"] = "true"
 
     # Never leak internal error details to clients in production
-    content = {"detail": "Internal Server Error"}
+    content: dict[str, str] = {"detail": "Internal Server Error"}
     if cfg.environment != "production":
         content["error"] = str(exc)
 
@@ -198,11 +212,12 @@ cfg = get_config()
 origins = [o.strip().rstrip("/") for o in cfg.cors_origins.split(",") if o.strip()]
 
 # Middleware execution order (Starlette reverses add-order):
-#   Request  → CORSMiddleware → RateLimitingMiddleware → CSRFMiddleware → LoggingMiddleware → Route handler
-#   Response ← CORSMiddleware ← RateLimitingMiddleware ← CSRFMiddleware ← LoggingMiddleware ← Route handler
+#   Request  → CORSMiddleware → SecurityHeadersMiddleware → RateLimitingMiddleware → CSRFMiddleware → LoggingMiddleware → Route handler
+#   Response ← CORSMiddleware ← SecurityHeadersMiddleware ← RateLimitingMiddleware ← CSRFMiddleware ← LoggingMiddleware ← Route handler
 app.add_middleware(LoggingMiddleware)
 app.add_middleware(CSRFMiddleware)
 app.add_middleware(RateLimitingMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
@@ -231,6 +246,7 @@ v1_router.include_router(streaming.router, tags=["Streaming"])
 
 # Observability
 from app.metrics import metrics_endpoint
+
 v1_router.add_api_route("/metrics", metrics_endpoint, tags=["Observability"], include_in_schema=False)
 
 app.include_router(v1_router)
@@ -238,5 +254,5 @@ app.include_router(v1_router)
 
 # Root health endpoint — Render's health check hits GET / and expects 200.
 @app.get("/", include_in_schema=False)
-def root_health():
+def root_health() -> dict[str, str]:
     return {"status": "ok"}

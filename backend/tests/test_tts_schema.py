@@ -4,8 +4,9 @@ tests/test_tts_schema.py — N-04: TTSRequest.provider Literal validation
 TTSRequest had no test coverage anywhere in the suite.
 The provider field was an unvalidated str — now a Literal enum.
 """
-import pytest
 import pydantic
+import pytest
+
 from app.schemas.requests import TTSRequest
 
 

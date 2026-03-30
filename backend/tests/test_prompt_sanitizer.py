@@ -4,13 +4,11 @@ tests/test_prompt_sanitizer.py  —  A-13: Prompt injection sanitizer tests.
 Pure unit tests — no DB, no HTTP, no async needed.
 Tests run against app/services/prompt_sanitizer.py directly.
 """
-import pytest
 from app.services.prompt_sanitizer import (
+    _REDACT,
     sanitize_document_content,
     sanitize_user_prompt,
-    _REDACT,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

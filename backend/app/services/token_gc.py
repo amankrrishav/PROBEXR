@@ -7,12 +7,11 @@ It spawns an asyncio background task that runs every hour.
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import delete
-from sqlalchemy.ext.asyncio import AsyncEngine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from sqlmodel import col
-from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 
 from app.models.refresh_token import RefreshToken
 from app.models.used_token import UsedToken
@@ -24,7 +23,7 @@ GC_INTERVAL_SECONDS = 60 * 60  # 1 hour
 
 async def _cleanup_tokens(session_factory: async_sessionmaker[AsyncSession]) -> int:
     """Delete expired/revoked refresh tokens and expired used tokens. Returns total count deleted."""
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(UTC).replace(tzinfo=None)
     async with session_factory() as session:
         # Purge expired / revoked refresh tokens
         refresh_stmt = delete(RefreshToken).where(
@@ -37,7 +36,7 @@ async def _cleanup_tokens(session_factory: async_sessionmaker[AsyncSession]) -> 
         used_result = await session.execute(used_stmt)
 
         await session.commit()
-        return (refresh_result.rowcount or 0) + (used_result.rowcount or 0)  # type: ignore[return-value]
+        return int(refresh_result.rowcount or 0) + int(used_result.rowcount or 0)  # type: ignore[attr-defined]
 
 
 async def _gc_loop(session_factory: async_sessionmaker[AsyncSession]) -> None:
@@ -55,7 +54,7 @@ async def _gc_loop(session_factory: async_sessionmaker[AsyncSession]) -> None:
         await asyncio.sleep(GC_INTERVAL_SECONDS)
 
 
-_gc_task: asyncio.Task | None = None
+_gc_task: asyncio.Task[None] | None = None
 
 
 def start_token_gc(engine: AsyncEngine) -> None:

@@ -4,8 +4,8 @@ tests/test_summarizer_cache_removed.py — A-26: Unused summarizer/cache.py dele
 Verifies that the dead cache.py module has been removed from the summarizer
 package so it no longer causes confusion about whether caching is active.
 """
-import os
 import importlib
+import os
 
 
 def test_cache_module_file_deleted():
@@ -31,10 +31,9 @@ def test_cache_module_not_importable():
 def test_summarizer_package_still_works():
     """Deleting cache.py must not break the summarizer package."""
     from app.services.summarizer import (
-        summarize,
-        process_summarize,
-        prepare_summarize_messages,
-        SummarizePrepResult,
         parse_takeaways,
+        prepare_summarize_messages,
+        process_summarize,
+        summarize,
     )
     assert all(callable(f) for f in [summarize, process_summarize, prepare_summarize_messages, parse_takeaways])

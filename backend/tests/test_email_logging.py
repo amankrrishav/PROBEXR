@@ -5,8 +5,10 @@ N-08: print() calls in dev fallback path replaced with logger.debug()
 N-09: f-string logger calls replaced with %-style formatting
 """
 import inspect
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import patch, AsyncMock
+
 import app.services.email as email_module
 
 

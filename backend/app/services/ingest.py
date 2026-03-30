@@ -14,16 +14,14 @@ import asyncio
 import hashlib
 import ipaddress
 import socket
-import uuid
-from urllib.parse import urlparse, urljoin
+from urllib.parse import urljoin, urlparse
 
-import httpx
 from bs4 import BeautifulSoup
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from app.models.document import Document
 from app.http_client import get_http_client
+from app.models.document import Document
 
 # Hard cap on raw HTML stored / fetched (5 MB)
 MAX_HTML_BYTES = 5 * 1024 * 1024  # 5 MB

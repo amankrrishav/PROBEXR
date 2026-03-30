@@ -5,9 +5,9 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
-from sqlmodel import select, func
+from sqlmodel import func, select
 
-from app.deps import VerifiedUser, DbSession
+from app.deps import DbSession, VerifiedUser
 from app.models.document import Document
 
 logger = logging.getLogger(__name__)

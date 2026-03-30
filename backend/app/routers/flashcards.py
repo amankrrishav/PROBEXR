@@ -3,12 +3,12 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import PlainTextResponse
-from sqlmodel import select, func
+from sqlmodel import col, func, select
 
+from app.deps import DbSession, OptionalVerifiedUser, VerifiedUser
+from app.models.flashcards import Flashcard, FlashcardSet
 from app.schemas.requests import FlashcardRequest
-from app.models.flashcards import FlashcardSet, Flashcard
-from app.deps import OptionalVerifiedUser, VerifiedUser, DbSession
-from app.services.flashcards import generate_flashcards, export_flashcards
+from app.services.flashcards import export_flashcards, generate_flashcards
 
 logger = logging.getLogger(__name__)
 
@@ -48,12 +48,12 @@ async def list_flashcard_sets(
     set_ids = [s.id for s in sets]
     card_counts: dict[int, int] = {}
     if set_ids:
-        count_stmt = (
-            select(Flashcard.set_id, func.count(Flashcard.id).label("cnt"))
-            .where(Flashcard.set_id.in_(set_ids))  # type: ignore[attr-defined]
-            .group_by(Flashcard.set_id)
+        card_count_stmt = (
+            select(Flashcard.set_id, func.count(col(Flashcard.id)).label("cnt"))
+            .where(col(Flashcard.set_id).in_(set_ids))
+            .group_by(col(Flashcard.set_id))
         )
-        count_rows = (await session.execute(count_stmt)).all()
+        count_rows = (await session.execute(card_count_stmt)).all()
         card_counts = {row[0]: row[1] for row in count_rows}
 
     items = []
@@ -61,7 +61,7 @@ async def list_flashcard_sets(
         items.append({
             "id": s.id,
             "document_id": s.document_id,
-            "card_count": card_counts.get(s.id, 0),
+            "card_count": card_counts.get(s.id or 0, 0),
             "created_at": s.created_at.isoformat() if s.created_at else None,
         })
 
@@ -84,7 +84,7 @@ async def create_flashcards(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required for flashcards"
         )
-        
+
     try:
         fc_set = await generate_flashcards(request.document_id, user.id, session, request.count)
         return fc_set
@@ -106,13 +106,13 @@ async def export_flashcards_csv(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required for flashcards"
         )
-        
+
     try:
         csv_data = await export_flashcards(session, set_id, user.id)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
-    
+
     return PlainTextResponse(
         content=csv_data,
         media_type="text/csv",

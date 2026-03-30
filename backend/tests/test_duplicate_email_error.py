@@ -6,13 +6,12 @@ ValueError) when the email is already registered, making future callers
 able to catch it specifically.
 """
 import pytest
-from httpx import AsyncClient
 
 
 @pytest.mark.asyncio
 async def test_raises_duplicate_email_error(registered_user: dict):
     """Calling register_user with an existing email raises DuplicateEmailError."""
-    from app.services.auth import register_user, DuplicateEmailError
+    from app.services.auth import DuplicateEmailError, register_user
     from tests.conftest import _TestSessionLocal
 
     async with _TestSessionLocal() as session:
@@ -40,7 +39,7 @@ def test_duplicate_email_error_stores_email():
     assert exc.email == "user@example.com"
 
 
-def test_duplicate_email_error_importable_from_router():
-    """DuplicateEmailError must be importable from the auth router module."""
-    from app.routers.auth import DuplicateEmailError
+def test_duplicate_email_error_importable_from_service():
+    """DuplicateEmailError must be importable from the auth service module."""
+    from app.services.auth import DuplicateEmailError
     assert DuplicateEmailError is not None

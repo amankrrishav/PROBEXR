@@ -19,7 +19,7 @@ Lockout flow in authenticate_user:
 import hashlib
 import logging
 import time
-from typing import Optional, Protocol
+from typing import Protocol
 
 logger = logging.getLogger(__name__)
 
@@ -162,7 +162,7 @@ class NoOpLockoutStore:
 # Global singleton — set during app startup
 # ---------------------------------------------------------------------------
 
-_lockout_manager: Optional[LockoutBackend] = None  # type: ignore[assignment]
+_lockout_manager: LockoutBackend | None = None
 
 
 def get_lockout_manager() -> LockoutBackend:

@@ -2,21 +2,22 @@ import logging
 
 from fastapi import APIRouter, HTTPException, status
 
-from app.schemas.requests import TTSRequest
-from app.deps import OptionalVerifiedUser, DbSession
 from app.config import get_config
+from app.deps import DbSession, OptionalVerifiedUser
+from app.models.tts import AudioSummary
+from app.schemas.requests import TTSRequest
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/tts", tags=["tts"])
 
 
-@router.post("/")
+@router.post("/", response_model=AudioSummary)
 async def create_tts(
     request: TTSRequest,
     user: OptionalVerifiedUser,
     session: DbSession,
-):
+) -> AudioSummary:
     """Generate an audio summary for a document.
 
     Requires TTS_ENABLED=true in environment and an authenticated user.
@@ -58,7 +59,7 @@ async def create_tts(
 
 
 @router.get("/status")
-async def tts_status():
+async def tts_status() -> dict[str, object]:
     """Check if TTS is available."""
     cfg = get_config()
     available = cfg.tts_enabled

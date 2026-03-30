@@ -17,24 +17,25 @@ import asyncio
 import json
 import logging
 import time
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 
 from fastapi import APIRouter, Request, status
 from starlette.responses import StreamingResponse
 
-from app.deps import OptionalVerifiedUser, DbSession
+from app.deps import DbSession, OptionalVerifiedUser
+from app.models.chat import ChatMessage
 from app.schemas import TextRequest
 from app.schemas.requests import ChatRequest
-from app.models.chat import ChatMessage
+from app.services.chat import prepare_chat_context
+from app.services.llm import generate_full, generate_stream
 from app.services.summarizer import (
-    prepare_summarize_messages,
     compute_metadata as _compute_metadata,
-    LENGTH_PRESETS,
+)
+from app.services.summarizer import (
+    parse_takeaways,
+    prepare_summarize_messages,
 )
 from app.services.summarizer.prompts import build_takeaway_prompt
-from app.services.summarizer import parse_takeaways
-from app.services.chat import prepare_chat_context
-from app.services.llm import generate_stream, generate_full
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +115,7 @@ async def summarize_stream(
     user: OptionalVerifiedUser,
     session: DbSession,
     request: Request,
-):
+) -> StreamingResponse:
     """
     Streaming summarization endpoint.
     v2: stream is pure summary text — no JSON separator filtering needed.
@@ -154,12 +155,12 @@ async def summarize_stream(
     # LLM path — clean stream, no separator filtering
     collected_tokens: list[str] = []
 
-    async def _summarize_stream_gen():
+    async def _summarize_stream_gen() -> AsyncIterator[str]:
         t0 = time.monotonic()
 
         # Stream the summary tokens directly to client
         async for chunk in _stream_llm(
-            prep.messages,
+            prep.messages or [],
             max_tokens=prep.max_tokens,
             temperature=prep.temperature,
             request=request,
@@ -218,7 +219,7 @@ async def chat_stream(
     user: OptionalVerifiedUser,
     session: DbSession,
     request: Request,
-):
+) -> StreamingResponse:
     """
     Streaming chat endpoint.
     """
@@ -254,7 +255,7 @@ async def chat_stream(
     token_count = 0
     collected_tokens: list[str] = []
 
-    async def _chat_stream_gen():
+    async def _chat_stream_gen() -> AsyncIterator[str]:
         nonlocal token_count
         try:
             async for delta in generate_stream(

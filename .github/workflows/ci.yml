@@ -39,12 +39,27 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
 
-      - name: Lint — mypy type check
-        run: mypy app/ --ignore-missing-imports
-        continue-on-error: true  # non-blocking until type coverage improves
+      - name: Lint — ruff check + format
+        run: |
+          pip install ruff
+          ruff check app/ tests/
+          ruff format --check app/ tests/
 
-      - name: Test — pytest
-        run: pytest tests/ -q --tb=short
+      - name: Lint — mypy type check
+        run: mypy app/
+
+      - name: Security — bandit static analysis
+        run: |
+          pip install bandit
+          bandit -r app/ -x tests/
+
+      - name: Security — pip-audit vulnerability scan
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.txt
+
+      - name: Test — pytest + coverage
+        run: pytest tests/ -q --tb=short --cov=app --cov-report=term-missing --cov-fail-under=80
 
   # ──────────────────────────── Frontend ────────────────────────────
   frontend:

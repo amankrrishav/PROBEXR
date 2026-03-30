@@ -8,11 +8,12 @@ This means tests never hit external APIs.
 The OAuth state CSRF parameter is generated via conftest.make_oauth_state()
 and set as both a cookie and JSON body field to satisfy the validation.
 """
-import pytest
 from unittest.mock import AsyncMock, patch
-from httpx import AsyncClient
-from tests.conftest import make_oauth_state
 
+import pytest
+from httpx import AsyncClient
+
+from tests.conftest import make_oauth_state
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Fake user info payloads
@@ -218,6 +219,7 @@ async def test_social_links_to_existing_email_account(client: AsyncClient):
 def test_google_callback_no_duplicate_get_config():
     """google_callback must not call get_config() twice."""
     import inspect
+
     from app.routers.auth import google_callback
     src = inspect.getsource(google_callback)
     count = src.count('get_config()')
@@ -229,6 +231,7 @@ def test_google_callback_no_duplicate_get_config():
 def test_github_callback_no_duplicate_get_config():
     """github_callback must not call get_config() twice."""
     import inspect
+
     from app.routers.auth import github_callback
     src = inspect.getsource(github_callback)
     count = src.count('get_config()')
@@ -244,6 +247,7 @@ def test_github_callback_no_duplicate_get_config():
 def test_oauth_state_race_condition_is_documented():
     """OAuth callbacks must document the known concurrent tab race condition."""
     import inspect
+
     from app.routers import auth as auth_router
     src = inspect.getsource(auth_router)
     assert 'concurrent tab race' in src or 'race' in src.lower(), (

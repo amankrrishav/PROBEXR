@@ -2,7 +2,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
-from app.deps import OptionalVerifiedUser, DbSession
+from app.deps import DbSession, OptionalVerifiedUser
 from app.schemas import TextRequest
 from app.services.summarizer import process_summarize
 

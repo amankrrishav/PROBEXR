@@ -6,6 +6,7 @@ that client-supplied IDs are echoed back, and that the middleware
 source contains the request_id field in log extras.
 """
 import inspect
+
 import pytest
 from httpx import AsyncClient
 

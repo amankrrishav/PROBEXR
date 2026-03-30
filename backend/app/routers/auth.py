@@ -1,63 +1,66 @@
 import logging
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
-from fastapi import APIRouter, HTTPException, status, Response, Request
+from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse, RedirectResponse
 
 logger = logging.getLogger(__name__)
 
-from app.deps import CurrentUser, DbSession
-from app.models.user import User
-from app.schemas import (
-    LoginRequest,
-    RegisterRequest,
-    Token,
-    UserRead,
-    MagicLinkRequest,
-    ProfileUpdate,
-    PasswordResetRequest,
-    PasswordResetConfirm,
-    ResendVerificationRequest,
-    OAuthCallbackRequest,
-)
-from app.services.auth import (
-    create_access_token,
-    create_refresh_token,
-    rotate_refresh_token,
-    revoke_refresh_token,
-    revoke_all_user_tokens,
-    get_user_by_email,
-    register_user,
-    authenticate_user,
-    set_auth_cookie,
-    set_refresh_cookie,
-    delete_auth_cookies,
-    handle_social_login,
-    create_magic_link_token,
-    verify_magic_link_token,
-    create_password_reset_token,
-    verify_password_reset_token,
-    create_email_verification_token,
-    verify_email_token,
-    DuplicateEmailError,
-)
-from app.services.social import get_google_user_info, get_github_user_info
-from app.services.email import send_magic_link_email, send_password_reset_email, send_verification_email, send_account_exists_email
-from app.config import get_config
-from app.metrics import AUTH_EVENTS_TOTAL
 import jwt
 
+from app.config import get_config
+from app.deps import CurrentUser, DbSession
+from app.metrics import AUTH_EVENTS_TOTAL
+from app.schemas import (
+    LoginRequest,
+    MagicLinkRequest,
+    OAuthCallbackRequest,
+    PasswordResetConfirm,
+    PasswordResetRequest,
+    ProfileUpdate,
+    RegisterRequest,
+    ResendVerificationRequest,
+    Token,
+    UserRead,
+)
+from app.services.auth import (
+    authenticate_user,
+    create_access_token,
+    create_email_verification_token,
+    create_magic_link_token,
+    create_password_reset_token,
+    create_refresh_token,
+    delete_auth_cookies,
+    get_user_by_email,
+    handle_social_login,
+    register_user,
+    revoke_all_user_tokens,
+    revoke_refresh_token,
+    rotate_refresh_token,
+    set_auth_cookie,
+    set_refresh_cookie,
+    verify_email_token,
+    verify_magic_link_token,
+    verify_password_reset_token,
+)
+from app.services.email import (
+    send_account_exists_email,
+    send_magic_link_email,
+    send_password_reset_email,
+    send_verification_email,
+)
+from app.services.social import get_github_user_info, get_google_user_info
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-@router.post("/register", status_code=status.HTTP_201_CREATED)
+@router.post("/register", status_code=status.HTTP_201_CREATED, response_model=None)
 async def register(
     payload: RegisterRequest,
     response: Response,
     session: DbSession,
-):
+) -> JSONResponse | Token:
     # ----------------------------------------------------------------
     # Email enumeration defense.
     # We check for an existing user BEFORE calling register_user so we
@@ -118,7 +121,7 @@ async def register(
 
 @router.post("/login", response_model=Token)
 async def login(
-    payload: LoginRequest, 
+    payload: LoginRequest,
     response: Response,
     session: DbSession
 ) -> Token:
@@ -165,11 +168,11 @@ async def refresh(
 # --- Social Login (Google) ---
 
 @router.get("/google/login")
-async def google_login(response: Response):
+async def google_login(response: Response) -> RedirectResponse:
     cfg = get_config()
-    state_payload = {"provider": "google", "exp": datetime.now(timezone.utc) + timedelta(minutes=10)}
+    state_payload = {"provider": "google", "exp": datetime.now(UTC) + timedelta(minutes=10)}
     state_token = jwt.encode(state_payload, cfg.secret_key, algorithm=cfg.algorithm)
-    
+
     # Store state token in an HttpOnly cookie to verify during callback
     is_prod = cfg.environment == "production"
     response.set_cookie(
@@ -210,14 +213,14 @@ async def google_callback(
     cookie_state = request.cookies.get("oauth_state")
     if not state or not cookie_state or not secrets.compare_digest(state, cookie_state):
         raise HTTPException(status_code=400, detail="Invalid OAuth state (CSRF possible)")
-    
+
     cfg = get_config()
     try:
         # Verify state is valid and hasn't expired
         jwt.decode(state, cfg.secret_key, algorithms=[cfg.algorithm])
     except Exception:
         raise HTTPException(status_code=400, detail="OAuth state expired or invalid")
-    
+
     # Delete state cookie immediately after validation.
     # Note: concurrent tab race is inherent to cookie-based OAuth state
     # and acceptable for the threat model — state tokens expire in 10 min.
@@ -242,11 +245,11 @@ async def google_callback(
 # --- Social Login (GitHub) ---
 
 @router.get("/github/login")
-async def github_login(response: Response):
+async def github_login(response: Response) -> RedirectResponse:
     cfg = get_config()
-    state_payload = {"provider": "github", "exp": datetime.now(timezone.utc) + timedelta(minutes=10)}
+    state_payload = {"provider": "github", "exp": datetime.now(UTC) + timedelta(minutes=10)}
     state_token = jwt.encode(state_payload, cfg.secret_key, algorithm=cfg.algorithm)
-    
+
     is_prod = cfg.environment == "production"
     response.set_cookie(
         key="oauth_state",
@@ -279,15 +282,15 @@ async def github_callback(
     state = body.state
 
     cookie_state = request.cookies.get("oauth_state")
-    if not state or not cookie_state or state != cookie_state:
+    if not state or not cookie_state or not secrets.compare_digest(state, cookie_state):
         raise HTTPException(status_code=400, detail="Invalid OAuth state (CSRF possible)")
-        
+
     cfg = get_config()
     try:
         jwt.decode(state, cfg.secret_key, algorithms=[cfg.algorithm])
     except Exception:
         raise HTTPException(status_code=400, detail="OAuth state expired or invalid")
-        
+
     # Delete state cookie immediately after validation.
     # Note: concurrent tab race is inherent to cookie-based OAuth state
     # and acceptable for the threat model — state tokens expire in 10 min.
@@ -295,7 +298,7 @@ async def github_callback(
 
     try:
         user_info = await get_github_user_info(code)
-        # Note: GitHub doesn't strictly need redirect_uri for token exchange 
+        # Note: GitHub doesn't strictly need redirect_uri for token exchange
         # but we use frontend_url consistently.
         user = await handle_social_login(session, "github", user_info)
     except Exception as e:
@@ -314,16 +317,16 @@ async def github_callback(
 # --- Magic Links (Phase 3) ---
 
 @router.post("/magic-link")
-async def request_magic_link(payload: MagicLinkRequest):
+async def request_magic_link(payload: MagicLinkRequest) -> dict[str, str]:
     token = create_magic_link_token(payload.email)
     cfg = get_config()
     magic_link = f"{cfg.frontend_url}/auth/verify?token={token}"
-    
+
     try:
         await send_magic_link_email(payload.email, magic_link)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to send email: {str(e)}")
-    
+
     return {"message": "Magic link sent! Check your email (or server logs in Dev Mode)."}
 
 
@@ -354,7 +357,7 @@ async def verify_magic_link(
 async def verify_email(
     token: str,
     session: DbSession,
-) -> dict:
+) -> dict[str, str]:
     """Verify a user's email address via the token sent during registration."""
     await verify_email_token(session, token)
     return {"message": "Email verified successfully. You can now use all features."}
@@ -364,7 +367,7 @@ async def verify_email(
 async def resend_verification(
     payload: ResendVerificationRequest,
     session: DbSession,
-) -> dict:
+) -> dict[str, str]:
     """
     Resend verification email. Always returns 200 to prevent email enumeration.
     Only sends if user exists, is active, and not already verified.
@@ -387,7 +390,7 @@ async def resend_verification(
 async def forgot_password(
     payload: PasswordResetRequest,
     session: DbSession,
-) -> dict:
+) -> dict[str, str]:
     """
     Always returns 200 regardless of whether the email exists.
     This prevents email enumeration — attacker can't tell if an account exists.
@@ -409,7 +412,7 @@ async def forgot_password(
 async def reset_password(
     payload: PasswordResetConfirm,
     session: DbSession,
-) -> dict:
+) -> dict[str, str]:
     """Verify the reset token and update the user's password."""
     await verify_password_reset_token(session, payload.token, payload.new_password)
     return {"message": "Password updated successfully. Please log in with your new password."}
@@ -427,7 +430,7 @@ async def update_profile(
         current_user.full_name = payload.full_name
     if payload.avatar_url is not None:
         current_user.avatar_url = payload.avatar_url
-    
+
     session.add(current_user)
     await session.commit()
     await session.refresh(current_user)
@@ -439,7 +442,7 @@ async def logout(
     request: Request,
     response: Response,
     session: DbSession,
-) -> dict:
+) -> dict[str, str]:
     # Revoke the refresh token in DB if present
     old_refresh = request.cookies.get("refresh_token")
     if old_refresh:
@@ -455,7 +458,7 @@ async def logout_all(
     current_user: CurrentUser,
     response: Response,
     session: DbSession,
-) -> dict:
+) -> dict[str, str]:
     """Revoke all refresh tokens for the current user (log out everywhere)."""
     if current_user.id is None:
         raise HTTPException(status_code=500, detail="User lookup failed")

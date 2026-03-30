@@ -4,7 +4,6 @@ tests/test_cors_guard.py — A-15: CORS wildcard guard in production startup
 Verifies that the startup assertion blocks CORS_ORIGINS=* in production
 but allows it in development.
 """
-import pytest
 
 
 def test_cors_wildcard_blocked_in_production():
@@ -47,6 +46,7 @@ def test_specific_origins_pass_in_production():
 def test_cors_guard_present_in_main():
     """The CORS wildcard guard assertion must exist in main.py startup code."""
     import inspect
+
     import app.main as main_module
     src = inspect.getsource(main_module)
     assert "cors_origins" in src and "production" in src and '"*"' in src, (

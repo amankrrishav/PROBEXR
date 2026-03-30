@@ -14,20 +14,17 @@ Strategy
 - Assert the final result has the expected structure.
 - Also test _chunk_text directly as a pure unit test.
 """
-import asyncio
-from unittest.mock import AsyncMock, patch, call
-from typing import Any
+from unittest.mock import patch
 
 import pytest
 
 from app.services.summarizer.core import (
-    summarize,
-    _chunk_text,
-    _map_reduce_flow,
     _CHUNK_WORD_LIMIT,
     LENGTH_PRESETS,
+    _chunk_text,
+    _map_reduce_flow,
+    summarize,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

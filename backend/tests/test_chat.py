@@ -9,7 +9,6 @@ that the service-layer error is handled gracefully, plus auth/validation guards.
 import pytest
 from httpx import AsyncClient
 
-
 # ---- POST /api/chat/ ----
 
 @pytest.mark.asyncio
@@ -92,6 +91,7 @@ async def test_list_session_messages_unauthenticated(client: AsyncClient):
 def test_prepare_chat_context_uses_value_error_not_assert():
     """prepare_chat_context must raise ValueError, not assert, for missing session_id."""
     import inspect
+
     from app.services import chat
     src = inspect.getsource(chat.prepare_chat_context)
     assert 'assert session_id' not in src, (
@@ -109,6 +109,7 @@ def test_prepare_chat_context_uses_value_error_not_assert():
 def test_list_chat_sessions_no_loop_query():
     """list_chat_sessions must not execute a DB query per session in a loop."""
     import inspect
+
     from app.routers import chat as chat_router
     src = inspect.getsource(chat_router.list_chat_sessions)
     # The old N+1 pattern: for s in sessions_list: await session.execute(...)

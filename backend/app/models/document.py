@@ -1,14 +1,14 @@
-from datetime import datetime, timezone
-from typing import Optional, TYPE_CHECKING
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Optional
 
-from sqlmodel import Field, SQLModel, Relationship, UniqueConstraint, Index
+from sqlmodel import Field, Index, Relationship, SQLModel, UniqueConstraint
 
 if TYPE_CHECKING:
-    from app.models.user import User
+    from app.models.chat import ChatSession
     from app.models.flashcards import FlashcardSet
     from app.models.synthesis import Synthesis
-    from app.models.chat import ChatSession
     from app.models.tts import AudioSummary
+    from app.models.user import User
 
 from app.models.synthesis import SynthesisDocumentLink
 
@@ -18,12 +18,12 @@ class Document(SQLModel, table=True):
         UniqueConstraint("user_id", "url", name="uq_document_user_url"),
         Index("ix_document_user_created", "user_id", "created_at"),
     )
-    id: Optional[int] = Field(default=None, primary_key=True)
+    id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True)
     url: str = Field(max_length=2048)  # Ingest service caps at 2048; model enforces at schema level
     title: str = Field(default="")
     cleaned_content: str = Field(default="")
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
 
     user: Optional["User"] = Relationship(back_populates="documents")
     flashcard_sets: list["FlashcardSet"] = Relationship(back_populates="document", cascade_delete=True)

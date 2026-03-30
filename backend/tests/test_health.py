@@ -5,7 +5,6 @@ These are simple endpoints that don't require LLM keys.
 import pytest
 from httpx import AsyncClient
 
-
 # ---- GET / (health) ----
 
 @pytest.mark.asyncio
@@ -113,6 +112,7 @@ def test_tts_enabled_flag_exists_in_config():
 def test_tts_router_uses_feature_flag():
     """TTS router must check cfg.tts_enabled before calling the service."""
     import inspect
+
     from app.routers import tts as tts_router
     src = inspect.getsource(tts_router.create_tts)
     assert "tts_enabled" in src, (
@@ -123,6 +123,7 @@ def test_tts_router_uses_feature_flag():
 def test_tts_router_calls_service_when_enabled():
     """TTS router must import and call generate_audio_summary when flag is on."""
     import inspect
+
     from app.routers import tts as tts_router
     src = inspect.getsource(tts_router.create_tts)
     assert "generate_audio_summary" in src, (

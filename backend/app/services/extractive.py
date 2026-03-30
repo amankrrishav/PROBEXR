@@ -15,7 +15,6 @@ import re
 from collections import Counter
 from typing import Any
 
-
 # ---------------------------------------------------------------------------
 # Text cleaning & sentence segmentation
 # ---------------------------------------------------------------------------
@@ -97,7 +96,7 @@ def _split_sentences(text: str) -> list[str]:
     protected = text
     for abbr in _ABBREVIATIONS:
         pattern = re.compile(rf"\b({re.escape(abbr)})\.\s", re.IGNORECASE)
-        protected = pattern.sub(rf"\1<PERIOD> ", protected)
+        protected = pattern.sub(r"\1<PERIOD> ", protected)
 
     protected = re.sub(r"(\d)\.(\d)", r"\1<PERIOD>\2", protected)
 
@@ -130,7 +129,7 @@ def _compute_tfidf(sentences: list[str]) -> list[dict[str, float]]:
 
     tokenized = [_tokenize(s) for s in sentences]
 
-    df: Counter = Counter()
+    df: Counter[str] = Counter()
     for tokens in tokenized:
         for term in set(tokens):
             df[term] += 1
@@ -317,9 +316,7 @@ def _content_signal_score(sentence: str) -> float:
     score = 0.0
 
     # Numbers with context (percentages, dollar amounts, specific quantities)
-    if re.search(r"\d+(?:\.\d+)?\s*(?:percent|%)", sentence, re.IGNORECASE):
-        score += 0.12
-    elif re.search(r"\$\d+|\d+(?:\.\d+)?\s*(?:billion|million|trillion|thousand)", sentence, re.IGNORECASE):
+    if re.search(r"\d+(?:\.\d+)?\s*(?:percent|%)", sentence, re.IGNORECASE) or re.search(r"\$\d+|\d+(?:\.\d+)?\s*(?:billion|million|trillion|thousand)", sentence, re.IGNORECASE):
         score += 0.12
     elif re.search(r"\d+(?:\.\d+)?", sentence):
         score += 0.06

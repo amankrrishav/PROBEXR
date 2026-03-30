@@ -27,7 +27,6 @@ from httpx import ASGITransport, AsyncClient
 from app.main import app as fastapi_app
 from app.middleware import CSRF_COOKIE_NAME, CSRF_HEADER_NAME
 
-
 # ---------------------------------------------------------------------------
 # Fixtures: clients with different CSRF setups
 # ---------------------------------------------------------------------------

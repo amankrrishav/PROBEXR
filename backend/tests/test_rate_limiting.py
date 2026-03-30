@@ -22,9 +22,8 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 
-from app.middleware import set_rate_limiter, InMemoryRateLimiter
+from app.middleware import InMemoryRateLimiter, set_rate_limiter
 from app.services.auth import create_access_token
-
 
 # ---------------------------------------------------------------------------
 # Fixture: real rate limiter scoped to this module, restored after
@@ -84,8 +83,9 @@ async def test_ip_rate_limit_headers_present(client: AsyncClient, real_limiter: 
 @pytest.mark.asyncio
 async def test_429_includes_retry_after(client: AsyncClient, real_limiter: InMemoryRateLimiter):
     """429 response includes Retry-After header."""
-    from app.config import get_config
     import time
+
+    from app.config import get_config
     cfg = get_config()
     limit = cfg.rate_limit_per_minute
     minute = int(time.time() // 60)
@@ -106,8 +106,10 @@ async def test_429_includes_retry_after(client: AsyncClient, real_limiter: InMem
 @pytest.mark.asyncio
 async def test_per_user_limit_blocks_after_limit(client: AsyncClient, real_limiter: InMemoryRateLimiter):
     """A user who exhausts their per-user counter gets 429 even if IP is clean."""
+    import hashlib
+    import time
+
     from app.config import get_config
-    import hashlib, time
     cfg = get_config()
     limit = cfg.rate_limit_per_minute
     email = "heavyuser@example.com"
@@ -131,8 +133,10 @@ async def test_per_user_limit_independent_of_other_users(
     client: AsyncClient, real_limiter: InMemoryRateLimiter
 ):
     """Exhausting user A's quota does NOT affect user B on the same IP."""
+    import hashlib
+    import time
+
     from app.config import get_config
-    import hashlib, time
     cfg = get_config()
     limit = cfg.rate_limit_per_minute
 
@@ -178,8 +182,8 @@ async def test_auth_routes_exempt_from_per_user_check(
     Even if a token is somehow present, the check is skipped for
     /auth/login, /auth/register, /auth/magic-link.
     """
+
     from app.config import get_config
-    import hashlib, time
     cfg = get_config()
     limit = cfg.rate_limit_auth_per_minute
 

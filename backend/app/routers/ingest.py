@@ -2,9 +2,9 @@ import logging
 
 from fastapi import APIRouter, HTTPException, status
 
-from app.schemas.requests import URLRequest, TextIngestRequest
+from app.deps import DbSession, OptionalVerifiedUser
 from app.models.document import Document
-from app.deps import OptionalVerifiedUser, DbSession
+from app.schemas.requests import TextIngestRequest, URLRequest
 from app.services.ingest import fetch_and_clean_url, ingest_text_document
 
 logger = logging.getLogger(__name__)

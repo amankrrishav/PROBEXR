@@ -8,15 +8,14 @@ signed JWT → verify it → get back a valid session.
 We also test bad tokens, expired-ish tokens, wrong token type, and
 one-time use enforcement (second use of the same token returns 401).
 """
-import pytest
 import uuid
-from unittest.mock import patch
-from httpx import AsyncClient
+from datetime import UTC, datetime, timedelta
+
 import jwt
-from datetime import datetime, timedelta, timezone
+import pytest
+from httpx import AsyncClient
 
 from app.config import get_config
-
 
 cfg = get_config()
 
@@ -27,7 +26,7 @@ def _make_jwt(sub: str, type_: str = "magic_link", exp_delta_minutes: int = 15) 
     """
     payload = {
         "sub": sub,
-        "exp": datetime.now(timezone.utc) + timedelta(minutes=exp_delta_minutes),
+        "exp": datetime.now(UTC) + timedelta(minutes=exp_delta_minutes),
         "type": type_,
         "jti": str(uuid.uuid4()),  # Required for one-time use enforcement
     }

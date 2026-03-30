@@ -6,7 +6,6 @@ All model created_at fields must use datetime.now(timezone.utc).replace(tzinfo=N
 """
 import inspect
 
-
 AFFECTED_MODELS = [
     ("app.models.chat", "ChatSession"),
     ("app.models.chat", "ChatMessage"),
@@ -51,11 +50,11 @@ def test_tts_model_no_utcnow():
 
 
 def test_all_models_use_timezone_utc():
-    """All affected models must use datetime.now(timezone.utc) pattern."""
+    """All affected models must use datetime.now(UTC) or datetime.now(timezone.utc) pattern."""
     for module_path, class_name in AFFECTED_MODELS:
         src = _get_model_source(module_path)
-        assert "timezone.utc" in src, (
-            f"{module_path} must use datetime.now(timezone.utc) for created_at"
+        assert "timezone.utc" in src or "UTC" in src, (
+            f"{module_path} must use datetime.now(UTC) or datetime.now(timezone.utc) for created_at"
         )
 
 # ---------------------------------------------------------------------------
@@ -80,8 +79,8 @@ def test_user_created_at_has_default_factory():
 
 
 def test_user_created_at_uses_timezone_utc():
-    """User.created_at default must use timezone.utc — consistent with all other models."""
+    """User.created_at default must use UTC — consistent with all other models."""
     src = open('app/models/user.py').read()
-    assert 'timezone.utc' in src, (
-        "User model must use datetime.now(timezone.utc) for created_at default"
+    assert 'timezone.utc' in src or 'UTC' in src, (
+        "User model must use datetime.now(UTC) or datetime.now(timezone.utc) for created_at default"
     )

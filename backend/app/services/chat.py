@@ -11,7 +11,7 @@ Key invariants:
 from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select, desc
+from sqlmodel import desc, select
 
 from app.models.chat import ChatMessage, ChatSession
 from app.models.document import Document

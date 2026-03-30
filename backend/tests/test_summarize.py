@@ -4,7 +4,6 @@ Summarization smoke tests — extractive path (no LLM key needed).
 import pytest
 from httpx import AsyncClient
 
-
 SAMPLE_TEXT = (
     "Artificial intelligence has transformed the technology landscape dramatically. "
     "Machine learning algorithms now power recommendation systems, natural language processing, "

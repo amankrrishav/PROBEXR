@@ -1,16 +1,16 @@
-from app.schemas.requests import TextRequest
 from app.schemas.auth import (
     LoginRequest,
+    MagicLinkRequest,
+    OAuthCallbackRequest,
+    PasswordResetConfirm,
+    PasswordResetRequest,
+    ProfileUpdate,
     RegisterRequest,
+    ResendVerificationRequest,
     Token,
     UserRead,
-    MagicLinkRequest,
-    ProfileUpdate,
-    PasswordResetRequest,
-    PasswordResetConfirm,
-    ResendVerificationRequest,
-    OAuthCallbackRequest,
 )
+from app.schemas.requests import TextRequest
 
 __all__ = [
     "TextRequest",

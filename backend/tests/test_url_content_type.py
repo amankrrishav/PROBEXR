@@ -5,8 +5,9 @@ Verifies that fetching a URL returning a binary content-type (PDF, image,
 video) is rejected early with a clear 400, rather than wasting bandwidth
 decoding binary data as HTML.
 """
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 from httpx import AsyncClient
 
 
@@ -124,4 +125,3 @@ async def test_missing_content_type_does_not_crash(authed_client: AsyncClient):
 
     # No content-type = empty string = passes the check (falsy guard)
     assert "content type" not in res.json().get("detail", "").lower()
-    

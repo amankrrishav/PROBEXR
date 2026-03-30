@@ -133,7 +133,7 @@ def extract_notable_quotes(text: str, max_quotes: int = 3) -> list[str]:
             # Simple heuristic filters
             if len(q.split()) >= 5 and not (q.endswith(":") or q.startswith("http")):
                 quotes.append(q)
-    
+
     unique: list[str] = []
     seen = set()
     for quote in sorted(quotes, key=len, reverse=True):
@@ -149,7 +149,7 @@ def extract_entities_fallback(text: str) -> dict[str, list[str]]:
     # Simple Capitalized Word sequences (crude but effective fallback)
     people = re.findall(r"\b[A-Z][a-z]+ [A-Z][a-z]+\b", text)
     orgs = re.findall(r"\b[A-Z][A-Z\d]+\b", text) # Acronyms
-    
+
     return {
         "people": list(set(people))[:5],
         "orgs": list(set(orgs))[:5],
@@ -160,10 +160,10 @@ def compute_complexity_score(text: str) -> int:
     """Combines readability, vocabulary variety, and sentence length into a 1-10 score."""
     words = re.findall(r"\w+", text.lower())
     if not words: return 5
-    
+
     unique_ratio = len(set(words)) / len(words)
     avg_word_len = sum(len(w) for w in words) / len(words)
-    
+
     # Heuristic score
     score = (avg_word_len * 2) + (unique_ratio * 5)
     return max(1, min(10, round(score)))
@@ -174,7 +174,7 @@ def compute_metadata(original_text: str, summary_text: str, llm_metadata: dict[s
     summ_words = summary_text.split()
     orig_wc = len(orig_words)
     summ_wc = len(summ_words)
-    
+
     # Base stats
     meta = {
         "original_word_count": orig_wc,
@@ -195,17 +195,17 @@ def compute_metadata(original_text: str, summary_text: str, llm_metadata: dict[s
 
     # Integrate/Augment LLM-provided metadata
     llm = llm_metadata or {}
-    
+
     fallback_entities = extract_entities_fallback(original_text)
     llm_entities = llm.get("entities", {})
-    
+
     # Merge entities (prefer LLM, but use fallback if LLM is sparse)
     meta["entities"] = {
         "people": list(set(llm_entities.get("people", []) + fallback_entities["people"]))[:8],
         "orgs": list(set(llm_entities.get("orgs", []) + fallback_entities["orgs"]))[:8],
         "concepts": llm_entities.get("concepts", [])[:8],
     }
-    
+
     meta.update({
         "tldr": llm.get("tldr", ""),
         "sentiment": llm.get("sentiment", "Neutral"),

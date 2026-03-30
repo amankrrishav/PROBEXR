@@ -19,10 +19,10 @@ async def synthesize_documents(document_ids: list[int], user_id: int, session: A
     statement = select(Document).where(Document.id.in_(document_ids), Document.user_id == user_id)  # type: ignore
     result = await session.execute(statement)
     docs = list(result.scalars().all())
-    
+
     if len(docs) != len(document_ids):
         raise ValueError("One or more documents not found or unauthorized")
-        
+
     if len(docs) < 2:
         raise ValueError("At least two documents needed for synthesis")
 
@@ -50,9 +50,9 @@ async def synthesize_documents(document_ids: list[int], user_id: int, session: A
         # Sanitize the user-supplied synthesis instruction before injecting
         safe_prompt = sanitize_user_prompt(prompt)
         system_prompt += f"\n\nAdditional instructions from user: {safe_prompt}"
-        
+
     user_prompt = f"Documents:\n\n{combined_text}\n\nPlease synthesize these documents."
-    
+
     summary = await chat_completion(
         [
             {"role": "system", "content": system_prompt},
@@ -70,5 +70,5 @@ async def synthesize_documents(document_ids: list[int], user_id: int, session: A
     session.add(synthesis_record)
     await session.commit()
     await session.refresh(synthesis_record)
-    
+
     return synthesis_record

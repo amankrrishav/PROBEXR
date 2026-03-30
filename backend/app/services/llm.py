@@ -9,9 +9,10 @@ Provides two interfaces:
 """
 import logging
 import time
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 
 import httpx
+
 from app.config import get_config
 from app.http_client import get_http_client
 
@@ -25,7 +26,7 @@ def _build_request(
     max_tokens: int = 1024,
     temperature: float = 0.4,
     stream: bool = False,
-) -> tuple[str, dict[str, str], dict]:
+) -> tuple[str, dict[str, str], dict[str, object]]:
     """Build the URL, headers, and payload for an LLM API call. Shared by full/stream."""
     cfg = get_config()
     base_url = cfg.get_llm_base_url()
@@ -85,7 +86,8 @@ async def generate_full(
     Raises httpx.HTTPStatusError or ValueError on config/response errors.
     """
     import asyncio
-    from app.metrics import LLM_LATENCY_SECONDS, LLM_CALLS_TOTAL
+
+    from app.metrics import LLM_CALLS_TOTAL, LLM_LATENCY_SECONDS
 
     url, headers, payload = _build_request(
         messages, model=model, max_tokens=max_tokens, temperature=temperature, stream=False
@@ -105,10 +107,10 @@ async def generate_full(
         try:
             client = get_http_client()
             response = await client.post(url, json=payload, headers=headers, timeout=timeout)
-            
+
             elapsed = time.monotonic() - t0
             status_code = response.status_code
-            
+
             # Instrument latency
             LLM_LATENCY_SECONDS.labels(model=resolved_model, method="generate_full").observe(elapsed)
 
@@ -131,7 +133,7 @@ async def generate_full(
             _handle_error_status(response)
 
             LLM_CALLS_TOTAL.labels(model=resolved_model, method="generate_full", status=status_code, result="success").inc()
-            
+
             data = response.json()
             choice = (data.get("choices") or [None])[0]
             if not choice:
@@ -142,12 +144,12 @@ async def generate_full(
         except Exception as e:
             elapsed = time.monotonic() - t0
             last_error = e
-            
+
             # Record failed attempts in metrics
             LLM_CALLS_TOTAL.labels(
-                model=resolved_model, 
-                method="generate_full", 
-                status=getattr(e, "response", None).status_code if hasattr(e, "response") else 0,
+                model=resolved_model,
+                method="generate_full",
+                status=getattr(getattr(e, "response", None), "status_code", 0),
                 result="failure"
             ).inc()
 
@@ -177,7 +179,8 @@ async def generate_stream(
     Yields content deltas as they arrive.
     """
     import json as _json
-    from app.metrics import LLM_LATENCY_SECONDS, LLM_CALLS_TOTAL
+
+    from app.metrics import LLM_CALLS_TOTAL, LLM_LATENCY_SECONDS
 
     url, headers, payload = _build_request(
         messages, model=model, max_tokens=max_tokens, temperature=temperature, stream=True
@@ -206,7 +209,7 @@ async def generate_stream(
                         yield content
                 except _json.JSONDecodeError:
                     continue
-        
+
             elapsed = time.monotonic() - t0
             LLM_LATENCY_SECONDS.labels(model=resolved_model, method="generate_stream").observe(elapsed)
             LLM_CALLS_TOTAL.labels(model=resolved_model, method="generate_stream", status=200, result="success").inc()
@@ -214,9 +217,9 @@ async def generate_stream(
 
     except Exception as e:
         LLM_CALLS_TOTAL.labels(
-            model=resolved_model, 
-            method="generate_stream", 
-            status=getattr(e, "response", None).status_code if hasattr(e, "response") else 0,
+            model=resolved_model,
+            method="generate_stream",
+            status=getattr(getattr(e, "response", None), "status_code", 0),
             result="failure"
         ).inc()
         raise

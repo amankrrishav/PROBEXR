@@ -2,13 +2,13 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
-from sqlmodel import select, func
+from sqlmodel import col, func, select
 
-from app.schemas.requests import ChatRequest
-from app.deps import OptionalVerifiedUser, VerifiedUser, DbSession
-from app.models.chat import ChatSession, ChatMessage
+from app.deps import DbSession, OptionalVerifiedUser, VerifiedUser
+from app.models.chat import ChatMessage, ChatSession
 from app.models.document import Document
-from app.services.chat import process_chat_message, ChatReply
+from app.schemas.requests import ChatRequest
+from app.services.chat import ChatReply, process_chat_message
 
 logger = logging.getLogger(__name__)
 
@@ -39,12 +39,12 @@ async def list_chat_sessions(
         select(
             ChatSession,
             Document.title.label("document_title"),  # type: ignore[attr-defined]
-            func.count(ChatMessage.id).label("msg_count"),
+            func.count(col(ChatMessage.id)).label("msg_count"),
         )
-        .outerjoin(Document, ChatSession.document_id == Document.id)
-        .outerjoin(ChatMessage, ChatMessage.session_id == ChatSession.id)
+        .outerjoin(Document, col(ChatSession.document_id) == col(Document.id))
+        .outerjoin(ChatMessage, col(ChatMessage.session_id) == col(ChatSession.id))
         .where(ChatSession.user_id == user.id)
-        .group_by(ChatSession.id, Document.title)
+        .group_by(col(ChatSession.id), Document.title)
         .order_by(ChatSession.created_at.desc())  # type: ignore[attr-defined]
         .offset(offset)
         .limit(per_page)

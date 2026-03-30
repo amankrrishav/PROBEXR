@@ -7,25 +7,26 @@ ONLY clean summary text. Metadata is computed purely in intelligence.py.
 Takeaways extracted via a lightweight second LLM call.
 """
 import asyncio
-from dataclasses import dataclass, field
 import logging
+from dataclasses import dataclass, field
 from typing import Any
 
-from sqlalchemy.ext.asyncio import AsyncSession
 import httpx
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_config
-from app.services.extractive import summarize_extractive
 from app.models.user import User
-from .prompts import build_unified_prompt, build_reduce_prompt, build_takeaway_prompt
+from app.services.extractive import summarize_extractive
+
 from .intelligence import clean_text, compute_metadata
+from .prompts import build_reduce_prompt, build_takeaway_prompt, build_unified_prompt
 
 logger = logging.getLogger(__name__)
 
 # Configuration
 _CHUNK_WORD_LIMIT = 3000
 
-LENGTH_PRESETS = {
+LENGTH_PRESETS: dict[str, dict[str, Any]] = {
     "brief": {
         "word_ratio": 0.12, "min_target": 40, "max_target": 120,
         "paragraphs": "one short paragraph",
@@ -48,8 +49,8 @@ LENGTH_PRESETS = {
 
 def _target_words(original_count: int, length: str) -> int:
     preset = LENGTH_PRESETS.get(length, LENGTH_PRESETS["standard"])
-    base = max(int(preset["min_target"]), int(original_count * float(preset["word_ratio"])))
-    return min(base, int(preset["max_target"]))
+    base = max(int(preset.get("min_target", 80)), int(original_count * float(preset.get("word_ratio", 0.25))))
+    return min(base, int(preset.get("max_target", 300)))
 
 
 def parse_takeaways(raw: str) -> list[str]:
@@ -100,8 +101,8 @@ async def summarize(
         preset = LENGTH_PRESETS.get(length, LENGTH_PRESETS["standard"])
         ext_res = summarize_extractive(
             text, min_words=cfg.min_words,
-            target_min=int(preset["min_target"]), target_max=int(preset["max_target"]),
-            word_ratio=float(preset["word_ratio"]), takeaway_count=int(preset["takeaway_count"])
+            target_min=int(preset.get("min_target", 80)), target_max=int(preset.get("max_target", 300)),
+            word_ratio=float(preset.get("word_ratio", 0.25)), takeaway_count=int(preset.get("takeaway_count", 5))
         )
         result = {
             "summary": ext_res["summary"],
@@ -177,7 +178,7 @@ async def process_summarize(
 
 
 async def _single_call_flow(
-    text: str, target: int, preset: dict, length: str,
+    text: str, target: int, preset: dict[str, Any], length: str,
     *, mode: str = "paragraph", tone: str = "neutral", keywords: list[str] | None = None,
 ) -> dict[str, Any]:
     from app.services import llm
@@ -205,11 +206,11 @@ async def _single_call_flow(
 
 
 async def _map_reduce_flow(
-    text: str, target: int, preset: dict, length: str,
+    text: str, target: int, preset: dict[str, Any], length: str,
     *, mode: str = "paragraph", tone: str = "neutral", keywords: list[str] | None = None,
 ) -> dict[str, Any]:
+
     from app.services import llm
-    import re
 
     # Map phase: chunk and summarize
     chunks = _chunk_text(text)
@@ -312,8 +313,8 @@ async def prepare_summarize_messages(
         preset = LENGTH_PRESETS.get(length, LENGTH_PRESETS["standard"])
         ext_res = summarize_extractive(
             text, min_words=cfg.min_words,
-            target_min=int(preset["min_target"]), target_max=int(preset["max_target"]),
-            word_ratio=float(preset["word_ratio"]), takeaway_count=int(preset["takeaway_count"])
+            target_min=int(preset.get("min_target", 80)), target_max=int(preset.get("max_target", 300)),
+            word_ratio=float(preset.get("word_ratio", 0.25)), takeaway_count=int(preset.get("takeaway_count", 5))
         )
         return SummarizePrepResult(
             extractive_result=ext_res["summary"],
@@ -323,7 +324,7 @@ async def prepare_summarize_messages(
             mode=mode,
             tone=tone,
             keywords=keywords or [],
-            takeaway_count=int(preset["takeaway_count"]),
+            takeaway_count=int(preset.get("takeaway_count", 5)),
         )
 
     # 2. LLM Path
@@ -340,5 +341,5 @@ async def prepare_summarize_messages(
         mode=mode,
         tone=tone,
         keywords=keywords or [],
-        takeaway_count=int(preset["takeaway_count"]),
+        takeaway_count=int(preset.get("takeaway_count", 5)),
     )

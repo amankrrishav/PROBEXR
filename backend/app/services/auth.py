@@ -1,21 +1,21 @@
-from typing import Annotated, Any, Optional
-from datetime import datetime, timedelta, timezone
 import hashlib
 import uuid
+from datetime import UTC, datetime, timedelta
+from typing import Annotated, Any, Literal
 
+import jwt
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
-from fastapi import Depends, HTTPException, status, Request, Response
-import jwt
+from fastapi import Depends, HTTPException, Request, Response, status
 from jwt.exceptions import PyJWTError
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
+from sqlmodel import col, select
 
 from app.config import get_config
 from app.db import get_session
-from app.models.user import User
 from app.models.refresh_token import RefreshToken
+from app.models.user import User
 
 # ALGORITHM is read once at import time — it is a static deployment parameter
 # that never changes at runtime, so this is safe.
@@ -36,7 +36,7 @@ class DuplicateEmailError(ValueError):
 
 def create_email_verification_token(email: str) -> str:
     """Create a short-lived token for email verification."""
-    expire = datetime.now(timezone.utc) + timedelta(hours=24)
+    expire = datetime.now(UTC) + timedelta(hours=24)
     to_encode = {
         "sub": email,
         "exp": expire,
@@ -79,7 +79,7 @@ async def verify_email_token(session: AsyncSession, token: str) -> User:
 
 def create_password_reset_token(email: str) -> str:
     """Create a short-lived token for password reset."""
-    expire = datetime.now(timezone.utc) + timedelta(minutes=30)
+    expire = datetime.now(UTC) + timedelta(minutes=30)
     to_encode = {
         "sub": email,
         "exp": expire,
@@ -119,6 +119,7 @@ async def verify_password_reset_token(session: AsyncSession, token: str, new_pas
     session.add(user)
 
     # Revoke all refresh tokens so all existing sessions are invalidated
+    assert user.id is not None
     await revoke_all_user_tokens(session, user.id)
 
     await session.commit()
@@ -131,7 +132,7 @@ def create_magic_link_token(email: str) -> str:
     Create a short-lived token for magic link authentication.
     Includes a `jti` (JWT ID) claim for one-time use enforcement.
     """
-    expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+    expire = datetime.now(UTC) + timedelta(minutes=15)
     to_encode = {
         "sub": email,
         "exp": expire,
@@ -152,8 +153,9 @@ async def _mark_token_used(
     (unique constraint violation) this raises an IntegrityError,
     which the caller converts into a 401.
     """
-    from app.models.used_token import UsedToken
     from sqlalchemy.exc import IntegrityError
+
+    from app.models.used_token import UsedToken
 
     record = UsedToken(
         jti=jti,
@@ -196,8 +198,8 @@ async def verify_magic_link_token(session: AsyncSession, token: str) -> User:
             jti = hashlib.sha256(token.encode()).hexdigest()
         exp_ts = payload.get("exp")
         expires_at = (
-            datetime.fromtimestamp(exp_ts, tz=timezone.utc).replace(tzinfo=None)
-            if exp_ts else datetime.now(timezone.utc).replace(tzinfo=None)
+            datetime.fromtimestamp(exp_ts, tz=UTC).replace(tzinfo=None)
+            if exp_ts else datetime.now(UTC).replace(tzinfo=None)
         )
     except PyJWTError:
         raise HTTPException(
@@ -214,7 +216,7 @@ async def verify_magic_link_token(session: AsyncSession, token: str) -> User:
         # Just-In-Time Provisioning for new magic link users
         user = await register_user(session, email, str(uuid.uuid4()))
 
-    user.last_login_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    user.last_login_at = datetime.now(UTC).replace(tzinfo=None)
     user.is_verified = True
     session.add(user)
     await session.commit()
@@ -222,15 +224,15 @@ async def verify_magic_link_token(session: AsyncSession, token: str) -> User:
     return user
 
 
-def get_token_from_request(request: Request) -> Optional[str]:
+def get_token_from_request(request: Request) -> str | None:
     token = request.cookies.get("access_token")
     if token and token.startswith("Bearer "):
         return token.split(" ")[1]
-    
+
     auth_header = request.headers.get("Authorization")
     if auth_header and auth_header.startswith("Bearer "):
         return auth_header.split(" ")[1]
-    
+
     return None
 
 # Argon2 hasher (modern, secure)
@@ -245,7 +247,7 @@ def hash_password(password: str) -> str:
     return ph.hash(password)
 
 
-def verify_password(plain: str, hashed: Optional[str]) -> bool:
+def verify_password(plain: str, hashed: str | None) -> bool:
     if not hashed:
         return False
     try:
@@ -261,7 +263,7 @@ def verify_password(plain: str, hashed: Optional[str]) -> bool:
 
 def create_access_token(data: dict[str, Any]) -> str:
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + timedelta(minutes=get_config().access_token_expire_minutes)
+    expire = datetime.now(UTC) + timedelta(minutes=get_config().access_token_expire_minutes)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, get_config().signing_key, algorithm=ALGORITHM)
 
@@ -289,7 +291,7 @@ async def create_refresh_token(session: AsyncSession, user_id: int) -> RefreshTo
         token=str(uuid.uuid4()),
         user_id=user_id,
         token_family=str(uuid.uuid4()),
-        expires_at=(datetime.now(timezone.utc) + timedelta(days=get_config().refresh_token_expire_days)).replace(tzinfo=None),
+        expires_at=(datetime.now(UTC) + timedelta(days=get_config().refresh_token_expire_days)).replace(tzinfo=None),
     )
     session.add(token)
     await session.commit()
@@ -323,10 +325,10 @@ async def rotate_refresh_token(session: AsyncSession, old_token_str: str) -> tup
         )
 
     # Compare expiry — handle both naive (SQLite) and aware (PostgreSQL) datetimes
-    now_utc = datetime.now(timezone.utc)
+    now_utc = datetime.now(UTC)
     expires = old_token.expires_at
     if expires.tzinfo is None:
-        expires = expires.replace(tzinfo=timezone.utc)
+        expires = expires.replace(tzinfo=UTC)
     if expires < now_utc:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token expired")
 
@@ -346,7 +348,7 @@ async def rotate_refresh_token(session: AsyncSession, old_token_str: str) -> tup
         token=str(uuid.uuid4()),
         user_id=old_token.user_id,
         token_family=old_token.token_family,
-        expires_at=(datetime.now(timezone.utc) + timedelta(days=get_config().refresh_token_expire_days)).replace(tzinfo=None),
+        expires_at=(datetime.now(UTC) + timedelta(days=get_config().refresh_token_expire_days)).replace(tzinfo=None),
     )
     session.add(new_token)
     await session.commit()
@@ -371,14 +373,14 @@ async def revoke_all_user_tokens(session: AsyncSession, user_id: int) -> int:
     statement = (
         update(RefreshToken)
         .where(
-            RefreshToken.user_id == user_id,
-            RefreshToken.is_revoked == False,  # noqa: E712
+            col(RefreshToken.user_id) == user_id,
+            col(RefreshToken.is_revoked) == False,  # noqa: E712
         )
         .values(is_revoked=True)
     )
     result = await session.execute(statement)
     await session.commit()
-    return result.rowcount  # type: ignore[return-value]
+    return int(result.rowcount or 0)  # type: ignore[attr-defined]
 
 
 async def _revoke_family(session: AsyncSession, token_family: str) -> None:
@@ -386,8 +388,8 @@ async def _revoke_family(session: AsyncSession, token_family: str) -> None:
     statement = (
         update(RefreshToken)
         .where(
-            RefreshToken.token_family == token_family,
-            RefreshToken.is_revoked == False,  # noqa: E712
+            col(RefreshToken.token_family) == token_family,
+            col(RefreshToken.is_revoked) == False,  # noqa: E712
         )
         .values(is_revoked=True)
     )
@@ -415,7 +417,7 @@ def delete_auth_cookies(response: Response) -> None:
     them, otherwise the browser will not remove them.
     """
     is_prod = get_config().environment == "production"
-    samesite_value = "none" if is_prod else "lax"
+    samesite_value: Literal["lax", "strict", "none"] = "none" if is_prod else "lax"
     response.delete_cookie(
         "access_token", httponly=True, samesite=samesite_value, secure=is_prod, path="/"
     )
@@ -428,7 +430,7 @@ def delete_auth_cookies(response: Response) -> None:
 # DB Utility
 # -------------------------
 
-async def get_user_by_email(session: AsyncSession, email: str) -> Optional[User]:
+async def get_user_by_email(session: AsyncSession, email: str) -> User | None:
     statement = select(User).where(User.email == email)
     result = await session.execute(statement)
     return result.scalars().first()
@@ -442,7 +444,7 @@ async def register_user(session: AsyncSession, email: str, password: str) -> Use
         email=email,
         hashed_password=hash_password(password),
         signup_source="app",
-        created_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        created_at=datetime.now(UTC).replace(tzinfo=None),
     )
     session.add(user)
     await session.commit()
@@ -473,7 +475,7 @@ async def authenticate_user(session: AsyncSession, email: str, password: str) ->
     # Successful login — reset the failure counter only after all checks pass
     await mgr.reset(email)
 
-    user.last_login_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    user.last_login_at = datetime.now(UTC).replace(tzinfo=None)
     session.add(user)
     await session.commit()
     return user
@@ -488,13 +490,13 @@ async def handle_social_login(session: AsyncSession, provider: str, user_info: d
     # 1. Try to find by Social ID
     social_id = str(user_info.get("id") or user_info.get("sub"))
     id_field = User.google_id if provider == "google" else User.github_id
-    
+
     statement = select(User).where(id_field == social_id)
     result = await session.execute(statement)
     user = result.scalars().first()
 
     if user:
-        user.last_login_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        user.last_login_at = datetime.now(UTC).replace(tzinfo=None)
         # Update avatar if it changed
         new_avatar = user_info.get("picture") or user_info.get("avatar_url")
         if new_avatar:
@@ -511,8 +513,8 @@ async def handle_social_login(session: AsyncSession, provider: str, user_info: d
             user.google_id = social_id
         else:
             user.github_id = social_id
-        
-        user.last_login_at = datetime.now(timezone.utc).replace(tzinfo=None)
+
+        user.last_login_at = datetime.now(UTC).replace(tzinfo=None)
         user.is_verified = True  # Social emails are trusted
         new_avatar = user_info.get("picture") or user_info.get("avatar_url")
         if new_avatar:
@@ -528,8 +530,8 @@ async def handle_social_login(session: AsyncSession, provider: str, user_info: d
         avatar_url=user_info.get("picture") or user_info.get("avatar_url"),
         signup_source=f"social_{provider}",
         is_verified=True,
-        created_at=datetime.now(timezone.utc).replace(tzinfo=None),
-        last_login_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        created_at=datetime.now(UTC).replace(tzinfo=None),
+        last_login_at=datetime.now(UTC).replace(tzinfo=None),
     )
     if provider == "google":
         user.google_id = social_id
@@ -563,7 +565,7 @@ def _decode_token(token: str) -> dict[str, Any]:
 
 
 async def get_current_user(
-    token: Annotated[Optional[str], Depends(get_token_from_request)],
+    token: Annotated[str | None, Depends(get_token_from_request)],
     session: AsyncSession = Depends(get_session),
 ) -> User:
     """
@@ -576,7 +578,7 @@ async def get_current_user(
     email = payload.get("sub")
     if not email or not isinstance(email, str):
         raise _credentials_exception()
-    
+
     user = await get_user_by_email(session, email)
     if not user:
         raise _credentials_exception()
@@ -586,9 +588,9 @@ async def get_current_user(
 
 
 async def get_optional_user(
-    token: Annotated[Optional[str], Depends(get_token_from_request)],
+    token: Annotated[str | None, Depends(get_token_from_request)],
     session: AsyncSession = Depends(get_session),
-) -> Optional[User]:
+) -> User | None:
     """
     Optional auth: returns a user when token is valid, otherwise None.
     Suitable for routes that are public but can tailor responses for logged-in users.

@@ -3,8 +3,8 @@ App configuration from environment using pydantic-settings BaseSettings.
 All fields have the same names, defaults, and behavior as the original config.
 """
 from functools import lru_cache
-from typing import Literal, Optional
-from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
+from typing import Literal
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -31,22 +31,22 @@ class AppConfig(BaseSettings):
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000"
 
     # ── Summarization ────────────────────────────────────────────
-    summarize_provider: Optional[ProviderName] = None
+    summarize_provider: ProviderName | None = None
     summarize_model: str = ""
     summarize_timeout_seconds: int = 90
 
     # ── Groq ─────────────────────────────────────────────────────
-    groq_api_key: Optional[str] = None
+    groq_api_key: str | None = None
     groq_base_url: str = "https://api.groq.com/openai/v1"
     groq_model: str = "llama-3.3-70b-versatile"
 
     # ── OpenAI ───────────────────────────────────────────────────
-    openai_api_key: Optional[str] = None
+    openai_api_key: str | None = None
     openai_base_url: str = "https://api.openai.com/v1"
     openai_model: str = "gpt-4o-mini"
 
     # ── OpenRouter ───────────────────────────────────────────────
-    openrouter_api_key: Optional[str] = None
+    openrouter_api_key: str | None = None
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     openrouter_model: str = "meta-llama/llama-3.1-8b-instruct:free"
 
@@ -61,19 +61,20 @@ class AppConfig(BaseSettings):
     db_pool_size: int = 5
     db_max_overflow: int = 10
     db_pool_timeout: int = 30
+    db_ssl_verify: bool = False  # When True, use ssl.CERT_REQUIRED for DB connections
 
     # ── OAuth2 ───────────────────────────────────────────────────
-    google_client_id: Optional[str] = None
-    google_client_secret: Optional[str] = None
-    github_client_id: Optional[str] = None
-    github_client_secret: Optional[str] = None
+    google_client_id: str | None = None
+    google_client_secret: str | None = None
+    github_client_id: str | None = None
+    github_client_secret: str | None = None
     frontend_url: str = "http://localhost:5173"
 
     # ── Email / SMTP (SendGrid, SES, Resend, etc.) ───────────────
-    smtp_host: Optional[str] = None
+    smtp_host: str | None = None
     smtp_port: int = 587
-    smtp_user: Optional[str] = None
-    smtp_password: Optional[str] = None
+    smtp_user: str | None = None
+    smtp_password: str | None = None
     smtp_from_email: str = "noreply@probexr.com"
 
     # ── Auth / JWT ───────────────────────────────────────────────
@@ -81,8 +82,8 @@ class AppConfig(BaseSettings):
     algorithm: str = "HS256"
     # RS256 readiness: set these + algorithm="RS256" to switch to asymmetric JWTs.
     # Values are PEM-encoded keys (include \n literals or use multi-line env vars).
-    jwt_private_key: Optional[str] = None   # Used for signing (auth service only)
-    jwt_public_key: Optional[str] = None    # Used for verification (can be shared with other services)
+    jwt_private_key: str | None = None   # Used for signing (auth service only)
+    jwt_public_key: str | None = None    # Used for verification (can be shared with other services)
 
     # ── Rate Limiting ────────────────────────────────────────────
     rate_limit_per_minute: int = 60

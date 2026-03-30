@@ -1,15 +1,15 @@
-import json
 import csv
+import json
 from io import StringIO
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from app.config import get_config
 from app.models.document import Document
-from app.models.flashcards import FlashcardSet, Flashcard
+from app.models.flashcards import Flashcard, FlashcardSet
 from app.services.llm import chat_completion
 from app.services.prompt_sanitizer import sanitize_document_content
-from app.config import get_config
 
 
 async def generate_flashcards(document_id: int, user_id: int, session: AsyncSession, count: int = 10) -> FlashcardSet:
@@ -23,7 +23,7 @@ async def generate_flashcards(document_id: int, user_id: int, session: AsyncSess
     doc = await session.get(Document, document_id)
     if not doc or doc.user_id != user_id:
         raise ValueError("Document not found or unauthorized")
-        
+
     system_prompt = (
         f"You are a studying assistant. Create exactly {count} flashcards from the provided document. "
         "Return the flashcards strictly as a JSON list of objects, where each object has 'front' and 'back' keys. "
@@ -33,7 +33,7 @@ async def generate_flashcards(document_id: int, user_id: int, session: AsyncSess
     safe_title = sanitize_document_content(doc.title or "")
     safe_content = sanitize_document_content((doc.cleaned_content or "")[:8000])
     user_prompt = f"Document Title: {safe_title}\n\nDocument Content:\n{safe_content}"
-    
+
     reply = await chat_completion(
         [
             {"role": "system", "content": system_prompt},
@@ -42,7 +42,7 @@ async def generate_flashcards(document_id: int, user_id: int, session: AsyncSess
         max_tokens=2000,
         temperature=0.3
     )
-    
+
     try:
         # Simple extraction in case LLM wraps the json in markdown block
         json_str = reply.strip()
@@ -50,23 +50,23 @@ async def generate_flashcards(document_id: int, user_id: int, session: AsyncSess
             json_str = json_str[7:]
         if json_str.endswith("```"):
             json_str = json_str[:-3]
-            
+
         flashcards_data = json.loads(json_str.strip())
     except json.JSONDecodeError:
         raise ValueError("Failed to parse LLM flashcards output as JSON")
-        
+
     # Create Set
     fc_set = FlashcardSet(user_id=user_id, document_id=document_id)
     session.add(fc_set)
     await session.commit()
     await session.refresh(fc_set)
-    
+
     # Create Cards
     for card in flashcards_data:
         if "front" in card and "back" in card:
             fc = Flashcard(set_id=fc_set.id, front=card["front"], back=card["back"])
             session.add(fc)
-            
+
     await session.commit()
     await session.refresh(fc_set)
     return fc_set
@@ -94,10 +94,10 @@ async def export_flashcards(session: AsyncSession, set_id: int, user_id: int) ->
     fc_set = await session.get(FlashcardSet, set_id)
     if not fc_set or fc_set.user_id != user_id:
         raise ValueError("Flashcard set not found or unauthorized")
-        
+
     result = await session.execute(
         select(Flashcard).where(Flashcard.set_id == set_id)
     )
     flashcards = list(result.scalars().all())
-    
+
     return generate_csv_export(flashcards)

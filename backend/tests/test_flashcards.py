@@ -5,7 +5,6 @@ Flashcard generation requires LLM, so we test auth/validation guards and listing
 import pytest
 from httpx import AsyncClient
 
-
 # ---- GET /api/flashcards/ ----
 
 @pytest.mark.asyncio
@@ -85,7 +84,7 @@ async def test_create_flashcards_no_llm_provider_returns_400(
     the endpoint must return 400 with a user-safe message — NOT a 500
     leaking the internal ValueError from config.get_llm_base_url().
     """
-    from unittest.mock import PropertyMock, patch
+    from unittest.mock import patch
     with patch("app.services.flashcards.get_config") as mock_cfg:
         mock_cfg.return_value.has_llm_provider = False
         res = await authed_client.post(
@@ -127,6 +126,7 @@ async def test_create_flashcards_no_llm_error_message_is_actionable(
 def test_list_flashcard_sets_no_loop_query():
     """list_flashcard_sets must aggregate card counts in one query, not per-set loops."""
     import inspect
+
     from app.routers import flashcards as fc_router
     src = inspect.getsource(fc_router.list_flashcard_sets)
     # New pattern: single IN query with GROUP BY before the loop

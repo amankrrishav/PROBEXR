@@ -4,7 +4,6 @@ Auth smoke tests — register, login, /me, logout, refresh, token revocation.
 import pytest
 from httpx import AsyncClient
 
-
 # ---- Registration ----
 
 @pytest.mark.asyncio
@@ -337,8 +336,8 @@ async def test_refresh_cookie_path_is_api_v1_auth(client: AsyncClient):
 
 def test_secret_key_entropy_check():
     """SHORT keys must be rejected in production — entropy check runs on startup."""
+
     from app.config import AppConfig
-    import pytest
     # Simulate a prod config with a short key
     cfg_short = AppConfig(
         environment="production",

@@ -115,6 +115,7 @@ async def test_ingest_url_unauthenticated(client: AsyncClient):
 async def test_ingest_ssrf_redirect_to_metadata_blocked(authed_client: AsyncClient):
     """SSRF redirect bypass: a safe URL that 302-redirects to an internal IP must be rejected."""
     from unittest.mock import AsyncMock, MagicMock, patch
+
     from app.services.ingest import _assert_safe_url as real_assert_safe_url
 
     # Build a fake 302 response pointing to the AWS metadata endpoint
@@ -165,7 +166,7 @@ async def test_ingest_url_unexpected_error_returns_generic_message(
     authed_client: AsyncClient,
 ):
     """Unexpected exceptions must return a generic message, not raw str(e)."""
-    from unittest.mock import patch, AsyncMock
+    from unittest.mock import AsyncMock, patch
 
     # Patch at the router's import site — where the name is looked up at call time
     with patch(
@@ -190,7 +191,7 @@ async def test_ingest_text_unexpected_error_returns_generic_message(
     authed_client: AsyncClient,
 ):
     """Unexpected text ingest exceptions must not expose internal details."""
-    from unittest.mock import patch, AsyncMock
+    from unittest.mock import AsyncMock, patch
 
     with patch(
         "app.routers.ingest.ingest_text_document",
@@ -212,7 +213,7 @@ async def test_ingest_text_unexpected_error_returns_generic_message(
 @pytest.mark.asyncio
 async def test_ingest_url_value_error_is_surfaced(authed_client: AsyncClient):
     """ValueError (user-facing validation) must be returned as-is to the client."""
-    from unittest.mock import patch, AsyncMock
+    from unittest.mock import AsyncMock, patch
 
     # Patch at router import site so the ValueError reaches the router's except ValueError handler
     with patch(

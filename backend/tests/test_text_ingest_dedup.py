@@ -63,8 +63,9 @@ async def test_dedup_is_per_user(client: AsyncClient, registered_user: dict):
 
     # Register a second user via a fresh client so the shared client's
     # CSRF + access_token cookies are never disturbed
-    from httpx import AsyncClient as _AsyncClient
     from httpx import ASGITransport as _ASGITransport
+    from httpx import AsyncClient as _AsyncClient
+
     from app.main import app as _app
     async with _AsyncClient(
         transport=_ASGITransport(app=_app),

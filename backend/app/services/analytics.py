@@ -9,16 +9,16 @@ loading cleaned_content (up to 500 KB each) into Python memory.
 """
 import logging
 from collections import Counter
-from datetime import datetime, date, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
+from typing import Any
 from urllib.parse import urlparse
 
-
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select, func, col
+from sqlmodel import col, func, select
 
+from app.models.chat import ChatMessage, ChatSession
 from app.models.document import Document
-from app.models.flashcards import FlashcardSet, Flashcard
-from app.models.chat import ChatSession, ChatMessage
+from app.models.flashcards import Flashcard, FlashcardSet
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ _WPM = 200
 _AVG_CHARS_PER_WORD = 5
 
 
-async def get_dashboard(user_id: int, session: AsyncSession) -> dict:
+async def get_dashboard(user_id: int, session: AsyncSession) -> dict[str, Any]:
     """
     Compute all analytics for a user in a single service call.
 
@@ -89,7 +89,7 @@ async def get_dashboard(user_id: int, session: AsyncSession) -> dict:
     total_chat_messages = (await session.execute(chat_msg_stmt)).scalar() or 0
 
     # ---- 4. Activity heatmap — last 365 days (date + count via GROUP BY) ----
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     year_ago = today - timedelta(days=364)
 
     day_col = func.date(Document.created_at).label("day")
@@ -118,11 +118,11 @@ async def get_dashboard(user_id: int, session: AsyncSession) -> dict:
     url_stmt = (
         select(Document.url)
         .where(Document.user_id == user_id)
-        .where(col(Document.url).isnot(None))  # type: ignore[arg-type]
+        .where(col(Document.url).isnot(None))
     )
     url_rows = (await session.execute(url_stmt)).all()
 
-    domain_counter: Counter = Counter()
+    domain_counter: Counter[str] = Counter()
     pasted_count = 0
     for (url,) in url_rows:
         if not url:
@@ -140,13 +140,13 @@ async def get_dashboard(user_id: int, session: AsyncSession) -> dict:
         except Exception:
             pass
 
-    top_domains = [
+    top_domains: list[dict[str, str | int]] = [
         {"domain": domain, "count": count}
         for domain, count in domain_counter.most_common(8)
     ]
     if pasted_count > 0:
         top_domains.append({"domain": "Pasted Text", "count": pasted_count})
-    top_domains.sort(key=lambda x: x["count"], reverse=True)
+    top_domains.sort(key=lambda x: int(x["count"]), reverse=True)
     top_domains = top_domains[:10]
 
     # ---- 6. Reading streak (reuse date counts already fetched) ----

@@ -1,9 +1,10 @@
 """
 Analytics endpoint tests — dashboard metrics, auth guards, empty/populated states.
 """
+from datetime import UTC
+
 import pytest
 from httpx import AsyncClient
-
 
 # ---- Auth Guard ----
 
@@ -109,7 +110,8 @@ async def test_analytics_streak_survives_no_activity_today(authed_client: AsyncC
     We simulate this by ingesting a document then backdating its created_at
     to yesterday, then verifying the streak is still >= 1.
     """
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timedelta
+
     from app.models.document import Document
     from tests.conftest import _TestSessionLocal
 
@@ -125,7 +127,7 @@ async def test_analytics_streak_survives_no_activity_today(authed_client: AsyncC
     async with _TestSessionLocal() as session:
         doc = await session.get(Document, doc_id)
         if doc:
-            doc.created_at = (datetime.now(timezone.utc) - timedelta(days=1)).replace(tzinfo=None)
+            doc.created_at = (datetime.now(UTC) - timedelta(days=1)).replace(tzinfo=None)
             session.add(doc)
             await session.commit()
 
@@ -160,6 +162,7 @@ async def test_analytics_heatmap_structure(authed_client: AsyncClient):
 def test_analytics_router_no_assert_on_user_id():
     """dashboard route must not use assert for user.id — assert is stripped by -O."""
     import inspect
+
     from app.routers import analytics as analytics_router
     src = inspect.getsource(analytics_router.dashboard)
     assert 'assert user.id' not in src, (

@@ -2,17 +2,15 @@
 Token GC tests — CancelledError propagation, RefreshToken + UsedToken cleanup.
 """
 import asyncio
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
-import pytest_asyncio
-from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlmodel import select
 
 from app.models.refresh_token import RefreshToken
 from app.models.used_token import UsedToken
 from app.services.token_gc import _cleanup_tokens, _gc_loop
-
 
 # Re-use the test engine from conftest
 from tests.conftest import _test_engine
@@ -43,13 +41,13 @@ async def test_cleanup_purges_expired_used_tokens():
         expired = UsedToken(
             jti="expired-jti-001",
             token_type="magic_link",
-            expires_at=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=1),
+            expires_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=1),
         )
         # Insert a still-valid UsedToken
         valid = UsedToken(
             jti="valid-jti-002",
             token_type="email_verification",
-            expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=1),
+            expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=1),
         )
         session.add(expired)
         session.add(valid)
@@ -77,14 +75,14 @@ async def test_cleanup_purges_expired_refresh_tokens():
             user_id=1,
             token="expired-token-001",
             token_family="family-001",
-            expires_at=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=1),
+            expires_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=1),
             is_revoked=False,
         )
         valid_rt = RefreshToken(
             user_id=1,
             token="valid-token-002",
             token_family="family-002",
-            expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=1),
+            expires_at=datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=1),
             is_revoked=False,
         )
         session.add(expired_rt)
@@ -105,7 +103,6 @@ async def test_cleanup_purges_expired_refresh_tokens():
 
 def test_used_token_expires_at_has_index():
     """UsedToken.expires_at must have index=True — the GC query scans it hourly."""
-    import inspect
     src = open('app/models/used_token.py').read()
     # Find the expires_at line and confirm index=True is on it
     lines = src.split('\n')

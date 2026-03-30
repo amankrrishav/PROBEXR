@@ -13,9 +13,10 @@ paying connection-pool costs on serverless cold starts that only hit /health.
 """
 import logging
 import ssl
-from typing import Any, AsyncGenerator
+from collections.abc import AsyncGenerator
+from typing import Any
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 logger = logging.getLogger(__name__)
@@ -43,11 +44,19 @@ def _build_engine_kwargs() -> dict[str, Any]:
             "echo": False,
         }
     else:
-        # Supabase pooler uses a self-signed certificate — create an SSL
-        # context that encrypts traffic but skips certificate verification.
+        # Create an SSL context for PostgreSQL connections.
+        # When db_ssl_verify is True, full certificate verification is
+        # enforced (ssl.CERT_REQUIRED + hostname checking).  When False
+        # (default), traffic is still encrypted but the server certificate
+        # is not validated — needed for Supabase pooler which uses a
+        # self-signed certificate.
         ssl_ctx = ssl.create_default_context()
-        ssl_ctx.check_hostname = False
-        ssl_ctx.verify_mode = ssl.CERT_NONE
+        if cfg.db_ssl_verify:
+            ssl_ctx.check_hostname = True
+            ssl_ctx.verify_mode = ssl.CERT_REQUIRED
+        else:
+            ssl_ctx.check_hostname = False
+            ssl_ctx.verify_mode = ssl.CERT_NONE
         return {
             "pool_size": cfg.db_pool_size,
             "max_overflow": cfg.db_max_overflow,
@@ -58,7 +67,7 @@ def _build_engine_kwargs() -> dict[str, Any]:
         }
 
 
-def get_engine():
+def get_engine() -> AsyncEngine:
     """Get or create the async engine (lazy singleton)."""
     global _async_engine
     if _async_engine is None:
@@ -96,7 +105,7 @@ def reset_engine() -> None:
 # triggers lazy creation on first use.
 class _EngineProxy:
     """Proxy that lazily creates the engine on attribute access."""
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         return getattr(get_engine(), name)
 
 async_engine = _EngineProxy()
@@ -122,7 +131,7 @@ def _build_sync_url() -> str:
     return _sync_url
 
 
-def get_sync_engine():
+def get_sync_engine() -> Any:
     """Build sync engine for Alembic migrations."""
     from app.config import get_config
     cfg = get_config()

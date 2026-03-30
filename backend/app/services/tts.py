@@ -23,6 +23,7 @@ Because this is a stub, the TTS button in the UI will show "Audio Ready" but the
 will not resolve to a real audio file until the above is implemented.
 """
 import uuid
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.document import Document

@@ -2,10 +2,11 @@
 Analytics router — reading dashboard metrics.
 """
 import logging
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
-from app.deps import VerifiedUser, DbSession
+from app.deps import DbSession, VerifiedUser
 from app.services.analytics import get_dashboard
 
 logger = logging.getLogger(__name__)
@@ -17,7 +18,7 @@ router = APIRouter(prefix="/analytics", tags=["analytics"])
 async def dashboard(
     user: VerifiedUser,
     session: DbSession,
-) -> dict:
+) -> dict[str, Any]:
     """Return aggregated reading analytics for the authenticated user."""
     if user.id is None:
         raise HTTPException(status_code=500, detail="User ID missing")

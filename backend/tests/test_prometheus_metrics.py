@@ -6,9 +6,9 @@ that the /metrics endpoint is reachable, and that auth events
 are instrumented at key points in the auth router.
 """
 import inspect
+
 import pytest
 from httpx import AsyncClient
-
 
 # ---------------------------------------------------------------------------
 # Metrics definitions

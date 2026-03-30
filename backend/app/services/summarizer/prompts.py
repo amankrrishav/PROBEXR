@@ -7,7 +7,6 @@ This prevents the #1 bug: free-tier LLMs leaking separator/JSON into the visible
 """
 from typing import Any
 
-
 # ── Mode-specific format instructions ──────────────────────────────────────
 
 _MODE_INSTRUCTIONS = {

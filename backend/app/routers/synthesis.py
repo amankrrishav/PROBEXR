@@ -2,9 +2,9 @@ import logging
 
 from fastapi import APIRouter, HTTPException, status
 
-from app.schemas.requests import SynthesisRequest
+from app.deps import DbSession, OptionalVerifiedUser
 from app.models.synthesis import Synthesis
-from app.deps import OptionalVerifiedUser, DbSession
+from app.schemas.requests import SynthesisRequest
 from app.services.synthesis import synthesize_documents
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ async def create_synthesis(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required for synthesis"
         )
-        
+
     try:
         synthesis = await synthesize_documents(request.document_ids, user.id, session, request.prompt)
         return synthesis

@@ -3,11 +3,16 @@ import json
 import logging
 import secrets
 import time
-from typing import Callable, Awaitable, Protocol, Optional
+from collections.abc import Awaitable, Callable
+from typing import Any, Protocol
 
 import jwt
 
-from pythonjsonlogger import jsonlogger
+try:
+    from pythonjsonlogger.json import JsonFormatter as jsonlogger_JsonFormatter
+except ImportError:
+    from pythonjsonlogger import jsonlogger as _jl
+    jsonlogger_JsonFormatter = _jl.JsonFormatter  # type: ignore[misc,attr-defined]
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -20,17 +25,17 @@ logger = logging.getLogger(__name__)
 def setup_logging() -> None:
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
-    
+
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
-        
+
     logHandler = logging.StreamHandler()
-    formatter = jsonlogger.JsonFormatter(
+    formatter = jsonlogger_JsonFormatter(
         '%(asctime)s %(levelname)s %(name)s %(message)s'
     )
     logHandler.setFormatter(formatter)
     root_logger.addHandler(logHandler)
-    
+
     # Disable uvicorn access logs to avoid double logging
     logging.getLogger("uvicorn.access").disabled = True
 
@@ -139,10 +144,10 @@ class RedisRateLimiter:
 
 
 # Global rate limiter — set during startup
-_rate_limiter: Optional[RateLimiterBackend] = None  # type: ignore
+_rate_limiter: RateLimiterBackend | None = None
 
 
-def get_rate_limiter() -> RateLimiterBackend:  # type: ignore
+def get_rate_limiter() -> RateLimiterBackend:
     """Return the active rate limiter (Redis or in-memory fallback)."""
     global _rate_limiter
     if _rate_limiter is None:
@@ -150,7 +155,7 @@ def get_rate_limiter() -> RateLimiterBackend:  # type: ignore
     return _rate_limiter
 
 
-def set_rate_limiter(limiter: RateLimiterBackend) -> None:  # type: ignore
+def set_rate_limiter(limiter: RateLimiterBackend) -> None:
     """Set the active rate limiter (called during app startup)."""
     global _rate_limiter
     _rate_limiter = limiter
@@ -175,8 +180,15 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
 
         # Determine tier and limit
         is_auth_route = any(path.startswith(p) for p in _AUTH_RATE_LIMITED_PATHS)
+        _LLM_ROUTE_PREFIXES = (
+            "/api/v1/summarize",
+            "/api/v1/synthesis",
+            "/api/v1/chat",
+            "/api/v1/tts",
+            "/api/v1/ingest",
+        )
         is_llm_route = not is_auth_route and any(
-            p in path for p in ["/summarize", "/api/synthesis", "/api/chat", "/api/tts", "/api/ingest"]
+            path.startswith(p) for p in _LLM_ROUTE_PREFIXES
         )
 
         if is_auth_route:
@@ -260,7 +272,7 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
             try:
                 body_bytes = await request.body()
                 # Re-inject body so downstream handlers can still read it
-                request._body = body_bytes  # type: ignore[attr-defined]
+                request._body = body_bytes
                 body_data = json.loads(body_bytes)
                 email = body_data.get("email", "")
                 if email and isinstance(email, str):
@@ -434,7 +446,8 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         return response
 
     @staticmethod
-    def _ensure_csrf_cookie(response: Response, request: Request, cfg: "AppConfig") -> None:  # type: ignore[name-defined]
+    def _ensure_csrf_cookie(response: Response, request: Request, cfg: Any) -> None:
+
         """Set or refresh the CSRF cookie on every response."""
         existing = request.cookies.get(CSRF_COOKIE_NAME)
         token = existing or secrets.token_urlsafe(32)
@@ -448,3 +461,62 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             max_age=60 * 60 * 24,  # 24 hours
             path="/",
         )
+
+
+# ---------------------------------------------------------------------------
+# Security Headers Middleware
+# ---------------------------------------------------------------------------
+# Sets Content-Security-Policy and other defense-in-depth headers on every
+# response.  Applied after the route handler so the headers are present on
+# both success and error responses.
+#
+# CSP directives:
+#   default-src 'self'          — only load resources from same origin
+#   script-src  'self'          — no inline scripts, no eval()
+#   style-src   'self' 'unsafe-inline' — allow inline styles (needed for
+#                                  CSS-in-JS / component libraries)
+#   img-src     'self' data: https: — allow images from same origin, data URIs,
+#                                  and HTTPS (avatars, external providers)
+#   font-src    'self' https:   — allow fonts from same origin & CDNs
+#   connect-src 'self' https:   — allow API calls & WebSocket to self & HTTPS
+#   frame-ancestors 'none'      — prevent clickjacking (reinforced by X-Frame-Options)
+#   base-uri    'self'          — prevent <base> tag hijacking
+#   form-action 'self'          — restrict form submissions to same origin
+# ---------------------------------------------------------------------------
+
+_CSP_POLICY = "; ".join([
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: https:",
+    "font-src 'self' https:",
+    "connect-src 'self' https:",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+])
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Adds security headers to every HTTP response."""
+
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
+        response = await call_next(request)
+        response.headers["Content-Security-Policy"] = _CSP_POLICY
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = (
+            "camera=(), microphone=(), geolocation=()"
+        )
+        # HSTS — only in production to avoid breaking local HTTP dev servers
+        cfg = get_config()
+        if cfg.environment == "production":
+            response.headers["Strict-Transport-Security"] = (
+                "max-age=31536000; includeSubDomains"
+            )
+        return response

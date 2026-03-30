@@ -7,25 +7,24 @@ Provides:
   - registered_user: a pre-registered AND email-verified user with token
 """
 import asyncio
-from typing import AsyncGenerator
-from datetime import datetime, timezone, timedelta
+from collections.abc import AsyncGenerator
+from datetime import UTC, datetime, timedelta
 
+import jwt as jose_jwt
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 from sqlmodel import SQLModel
 
 import app.models  # noqa: F401 — register all models on metadata
+from app.config import get_config
 from app.db import get_session
+from app.lockout import NoOpLockoutStore, set_lockout_manager
 from app.main import app as fastapi_app
 from app.middleware import set_rate_limiter
-from app.lockout import set_lockout_manager, NoOpLockoutStore
-from app.config import get_config
 from app.services.auth import create_email_verification_token
-import jwt as jose_jwt
-
 
 # ---- Disable rate limiting in tests ----
 
@@ -67,12 +66,12 @@ async def _override_get_session() -> AsyncGenerator[AsyncSession, None]:
 
 fastapi_app.dependency_overrides[get_session] = _override_get_session
 
-
-@pytest_asyncio.fixture(scope="session")
-def event_loop():
+@pytest.fixture(scope="session")
+def event_loop():  # type: ignore[override]
     loop = asyncio.new_event_loop()
     yield loop
     loop.close()
+
 
 
 @pytest_asyncio.fixture(autouse=True)
@@ -100,7 +99,7 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
 def make_oauth_state(provider: str = "google") -> str:
     """Create a valid JWT-signed OAuth state token for tests."""
     cfg = get_config()
-    payload = {"provider": provider, "exp": datetime.now(timezone.utc) + timedelta(minutes=10)}
+    payload = {"provider": provider, "exp": datetime.now(UTC) + timedelta(minutes=10)}
     return jose_jwt.encode(payload, cfg.secret_key, algorithm=cfg.algorithm)
 
 
