@@ -23,7 +23,7 @@ PROBEXR is a full-stack article summarizer and learning platform: paste text or 
 **Analytics & Management**  
 - Personal document library with search  
 - Usage analytics dashboard (lazy-loaded for performance)  
-- Prometheus observability metrics  
+- Prometheus observability metrics with Grafana dashboards & alerting rules
 
 **Authentication & Security**  
 - Social Login (Google, GitHub) with timing-safe OAuth state  
@@ -34,17 +34,20 @@ PROBEXR is a full-stack article summarizer and learning platform: paste text or 
 
 **Architecture Highlights**  
 - Fully async backend (FastAPI + asyncpg/aiosqlite)  
+- Redis-backed cache-aside layer and ETag-based conditional responses
+- Non-blocking background email processing with dead-letter handling
 - Lazy-initialized DB engine for serverless compatibility  
-- Consistent API response envelope with built-in pagination  
-- React Error Boundary to prevent full-app crashes  
+- Consistent API response envelope with built-in pagination, and standardized error codes
+- React Error Boundary, SWR data fetching, offline support via Service Workers, and skeleton screens
 - Code-split lazy loading for heavy pages  
-- Composite DB indexes for query performance  
+- Composite DB indexes and soft-deletes (`deleted_at`) for query performance  
 - Redis rate limiting with `Retry-After` headers and in-memory fallback  
 - Provider-agnostic LLM layer (Groq, OpenAI, OpenRouter)  
 
 **Quality**  
-- 344 backend tests + 108 frontend tests — 100% pass rate  
-- CI/CD pipeline via GitHub Actions (pytest, vitest, mypy, eslint)  
+- 349 backend tests + 108 frontend tests — 100% pass rate  
+- Comprehensive Load and E2E Testing suites
+- CI/CD pipeline via GitHub Actions (pytest, vitest, strict mypy mode, ruff, eslint)  
 
 ---
 

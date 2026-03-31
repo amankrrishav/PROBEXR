@@ -12,11 +12,15 @@ This doc outlines completed work and upcoming phases.
 - Real-time SSE streaming for token delivery
 - Comprehensive analytics dashboard
 - Cross-domain CSRF protection and timing-safe OAuth
-- Lazy-initialized async database with composite indexes
-- React Error Boundary and lazy-loaded pages
-- 344 backend + 108 frontend tests — 100% pass rate
-- CI/CD pipeline (GitHub Actions)
-
+- Lazy-initialized async database with composite indexes and soft deletes
+- Redis-backed cache-aside layer and non-blocking background emails (dead-lettering)
+- Global API error handling and robust observability (Prometheus & Grafana)
+- React Error Boundary, SWR data fetching, and Service Worker offline support
+- Code-split lazy loaded pages and skeleton loading screens
+- ETag-based conditional responses and robust SSE streaming
+- 349 backend + 108 frontend tests — 100% pass rate
+- Comprehensive Load and E2E Testing suites
+- CI/CD pipeline (GitHub Actions, strict mypy, ruff, vitest, pytest)
 ---
 
 ## Phase Next — Growth & Retention

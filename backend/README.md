@@ -9,6 +9,10 @@ Scalable async FastAPI backend for human-like summarization, contextual chat, fl
 - Enterprise auth: Social Login, Magic Links, Account Lockout, NIST passwords
 - Cross-domain CSRF protection with timing-safe OAuth state
 - Lazy-initialized DB engine for serverless compatibility
-- Consistent API response envelope with pagination
-- Prometheus observability metrics
-- 344 tests — 100% pass rate
+- Global error handling mapped to standardized API response envelopes with pagination
+- Redis-backed cache-aside layer and ETag-based conditional responses
+- Non-blocking background email processing with dead-letter queue handling
+- Soft deletes and composite indexes for fast, safe queries
+- Robust observability with Prometheus metrics and Grafana dashboards
+- Load Testing and E2E testing ready
+- 349 clean backend tests — 100% pass rate, enforcing strict mypy typing and ruff standards

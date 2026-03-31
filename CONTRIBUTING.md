@@ -12,8 +12,8 @@ To contribute, please reach out to the maintainer to discuss the feature or fix 
 
 ## Code Style
 
-- **Backend:** Python, FastAPI conventions. Async functions for all DB and LLM operations. Type hints where helpful.
-- **Frontend:** React 19, ES modules. Feature-based folder structure.
+- **Backend:** Python, FastAPI conventions. Async functions for all DB and LLM operations. Strict mypy type checking and ruff linting are enforced.
+- **Frontend:** React 19, ES modules. Feature-based folder structure. SWR for data fetching.
 
 ---
 
@@ -29,9 +29,9 @@ To contribute, please reach out to the maintainer to discuss the feature or fix 
 
 ## Testing
 
-- Backend tests use `pytest` with async fixtures.
+- Backend tests use `pytest` with async fixtures. Load testing and E2E tests are also supported.
 - Frontend tests use `vitest` with `@testing-library/react`.
-- All PRs must maintain 100% pass rate (currently 344 backend + 108 frontend tests).
+- All PRs must maintain 100% pass rate (currently 349 backend + 108 frontend tests).
 
 ---
 
