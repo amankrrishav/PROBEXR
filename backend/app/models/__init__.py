@@ -1,5 +1,6 @@
 from app.models.chat import ChatMessage, ChatSession
 from app.models.document import Document
+from app.models.failed_email import FailedEmail
 from app.models.flashcards import Flashcard, FlashcardSet
 from app.models.refresh_token import RefreshToken
 from app.models.synthesis import Synthesis

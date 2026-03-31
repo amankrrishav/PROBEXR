@@ -107,7 +107,7 @@ async def summarize(
             f"({word_count:,} submitted). Please shorten your input."
         )
 
-    # 1. Extractive Fallback (No LLM)
+    # 1. Extractive Fallback (No LLM) — not cached (it's already fast)
     if not cfg.has_llm_provider:
         preset = LENGTH_PRESETS.get(length, LENGTH_PRESETS["standard"])
         ext_res = summarize_extractive(
@@ -128,7 +128,15 @@ async def summarize(
         }
         return result
 
-    # 2. LLM Flow
+    # 2. Cache check — return cached LLM result if available
+    from app.services.cache import get_cached_summary, set_cached_summary
+
+    cached = await get_cached_summary(text, length, mode, tone, keywords)
+    if cached:
+        logger.info("Summary cache HIT (length=%s, mode=%s)", length, mode)
+        return cached
+
+    # 3. LLM Flow
     target = _target_words(word_count, length)
     preset = LENGTH_PRESETS.get(length, LENGTH_PRESETS["standard"])
 
@@ -145,6 +153,10 @@ async def summarize(
             "mode": mode,
         }
     )
+
+    # 4. Cache the result for future requests
+    await set_cached_summary(text, result, length, mode, tone, keywords)
+
     return result
 
 

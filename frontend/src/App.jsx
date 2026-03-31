@@ -5,6 +5,7 @@
  * B3/B4: History integration via AppContext
  */
 import { useState, useCallback, useEffect, lazy, Suspense } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { config } from "./config.js";
 import { useAppContext } from "./contexts/AppContext.jsx";
 import { useSummarizerContext } from "./contexts/SummarizerContext.jsx";
@@ -15,6 +16,7 @@ import { AuthModal, SocialCallback } from "./features/auth";
 import { ErrorBoundary } from "./components/ErrorBoundary.jsx";
 import CustomCursor from "./components/CustomCursor.jsx";
 import KeyboardShortcuts from "./components/KeyboardShortcuts.jsx";
+import { SkeletonDashboard } from "./components/Skeleton.jsx";
 
 // Lazy-loaded pages — loaded only when the user navigates to them
 const AnalyticsDashboard = lazy(() =>
@@ -46,8 +48,10 @@ export default function App() {
   const [authModalMode, setAuthModalMode] = useState("signup");
   const [pageKey, setPageKey] = useState(0);
 
-  // Simple routing for auth callbacks
-  const pathname = window.location.pathname;
+  // React-router-based routing (Task #40)
+  const location = useLocation();
+  const navigate = useNavigate();
+  const pathname = location.pathname;
   const isSocialCallback = pathname.startsWith("/auth/callback/");
   const isMagicVerify = pathname === "/auth/verify";
   const authProvider = isSocialCallback ? pathname.split("/").pop() : isMagicVerify ? "verify" : null;
@@ -192,7 +196,7 @@ export default function App() {
       <SocialCallback
         provider={authProvider}
         onResult={(success) => {
-          window.setTimeout(() => { window.location.href = "/"; }, success ? 500 : 2000);
+          window.setTimeout(() => { navigate("/"); }, success ? 500 : 2000);
         }}
       />
     );
@@ -262,8 +266,8 @@ export default function App() {
                 </p>
               </div>
               <Suspense fallback={
-                <div style={{ display: "flex", justifyContent: "center", padding: 80 }}>
-                  <div style={{ color: "var(--ink-tertiary)" }}>Loading analytics…</div>
+                <div style={{ padding: 0 }}>
+                  <SkeletonDashboard />
                 </div>
               }>
                 <AnalyticsDashboard />

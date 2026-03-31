@@ -8,6 +8,60 @@ from app.config import get_config
 logger = logging.getLogger(__name__)
 
 
+async def _record_failed_email(
+    to_email: str, subject: str, template: str, error: str
+) -> None:
+    """Persist a failed email to the dead-letter table for later retry/review."""
+    try:
+        from app.db import get_session_factory
+        from app.models.failed_email import FailedEmail
+
+        factory = get_session_factory()
+        async with factory() as session:
+            record = FailedEmail(
+                to_email=to_email,
+                subject=subject,
+                template=template,
+                error=str(error)[:2000],
+            )
+            session.add(record)
+            await session.commit()
+            logger.info("Dead-lettered failed email to=%s template=%s", to_email, template)
+    except Exception:
+        # Last resort: if even the DB write fails, just log
+        logger.error(
+            "Failed to dead-letter email to=%s template=%s",
+            to_email,
+            template,
+            exc_info=True,
+        )
+
+
+def send_email_background(
+    coro: object,  # Coroutine
+    *,
+    to_email: str,
+    subject: str,
+    template: str,
+) -> None:
+    """Fire-and-forget email send. Logs failures to dead-letter table.
+
+    Used by auth endpoints that should NOT block the HTTP response on email delivery.
+    Replaces the previous pattern of `await send_*()` + try/except in the router.
+    """
+    from app.tasks import fire_and_forget
+
+    async def _wrapper() -> None:
+        try:
+            await coro  # type: ignore[misc]
+        except Exception as exc:
+            logger.warning("Background email failed: to=%s err=%s", to_email, exc)
+            await _record_failed_email(to_email, subject, template, str(exc))
+
+    fire_and_forget(_wrapper(), name=f"email:{template}:{to_email}")
+
+
+
 async def send_account_exists_email(to_email: str, login_link: str) -> None:
     """
     Notify an existing user that someone tried to register with their email.
