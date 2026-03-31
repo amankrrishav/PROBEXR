@@ -21,7 +21,7 @@ async def generate_flashcards(document_id: int, user_id: int, session: AsyncSess
         )
 
     doc = await session.get(Document, document_id)
-    if not doc or doc.user_id != user_id:
+    if not doc or doc.user_id != user_id or doc.deleted_at is not None:
         raise ValueError("Document not found or unauthorized")
 
     system_prompt = (

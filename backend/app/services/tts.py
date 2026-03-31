@@ -45,7 +45,7 @@ async def generate_audio_summary(
 
     # 2. Ownership check
     doc = await session.get(Document, document_id)
-    if not doc or doc.user_id != user_id:
+    if not doc or doc.user_id != user_id or doc.deleted_at is not None:
         raise ValueError("Document not found or unauthorized")
 
     # 3. STUB: simulate a successful TTS response

@@ -1,10 +1,16 @@
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+from sqlalchemy import Column, DateTime
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
     from app.models.document import Document
+
+
+def _utcnow() -> datetime:
+    """Return a timezone-naive UTC timestamp for DB storage."""
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class User(SQLModel, table=True):
@@ -19,7 +25,11 @@ class User(SQLModel, table=True):
     # Auth / lifecycle
     is_active: bool = True
     is_verified: bool = Field(default=False)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
+    created_at: datetime = Field(default_factory=_utcnow)
+    updated_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime, nullable=True, onupdate=_utcnow),
+    )
     last_login_at: datetime | None = None
     signup_source: str | None = Field(default=None, index=True)
 
@@ -33,3 +43,4 @@ class User(SQLModel, table=True):
     usage_reset_at: datetime | None = None
 
     documents: list["Document"] = Relationship(back_populates="user", cascade_delete=True)
+

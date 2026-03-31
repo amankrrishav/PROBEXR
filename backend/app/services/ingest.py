@@ -99,6 +99,7 @@ async def fetch_and_clean_url(url: str, user_id: int, session: AsyncSession) -> 
     existing_stmt = select(Document).where(
         Document.user_id == user_id,
         Document.url == url,
+        Document.deleted_at.is_(None),  # type: ignore[union-attr]
     )
     result = await session.execute(existing_stmt)
     existing = result.scalars().first()
@@ -273,6 +274,7 @@ async def ingest_text_document(user_id: int, text: str, title: str, session: Asy
     existing_stmt = select(Document).where(
         Document.user_id == user_id,
         Document.url == dedup_key,
+        Document.deleted_at.is_(None),  # type: ignore[union-attr]
     )
     result = await session.execute(existing_stmt)
     existing = result.scalars().first()

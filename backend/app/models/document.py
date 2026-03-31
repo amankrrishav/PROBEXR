@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Optional
 
+from sqlalchemy import Column, DateTime
 from sqlmodel import Field, Index, Relationship, SQLModel, UniqueConstraint
 
 if TYPE_CHECKING:
@@ -13,6 +14,11 @@ if TYPE_CHECKING:
 from app.models.synthesis import SynthesisDocumentLink
 
 
+def _utcnow() -> datetime:
+    """Return a timezone-naive UTC timestamp for DB storage."""
+    return datetime.now(UTC).replace(tzinfo=None)
+
+
 class Document(SQLModel, table=True):
     __table_args__ = (
         UniqueConstraint("user_id", "url", name="uq_document_user_url"),
@@ -23,7 +29,16 @@ class Document(SQLModel, table=True):
     url: str = Field(max_length=2048)  # Ingest service caps at 2048; model enforces at schema level
     title: str = Field(default="")
     cleaned_content: str = Field(default="")
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC).replace(tzinfo=None))
+    created_at: datetime = Field(default_factory=_utcnow)
+
+    # Audit: auto-set on every UPDATE via SQLAlchemy server-side onupdate
+    updated_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime, nullable=True, onupdate=_utcnow),
+    )
+
+    # Soft-delete: when set, the document is considered deleted
+    deleted_at: datetime | None = Field(default=None)
 
     user: Optional["User"] = Relationship(back_populates="documents")
     flashcard_sets: list["FlashcardSet"] = Relationship(back_populates="document", cascade_delete=True)

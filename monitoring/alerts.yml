@@ -1,0 +1,124 @@
+# PROBEXR Backend — Prometheus Alerting Rules
+# Load this file via Prometheus rule_files configuration:
+#   rule_files:
+#     - "monitoring/alerts.yml"
+
+groups:
+  - name: probexr_backend
+    rules:
+      # ── HTTP Error Rate ──────────────────────────────────────────
+      - alert: HighErrorRate
+        expr: >
+          (
+            sum(rate(http_requests_total{status_code=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "HTTP 5xx error rate exceeds 5%"
+          description: >
+            The 5xx error rate has been above 5% for the last 5 minutes.
+            Current value: {{ $value | humanizePercentage }}.
+          runbook: "Check application logs for stack traces. Restart pods if OOM."
+
+      - alert: High4xxRate
+        expr: >
+          (
+            sum(rate(http_requests_total{status_code=~"4.."}[5m]))
+            /
+            sum(rate(http_requests_total[5m]))
+          ) > 0.25
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "HTTP 4xx error rate exceeds 25%"
+          description: >
+            High client error rate may indicate a broken frontend deployment
+            or an API contract change. Current: {{ $value | humanizePercentage }}.
+
+      # ── LLM Latency ─────────────────────────────────────────────
+      - alert: LLMLatencyHigh
+        expr: >
+          histogram_quantile(0.95, sum(rate(llm_latency_seconds_bucket[5m])) by (le))
+          > 30
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "LLM p95 latency exceeds 30 seconds"
+          description: >
+            The 95th-percentile LLM call latency has been above 30s for 5
+            minutes. Users are likely seeing timeouts. Consider switching
+            providers or reducing max_tokens.
+
+      - alert: LLMErrorRateHigh
+        expr: >
+          (
+            sum(rate(llm_calls_total{status="error"}[5m]))
+            /
+            sum(rate(llm_calls_total[5m]))
+          ) > 0.10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "LLM error rate exceeds 10%"
+          description: >
+            More than 10% of LLM calls are failing. Check provider status
+            page and API key validity. Current: {{ $value | humanizePercentage }}.
+
+      # ── Auth Failure Spike ───────────────────────────────────────
+      - alert: AuthFailureSpike
+        expr: >
+          sum(increase(auth_events_total{event="login_failure"}[10m])) > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Authentication failure spike detected"
+          description: >
+            More than 50 failed login attempts in the last 10 minutes.
+            This may indicate a brute-force attack. Review IP-based rate
+            limiting and consider temporary IP bans.
+
+      - alert: AuthLockoutSpike
+        expr: >
+          sum(increase(auth_events_total{event="account_locked"}[10m])) > 10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Multiple accounts locked out"
+          description: >
+            More than 10 accounts have been locked in 10 minutes.
+            Investigate for coordinated attack or misconfigured client.
+
+      # ── Infrastructure ──────────────────────────────────────────
+      - alert: HighRequestLatency
+        expr: >
+          histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))
+          > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "HTTP p95 latency exceeds 5 seconds"
+          description: >
+            Overall API latency is elevated. Check database query performance,
+            connection pool saturation, and downstream service health.
+
+      - alert: NoTraffic
+        expr: >
+          sum(rate(http_requests_total[5m])) == 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "No HTTP traffic for 15 minutes"
+          description: >
+            The backend has received zero requests for 15 minutes.
+            This may indicate a load balancer misconfiguration or DNS issue.

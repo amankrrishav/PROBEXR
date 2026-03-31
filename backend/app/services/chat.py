@@ -64,7 +64,7 @@ async def prepare_chat_context(
     """
     # 1. Ownership check
     doc = await session.get(Document, document_id)
-    if not doc or doc.user_id != user_id:
+    if not doc or doc.user_id != user_id or doc.deleted_at is not None:
         raise ValueError("Document not found or unauthorized")
 
     # 2. Get or create chat session

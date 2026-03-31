@@ -19,6 +19,7 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.config import get_config
+from app.errors import ErrorCode
 
 logger = logging.getLogger(__name__)
 
@@ -222,7 +223,7 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
             }
             return JSONResponse(
                 status_code=429,
-                content={"detail": "Too many requests. Please slow down and try again later."},
+                content={"detail": "Too many requests. Please slow down and try again later.", "code": ErrorCode.RATE_LIMITED},
                 headers=rl_headers,
             )
 
@@ -261,7 +262,10 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
                             }
                             return JSONResponse(
                                 status_code=429,
-                                content={"detail": "Too many requests. Please slow down and try again later."},
+                                content={
+                                    "detail": "Too many requests. Please slow down and try again later.",
+                                    "code": ErrorCode.RATE_LIMITED,
+                                },
                                 headers=rl_headers,
                             )
                 except Exception:
@@ -293,7 +297,10 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
                         }
                         return JSONResponse(
                             status_code=429,
-                            content={"detail": "Too many requests for this account. Try again later."},
+                            content={
+                                "detail": "Too many requests for this account. Try again later.",
+                                "code": ErrorCode.RATE_LIMITED,
+                            },
                             headers=rl_headers,
                         )
             except Exception:
@@ -335,6 +342,7 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
 #   - Dual-submit cookie (same-domain fallback)
 _CSRF_EXEMPT_PREFIXES: tuple[str, ...] = (
     "/api/v1/health",
+    "/api/v1/ready",
     "/api/v1/metrics",
     "/api/v1/auth/google/callback",  # OAuth callback (state cookie validates CSRF)
     "/api/v1/auth/github/callback",  # OAuth callback (state cookie validates CSRF)
@@ -406,7 +414,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             )
             return JSONResponse(
                 status_code=403,
-                content={"detail": "Origin not allowed."},
+                content={"detail": "Origin not allowed.", "code": ErrorCode.CSRF_ORIGIN_REJECTED},
             )
 
         # --- Strategy 2: Dual-submit cookie (same-domain fallback) ---
@@ -425,7 +433,10 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             )
             response = JSONResponse(
                 status_code=403,
-                content={"detail": "CSRF token missing. Please refresh the page and try again."},
+                content={
+                    "detail": "CSRF token missing. Please refresh the page and try again.",
+                    "code": ErrorCode.CSRF_MISSING,
+                },
             )
             self._ensure_csrf_cookie(response, request, cfg)
             return response
@@ -437,7 +448,10 @@ class CSRFMiddleware(BaseHTTPMiddleware):
             )
             response = JSONResponse(
                 status_code=403,
-                content={"detail": "CSRF token mismatch. Please refresh the page and try again."},
+                content={
+                    "detail": "CSRF token mismatch. Please refresh the page and try again.",
+                    "code": ErrorCode.CSRF_MISMATCH,
+                },
             )
             self._ensure_csrf_cookie(response, request, cfg)
             return response

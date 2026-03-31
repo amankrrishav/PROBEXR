@@ -35,13 +35,17 @@ async def list_documents(
     offset = (page - 1) * per_page
 
     # Total count
-    count_stmt = select(func.count()).select_from(Document).where(Document.user_id == user.id)
+    count_stmt = (
+        select(func.count())
+        .select_from(Document)
+        .where(Document.user_id == user.id, Document.deleted_at.is_(None))  # type: ignore[union-attr]
+    )
     total = (await session.execute(count_stmt)).scalar() or 0
 
     # Fetch page
     stmt = (
         select(Document)
-        .where(Document.user_id == user.id)
+        .where(Document.user_id == user.id, Document.deleted_at.is_(None))  # type: ignore[union-attr]
         .order_by(Document.created_at.desc())  # type: ignore[attr-defined]
         .offset(offset)
         .limit(per_page)
@@ -75,12 +79,16 @@ async def delete_document(
 ) -> None:
     """Delete a document owned by the current user."""
     doc = await session.get(Document, document_id)
-    if not doc or doc.user_id != user.id:
+    if not doc or doc.user_id != user.id or doc.deleted_at is not None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Document not found or unauthorized",
         )
 
-    await session.delete(doc)
+    # Soft-delete: mark as deleted instead of removing from DB
+    from datetime import UTC, datetime
+
+    doc.deleted_at = datetime.now(UTC).replace(tzinfo=None)
+    session.add(doc)
     await session.commit()
-    logger.info("Document deleted", extra={"document_id": document_id, "user_id": user.id})
+    logger.info("Document soft-deleted", extra={"document_id": document_id, "user_id": user.id})

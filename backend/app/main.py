@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlmodel import SQLModel
@@ -16,6 +17,7 @@ from sqlmodel import SQLModel
 from app import http_client
 from app.config import get_config
 from app.db import get_engine
+from app.errors import ErrorCode, code_for_status
 from app.lockout import (
     InMemoryLockoutStore,
     RedisLockoutStore,
@@ -181,6 +183,36 @@ app = FastAPI(
 )
 
 
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(
+    request: Request,
+    exc: RequestValidationError,
+) -> JSONResponse:
+    """Return validation errors in the standard {detail, code} envelope."""
+    cfg = get_config()
+    origins = [o.strip().rstrip("/") for o in cfg.cors_origins.split(",") if o.strip()]
+    origin = request.headers.get("origin")
+    headers: dict[str, str] = {}
+    if origin and (origin in origins or "*" in origins):
+        headers["Access-Control-Allow-Origin"] = origin
+        headers["Access-Control-Allow-Credentials"] = "true"
+
+    # Build a human-readable detail string from pydantic error list
+    errors = exc.errors()
+    messages: list[str] = []
+    for err in errors:
+        loc = " -> ".join(str(p) for p in err.get("loc", []))
+        msg = err.get("msg", "invalid")
+        messages.append(f"{loc}: {msg}" if loc else msg)
+    detail = "; ".join(messages) if messages else "Validation error"
+
+    return JSONResponse(
+        status_code=422,
+        content={"detail": detail, "code": ErrorCode.VALIDATION_ERROR},
+        headers=headers,
+    )
+
+
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
     # Ensure CORS headers for cross-domain auth failures
@@ -194,7 +226,7 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
 
     return JSONResponse(
         status_code=exc.status_code,
-        content={"detail": exc.detail},
+        content={"detail": exc.detail, "code": code_for_status(exc.status_code)},
         headers=headers,
     )
 
@@ -211,7 +243,10 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
         headers["Access-Control-Allow-Credentials"] = "true"
 
     # Never leak internal error details to clients in production
-    content: dict[str, str] = {"detail": "Internal Server Error"}
+    content: dict[str, str] = {
+        "detail": "Internal Server Error",
+        "code": ErrorCode.INTERNAL_ERROR,
+    }
     if cfg.environment != "production":
         content["error"] = str(exc)
 
