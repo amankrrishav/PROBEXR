@@ -1,6 +1,6 @@
-# PROBEXR — Article Summarizer & Learning Hub
+# PROBEXR
 
-PROBEXR is a full-stack article summarizer and learning platform: paste text or URLs, get a short, human-like summary, chat with the document, and export flashcards.  
+PROBEXR is a full-stack article summarizer and learning platform: paste text or URLs, get a short, human-like summary, chat with the document, and export flashcards.  **RIGHT NOW ITS FEATURE LIMITED BUT -- NEW FEATURES COMING SOON**
 *Extract signal. Ignore noise.*
 
 **Live App:** *https://probexr.vercel.app*
