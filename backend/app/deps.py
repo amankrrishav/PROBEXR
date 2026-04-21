@@ -55,3 +55,11 @@ class PaginationParams:
 
 
 Pagination = Annotated[PaginationParams, Depends()]
+
+
+# --- RBAC / Usage Limits ---
+from app.rbac import enforce_optional_usage_limit, enforce_usage_limit  # noqa: E402
+
+UsageLimitedUser = Annotated[User, Depends(enforce_usage_limit)]
+OptionalUsageLimitedUser = Annotated[User | None, Depends(enforce_optional_usage_limit)]
+

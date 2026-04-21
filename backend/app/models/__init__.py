@@ -1,3 +1,4 @@
+from app.models.audit_log import AuditLog
 from app.models.chat import ChatMessage, ChatSession
 from app.models.document import Document
 from app.models.failed_email import FailedEmail

@@ -24,7 +24,7 @@ from collections.abc import AsyncIterator
 from fastapi import APIRouter, Request, status
 from starlette.responses import StreamingResponse
 
-from app.deps import DbSession, OptionalVerifiedUser
+from app.deps import DbSession, OptionalUsageLimitedUser
 from app.models.chat import ChatMessage
 from app.schemas import TextRequest
 from app.schemas.requests import ChatRequest
@@ -116,7 +116,7 @@ async def _stream_llm(
 @router.post("/summarize/stream")
 async def summarize_stream(
     body: TextRequest,
-    user: OptionalVerifiedUser,
+    user: OptionalUsageLimitedUser,
     session: DbSession,
     request: Request,
 ) -> StreamingResponse:
@@ -222,7 +222,7 @@ async def summarize_stream(
 @router.post("/chat/stream")
 async def chat_stream(
     body: ChatRequest,
-    user: OptionalVerifiedUser,
+    user: OptionalUsageLimitedUser,
     session: DbSession,
     request: Request,
 ) -> StreamingResponse:

@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import PlainTextResponse
 from sqlmodel import col, func, select
 
-from app.deps import DbSession, OptionalVerifiedUser, VerifiedUser
+from app.deps import DbSession, OptionalUsageLimitedUser, OptionalVerifiedUser, VerifiedUser
 from app.models.flashcards import Flashcard, FlashcardSet
 from app.schemas.requests import FlashcardRequest
 from app.services.flashcards import export_flashcards, generate_flashcards
@@ -77,7 +77,7 @@ async def list_flashcard_sets(
 
 
 @router.post("/", response_model=FlashcardSet)
-async def create_flashcards(request: FlashcardRequest, user: OptionalVerifiedUser, session: DbSession) -> FlashcardSet:
+async def create_flashcards(request: FlashcardRequest, user: OptionalUsageLimitedUser, session: DbSession) -> FlashcardSet:
     if not user or user.id is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required for flashcards")
 

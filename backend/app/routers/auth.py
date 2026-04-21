@@ -5,6 +5,8 @@ from datetime import UTC, datetime, timedelta
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse, RedirectResponse
 
+from app.services.audit import record_audit_event
+
 logger = logging.getLogger(__name__)
 
 import jwt
@@ -120,11 +122,12 @@ async def register(
 
 
 @router.post("/login", response_model=Token)
-async def login(payload: LoginRequest, response: Response, session: DbSession) -> Token:
+async def login(payload: LoginRequest, request: Request, response: Response, session: DbSession) -> Token:
     try:
         user = await authenticate_user(session, payload.email, payload.password)
     except ValueError as e:
         AUTH_EVENTS_TOTAL.labels(event="login_failure").inc()
+        record_audit_event("login_failure", request=request, user_email=payload.email)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e)) from e
 
     if user.id is None:
@@ -133,6 +136,7 @@ async def login(payload: LoginRequest, response: Response, session: DbSession) -
     refresh = await create_refresh_token(session, user.id)
 
     AUTH_EVENTS_TOTAL.labels(event="login_success").inc()
+    record_audit_event("login_success", request=request, user=user)
     set_auth_cookie(response, access_token)
     set_refresh_cookie(response, refresh.token)
     return Token(access_token=access_token, refresh_token=refresh.token)
@@ -439,6 +443,7 @@ async def logout(
         await revoke_refresh_token(session, old_refresh)
 
     AUTH_EVENTS_TOTAL.labels(event="logout").inc()
+    record_audit_event("logout", request=request)
     delete_auth_cookies(response)
     return {"message": "Logged out"}
 

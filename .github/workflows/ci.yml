@@ -81,6 +81,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Security — npm audit vulnerability scan
+        run: npm audit --audit-level=high
+
       - name: Lint — ESLint
         run: npm run lint
 

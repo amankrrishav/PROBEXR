@@ -4,7 +4,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, status
 from sqlmodel import col, func, select
 
-from app.deps import DbSession, OptionalVerifiedUser, VerifiedUser
+from app.deps import DbSession, OptionalUsageLimitedUser, VerifiedUser
 from app.models.chat import ChatMessage, ChatSession
 from app.models.document import Document
 from app.schemas.requests import ChatRequest
@@ -130,7 +130,7 @@ async def list_session_messages(
 @router.post("/")
 async def chat_endpoint(
     request: ChatRequest,
-    user: OptionalVerifiedUser,
+    user: OptionalUsageLimitedUser,
     session: DbSession,
 ) -> ChatReply:
     if not user or user.id is None:

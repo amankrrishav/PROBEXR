@@ -2,7 +2,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
-from app.deps import DbSession, OptionalVerifiedUser
+from app.deps import DbSession, OptionalUsageLimitedUser
 from app.schemas import TextRequest
 from app.services.summarizer import process_summarize
 
@@ -12,7 +12,7 @@ router = APIRouter(prefix="", tags=["summarize"])
 @router.post("/summarize")
 async def summarize_endpoint(
     request: TextRequest,
-    user: OptionalVerifiedUser,
+    user: OptionalUsageLimitedUser,
     session: DbSession,
 ) -> dict[str, Any]:
     try:

@@ -2,7 +2,7 @@ import logging
 
 from fastapi import APIRouter, HTTPException, status
 
-from app.deps import DbSession, OptionalVerifiedUser
+from app.deps import DbSession, OptionalUsageLimitedUser
 from app.models.synthesis import Synthesis
 from app.schemas.requests import SynthesisRequest
 from app.services.synthesis import synthesize_documents
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/synthesis", tags=["synthesis"])
 
 
 @router.post("/", response_model=Synthesis)
-async def create_synthesis(request: SynthesisRequest, user: OptionalVerifiedUser, session: DbSession) -> Synthesis:
+async def create_synthesis(request: SynthesisRequest, user: OptionalUsageLimitedUser, session: DbSession) -> Synthesis:
     if not user or user.id is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required for synthesis")
 

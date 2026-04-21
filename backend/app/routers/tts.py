@@ -3,7 +3,7 @@ import logging
 from fastapi import APIRouter, HTTPException, status
 
 from app.config import get_config
-from app.deps import DbSession, OptionalVerifiedUser
+from app.deps import DbSession, OptionalUsageLimitedUser
 from app.models.tts import AudioSummary
 from app.schemas.requests import TTSRequest
 
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/tts", tags=["tts"])
 @router.post("/", response_model=AudioSummary)
 async def create_tts(
     request: TTSRequest,
-    user: OptionalVerifiedUser,
+    user: OptionalUsageLimitedUser,
     session: DbSession,
 ) -> AudioSummary:
     """Generate an audio summary for a document.

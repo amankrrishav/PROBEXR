@@ -46,6 +46,7 @@ from app.routers import (
     synthesis,
     tts,
 )
+from app.services.cache import set_cache_redis
 from app.services.token_gc import start_token_gc, stop_token_gc
 
 logger = logging.getLogger(__name__)
@@ -121,6 +122,7 @@ async def lifespan(app_inst: FastAPI) -> AsyncGenerator[None, None]:
                 window_seconds=cfg.lockout_window_seconds,
             )
         )
+        set_cache_redis(redis_client)
         logger.info("Redis connected: %s", cfg.redis_url.split("@")[-1] if "@" in cfg.redis_url else cfg.redis_url)
     except Exception as e:
         if cfg.environment == "production":
