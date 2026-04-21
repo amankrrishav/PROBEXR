@@ -57,6 +57,22 @@ async def lifespan(app_inst: FastAPI) -> AsyncGenerator[None, None]:
     setup_logging()
     cfg = get_config()
 
+    # --- Sentry error tracking ---
+    if cfg.sentry_dsn:
+        try:
+            import sentry_sdk
+
+            sentry_sdk.init(
+                dsn=cfg.sentry_dsn,
+                environment=cfg.environment,
+                release=cfg.app_version,
+                traces_sample_rate=0.1,  # 10% of requests for performance monitoring
+                send_default_pii=False,  # Never send PII to Sentry
+            )
+            logger.info("Sentry initialized: env=%s", cfg.environment)
+        except Exception as e:
+            logger.warning("Sentry initialization failed: %s", e)
+
     # --- Startup assertions ---
     # 1. SECRET_KEY must not be default in production
     if cfg.environment == "production" and cfg.SECRET_KEY == "dev-secret-change-this":

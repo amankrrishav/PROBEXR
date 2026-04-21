@@ -37,3 +37,4 @@ PyYAML>=6.0.0
 # ── Observability ──
 prometheus-client>=0.20.0
 greenlet>=3.0.0
+sentry-sdk[fastapi]>=2.0.0

@@ -102,6 +102,12 @@ class AppConfig(BaseSettings):
     # ── Feature flags ──────────────────────────────────────────────
     tts_enabled: bool = False  # Set TTS_ENABLED=true to activate (requires provider keys)
 
+    # ── Sentry (Error Tracking) ─────────────────────────────────
+    sentry_dsn: str | None = None  # Set SENTRY_DSN to enable production error tracking
+
+    # ── CSP Reporting ───────────────────────────────────────────
+    csp_report_uri: str | None = None  # Set CSP_REPORT_URI to receive violation reports
+
     # ── Redis ────────────────────────────────────────────────────
     redis_url: str = "redis://localhost:6379/0"
 

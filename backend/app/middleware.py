@@ -499,19 +499,27 @@ class CSRFMiddleware(BaseHTTPMiddleware):
 #   form-action 'self'          — restrict form submissions to same origin
 # ---------------------------------------------------------------------------
 
-_CSP_POLICY = "; ".join(
-    [
-        "default-src 'self'",
-        "script-src 'self'",
-        "style-src 'self' 'unsafe-inline'",
-        "img-src 'self' data: https:",
-        "font-src 'self' https:",
-        "connect-src 'self' https:",
-        "frame-ancestors 'none'",
-        "base-uri 'self'",
-        "form-action 'self'",
-    ]
-)
+_CSP_DIRECTIVES = [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: https:",
+    "font-src 'self' https:",
+    "connect-src 'self' https:",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+]
+
+
+def _build_csp_policy() -> str:
+    """Build CSP header, appending report-uri if configured."""
+    cfg = get_config()
+    directives = list(_CSP_DIRECTIVES)
+    if cfg.csp_report_uri:
+        directives.append(f"report-uri {cfg.csp_report_uri}")
+        directives.append(f"report-to csp-endpoint")
+    return "; ".join(directives)
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -523,13 +531,20 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
         response = await call_next(request)
-        response.headers["Content-Security-Policy"] = _CSP_POLICY
+        cfg = get_config()
+        response.headers["Content-Security-Policy"] = _build_csp_policy()
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
         # HSTS — only in production to avoid breaking local HTTP dev servers
-        cfg = get_config()
         if cfg.environment == "production":
             response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        # Reporting API endpoint header (for report-to directive)
+        if cfg.csp_report_uri:
+            response.headers["Report-To"] = (
+                '{"group":"csp-endpoint","max_age":86400,'
+                f'"endpoints":[{{"url":"{cfg.csp_report_uri}"}}]}}'
+            )
         return response
+
