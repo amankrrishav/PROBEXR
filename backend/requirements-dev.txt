@@ -33,11 +33,19 @@ cffi==2.0.0
     # via argon2-cffi-bindings
 click==8.3.1
     # via uvicorn
+coverage[toml]==7.13.5
+    # via pytest-cov
 dnspython==2.8.0
     # via email-validator
 email-validator==2.3.0
     # via -r requirements.in
-fastapi==0.135.1
+fastapi==0.136.0
+    # via -r requirements.in
+greenlet==3.4.0
+    # via
+    #   -r requirements.in
+    #   sqlalchemy
+gunicorn==25.3.0
     # via -r requirements.in
 h11==0.16.0
     # via
@@ -62,17 +70,19 @@ mako==1.3.10
     # via alembic
 markupsafe==3.0.3
     # via mako
-mypy==1.19.1
+mypy==1.20.2
     # via -r requirements-dev.in
 mypy-extensions==1.1.0
     # via mypy
 packaging==26.0
-    # via pytest
+    # via
+    #   gunicorn
+    #   pytest
 pathspec==1.0.4
     # via mypy
 pluggy==1.6.0
     # via pytest
-prometheus-client==0.24.1
+prometheus-client==0.25.0
     # via -r requirements.in
 psycopg[binary]==3.3.3
     # via -r requirements.in
@@ -80,24 +90,25 @@ psycopg-binary==3.3.3
     # via psycopg
 pycparser==3.0
     # via cffi
-pydantic==2.12.5
+pydantic==2.13.3
     # via
     #   -r requirements.in
     #   fastapi
     #   pydantic-settings
     #   sqlmodel
-pydantic-core==2.41.5
+pydantic-core==2.46.3
     # via pydantic
-pydantic-settings==2.13.1
+pydantic-settings==2.14.0
     # via -r requirements.in
 pygments==2.19.2
     # via pytest
 pyjwt==2.12.1
     # via -r requirements.in
-pytest==9.0.2
+pytest==9.0.3
     # via
     #   -r requirements-dev.in
     #   pytest-asyncio
+    #   pytest-cov
 pytest-asyncio==1.3.0
     # via -r requirements-dev.in
 pytest-cov==6.1.1
@@ -107,41 +118,46 @@ python-dotenv==1.2.2
     #   -r requirements.in
     #   pydantic-settings
     #   uvicorn
-python-json-logger==4.0.0
+python-json-logger==4.1.0
     # via -r requirements.in
 pyyaml==6.0.3
     # via
     #   -r requirements.in
     #   uvicorn
-redis==7.3.0
+redis==7.4.0
     # via -r requirements.in
 soupsieve==2.8.3
     # via beautifulsoup4
-sqlalchemy==2.0.48
+sqlalchemy==2.0.49
     # via
     #   -r requirements.in
     #   alembic
     #   sqlmodel
-sqlmodel==0.0.37
+sqlmodel==0.0.38
     # via -r requirements.in
 starlette==0.52.1
     # via fastapi
 typing-extensions==4.15.0
     # via
     #   alembic
+    #   anyio
     #   beautifulsoup4
     #   fastapi
     #   mypy
+    #   psycopg
     #   pydantic
     #   pydantic-core
+    #   pytest-asyncio
     #   sqlalchemy
+    #   sqlmodel
+    #   starlette
     #   typing-inspection
 typing-inspection==0.4.2
     # via
     #   fastapi
     #   pydantic
     #   pydantic-settings
-uvicorn[standard]==0.41.0
+uvicorn[standard]==0.45.0
     # via -r requirements.in
 uvloop==0.22.1
     # via uvicorn
