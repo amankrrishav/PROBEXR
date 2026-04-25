@@ -8,6 +8,7 @@ signed JWT → verify it → get back a valid session.
 We also test bad tokens, expired-ish tokens, wrong token type, and
 one-time use enforcement (second use of the same token returns 401).
 """
+
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -37,12 +38,11 @@ def _make_jwt(sub: str, type_: str = "magic_link", exp_delta_minutes: int = 15) 
 # /auth/magic-link  (request)
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_magic_link_request_returns_200(client: AsyncClient):
     """POST /auth/magic-link always returns 200 (even if email not registered)."""
-    res = await client.post(
-        "/auth/magic-link", json={"email": "newuser@example.com"}
-    )
+    res = await client.post("/auth/magic-link", json={"email": "newuser@example.com"})
     assert res.status_code == 200
     data = res.json()
     assert "message" in data
@@ -67,6 +67,7 @@ async def test_magic_link_request_missing_body(client: AsyncClient):
 # ─────────────────────────────────────────────────────────────────────────────
 # /auth/verify  (verification)
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_magic_link_verify_creates_user_and_returns_tokens(client: AsyncClient):

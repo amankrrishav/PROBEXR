@@ -1,10 +1,12 @@
 """
 Document management tests — list, delete, pagination, auth guards.
 """
+
 import pytest
 from httpx import AsyncClient
 
 # ---- List Documents ----
+
 
 @pytest.mark.asyncio
 async def test_list_documents_empty(authed_client: AsyncClient):
@@ -65,6 +67,7 @@ async def test_list_documents_unauthenticated(client: AsyncClient):
 
 # ---- Delete Document ----
 
+
 @pytest.mark.asyncio
 async def test_delete_document_success(authed_client: AsyncClient, document_id: int):
     res = await authed_client.delete(f"/documents/{document_id}")
@@ -106,16 +109,19 @@ async def test_delete_document_wrong_user(client: AsyncClient, document_id: int)
     del_res = await client.delete(f"/documents/{document_id}")
     assert del_res.status_code == 404  # appears as not found for wrong user
 
+
 # ---------------------------------------------------------------------------
 # N-12: Document.url field has max_length=2048
 # ---------------------------------------------------------------------------
 
+
 def test_document_url_has_max_length():
     """Document.url must define max_length to prevent unbounded storage."""
     from pathlib import Path
-    src = Path('app/models/document.py').read_text()
-    url_lines = [l for l in src.split('\n') if 'url' in l and 'Field' in l]
+
+    src = Path("app/models/document.py").read_text()
+    url_lines = [l for l in src.split("\n") if "url" in l and "Field" in l]
     assert url_lines, "Document must have a url field with Field()"
-    assert any('max_length' in l for l in url_lines), (
+    assert any("max_length" in l for l in url_lines), (
         f"Document.url must have max_length constraint. Found: {url_lines}"
     )

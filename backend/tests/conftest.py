@@ -6,6 +6,7 @@ Provides:
   - client: async FastAPI test client
   - registered_user: a pre-registered AND email-verified user with token
 """
+
 import asyncio
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime, timedelta
@@ -28,10 +29,13 @@ from app.services.auth import create_email_verification_token
 
 # ---- Disable rate limiting in tests ----
 
+
 class _NoOpRateLimiter:
     """Rate limiter that always allows — prevents 429s in tests."""
+
     async def check_and_increment(self, key: str, limit: int) -> tuple[bool, int]:
         return True, 0
+
 
 set_rate_limiter(_NoOpRateLimiter())
 
@@ -54,9 +58,7 @@ _test_engine = create_async_engine(
     poolclass=StaticPool,
 )
 
-_TestSessionLocal = async_sessionmaker(
-    _test_engine, class_=AsyncSession, expire_on_commit=False
-)
+_TestSessionLocal = async_sessionmaker(_test_engine, class_=AsyncSession, expire_on_commit=False)
 
 
 async def _override_get_session() -> AsyncGenerator[AsyncSession, None]:
@@ -66,12 +68,12 @@ async def _override_get_session() -> AsyncGenerator[AsyncSession, None]:
 
 fastapi_app.dependency_overrides[get_session] = _override_get_session
 
+
 @pytest.fixture(scope="session")
 def event_loop():  # type: ignore[override]
     loop = asyncio.new_event_loop()
     yield loop
     loop.close()
-
 
 
 @pytest_asyncio.fixture(autouse=True)

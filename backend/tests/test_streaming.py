@@ -2,6 +2,7 @@
 Streaming endpoint tests — summarize/stream and chat/stream SSE endpoints.
 Tests auth guards, validation, and SSE protocol for the extractive path (no LLM key needed).
 """
+
 import contextlib
 import json
 
@@ -22,6 +23,7 @@ SAMPLE_TEXT = (
 
 
 # ---- POST /summarize/stream ----
+
 
 @pytest.mark.asyncio
 async def test_summarize_stream_extractive(client: AsyncClient):
@@ -111,6 +113,7 @@ async def test_summarize_stream_takeaways_event(client: AsyncClient):
 
 
 # ---- POST /chat/stream ----
+
 
 @pytest.mark.asyncio
 async def test_chat_stream_unauthenticated(client: AsyncClient):

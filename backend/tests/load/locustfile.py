@@ -13,7 +13,6 @@ Then open http://localhost:8089 to control the test.
 
 from locust import HttpUser, between, task
 
-
 SAMPLE_TEXT = (
     "Artificial intelligence has transformed the technology landscape dramatically. "
     "Machine learning algorithms now power recommendation systems, natural language "

@@ -223,7 +223,10 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
             }
             return JSONResponse(
                 status_code=429,
-                content={"detail": "Too many requests. Please slow down and try again later.", "code": ErrorCode.RATE_LIMITED},
+                content={
+                    "detail": "Too many requests. Please slow down and try again later.",
+                    "code": ErrorCode.RATE_LIMITED,
+                },
                 headers=rl_headers,
             )
 
@@ -518,7 +521,7 @@ def _build_csp_policy() -> str:
     directives = list(_CSP_DIRECTIVES)
     if cfg.csp_report_uri:
         directives.append(f"report-uri {cfg.csp_report_uri}")
-        directives.append(f"report-to csp-endpoint")
+        directives.append("report-to csp-endpoint")
     return "; ".join(directives)
 
 
@@ -543,8 +546,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Reporting API endpoint header (for report-to directive)
         if cfg.csp_report_uri:
             response.headers["Report-To"] = (
-                '{"group":"csp-endpoint","max_age":86400,'
-                f'"endpoints":[{{"url":"{cfg.csp_report_uri}"}}]}}'
+                f'{{"group":"csp-endpoint","max_age":86400,"endpoints":[{{"url":"{cfg.csp_report_uri}"}}]}}'
             )
         return response
-

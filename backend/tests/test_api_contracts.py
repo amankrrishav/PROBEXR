@@ -17,15 +17,14 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlmodel import SQLModel
 
-from app.config import get_config
 from app.db import get_session
 from app.main import app
 from app.models import *  # noqa: F401,F403 — ensure all models are registered
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest_asyncio.fixture(scope="module")
 async def engine():
@@ -66,6 +65,7 @@ async def client(session) -> AsyncGenerator[AsyncClient, None]:
 # Health endpoint contracts
 # ---------------------------------------------------------------------------
 
+
 class TestHealthContracts:
     """Health endpoints return the exact shape the frontend dashboard expects."""
 
@@ -91,6 +91,7 @@ class TestHealthContracts:
 # ---------------------------------------------------------------------------
 # Auth endpoint contracts
 # ---------------------------------------------------------------------------
+
 
 class TestAuthContracts:
     """Auth endpoints return fields the frontend auth context expects."""
@@ -124,6 +125,7 @@ class TestAuthContracts:
 # Summarize endpoint contracts
 # ---------------------------------------------------------------------------
 
+
 class TestSummarizeContracts:
     """Summarize responses must include the fields the frontend renders."""
 
@@ -139,6 +141,7 @@ class TestSummarizeContracts:
 # ---------------------------------------------------------------------------
 # TTS status contract
 # ---------------------------------------------------------------------------
+
 
 class TestTTSContracts:
     """TTS status endpoint shape must match the frontend feature-flag check."""
@@ -158,6 +161,7 @@ class TestTTSContracts:
 # Metrics endpoint contract
 # ---------------------------------------------------------------------------
 
+
 class TestMetricsContracts:
     """Prometheus /metrics endpoint must return text/plain."""
 
@@ -172,6 +176,7 @@ class TestMetricsContracts:
 # Error shape contract
 # ---------------------------------------------------------------------------
 
+
 class TestErrorContracts:
     """All error responses must follow the {detail: str} shape."""
 
@@ -181,4 +186,3 @@ class TestErrorContracts:
         assert r.status_code == 404
         data = r.json()
         assert "detail" in data
-

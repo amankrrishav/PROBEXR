@@ -43,4 +43,3 @@ class User(SQLModel, table=True):
     usage_reset_at: datetime | None = None
 
     documents: list["Document"] = Relationship(back_populates="user", cascade_delete=True)
-

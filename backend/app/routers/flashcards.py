@@ -77,7 +77,9 @@ async def list_flashcard_sets(
 
 
 @router.post("/", response_model=FlashcardSet)
-async def create_flashcards(request: FlashcardRequest, user: OptionalUsageLimitedUser, session: DbSession) -> FlashcardSet:
+async def create_flashcards(
+    request: FlashcardRequest, user: OptionalUsageLimitedUser, session: DbSession
+) -> FlashcardSet:
     if not user or user.id is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required for flashcards")
 

@@ -20,6 +20,7 @@ What we verify:
   9. Every response sets a csrf_token cookie that is readable by JS (not httponly)
  10. csrf_token cookie is refreshed on GET responses too
 """
+
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
@@ -30,6 +31,7 @@ from app.middleware import CSRF_COOKIE_NAME, CSRF_HEADER_NAME
 # ---------------------------------------------------------------------------
 # Fixtures: clients with different CSRF setups
 # ---------------------------------------------------------------------------
+
 
 @pytest_asyncio.fixture
 async def csrf_client():
@@ -97,6 +99,7 @@ async def csrf_valid_client():
 # 1. POST blocked — no cookie, no header
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_csrf_post_no_token_blocked(csrf_client: AsyncClient):
     """POST with no CSRF cookie or header is blocked with 403."""
@@ -123,6 +126,7 @@ async def test_csrf_post_no_token_message_says_missing(csrf_client: AsyncClient)
 # 2. POST blocked — cookie only, no header
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_csrf_post_cookie_only_blocked(csrf_cookie_only_client: AsyncClient):
     """POST with csrf_token cookie but no X-CSRF-Token header is blocked."""
@@ -138,6 +142,7 @@ async def test_csrf_post_cookie_only_blocked(csrf_cookie_only_client: AsyncClien
 # 3. POST blocked — header only, no cookie
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_csrf_post_header_only_blocked(csrf_header_only_client: AsyncClient):
     """POST with X-CSRF-Token header but no csrf_token cookie is blocked."""
@@ -152,6 +157,7 @@ async def test_csrf_post_header_only_blocked(csrf_header_only_client: AsyncClien
 # ---------------------------------------------------------------------------
 # 4. POST blocked — cookie/header mismatch
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_csrf_post_mismatch_blocked(csrf_mismatch_client: AsyncClient):
@@ -187,6 +193,7 @@ async def test_csrf_delete_mismatch_blocked(csrf_mismatch_client: AsyncClient):
 # 5. POST passes CSRF with valid matching pair (route handles it from there)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_csrf_post_valid_pair_not_blocked(csrf_valid_client: AsyncClient):
     """Valid matching cookie+header passes CSRF — route returns 401 (not 403)."""
@@ -215,6 +222,7 @@ async def test_csrf_post_valid_pair_register_not_blocked(csrf_valid_client: Asyn
 # 6. GET is always allowed — no CSRF check
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_csrf_get_never_blocked(csrf_client: AsyncClient):
     """GET without any CSRF tokens is never blocked by CSRF middleware."""
@@ -234,6 +242,7 @@ async def test_csrf_get_auth_me_not_csrf_blocked(csrf_client: AsyncClient):
 # 7. OPTIONS is always allowed
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_csrf_options_never_blocked(csrf_client: AsyncClient):
     """OPTIONS (preflight) is always safe — never CSRF-blocked."""
@@ -245,6 +254,7 @@ async def test_csrf_options_never_blocked(csrf_client: AsyncClient):
 # ---------------------------------------------------------------------------
 # 8. Exempt paths bypass CSRF check
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_csrf_exempt_google_callback(csrf_client: AsyncClient):
@@ -273,6 +283,7 @@ async def test_csrf_exempt_github_callback(csrf_client: AsyncClient):
 # 9 & 10. Every response sets csrf_token cookie — readable by JS (not httponly)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_csrf_cookie_set_on_get_response(csrf_client: AsyncClient):
     """Every GET response sets a csrf_token cookie."""
@@ -298,12 +309,12 @@ async def test_csrf_cookie_not_httponly(csrf_client: AsyncClient):
     res = await csrf_client.get("/")
     assert CSRF_COOKIE_NAME in res.cookies
     # httpx exposes Set-Cookie headers — check that HttpOnly is absent
-    set_cookie_headers = res.headers.get_list("set-cookie") if hasattr(res.headers, "get_list") else [
-        v for k, v in res.headers.items() if k.lower() == "set-cookie"
-    ]
-    csrf_cookie_header = next(
-        (h for h in set_cookie_headers if CSRF_COOKIE_NAME in h), None
+    set_cookie_headers = (
+        res.headers.get_list("set-cookie")
+        if hasattr(res.headers, "get_list")
+        else [v for k, v in res.headers.items() if k.lower() == "set-cookie"]
     )
+    csrf_cookie_header = next((h for h in set_cookie_headers if CSRF_COOKIE_NAME in h), None)
     assert csrf_cookie_header is not None, "csrf_token Set-Cookie header not found"
     assert "httponly" not in csrf_cookie_header.lower(), (
         "csrf_token must NOT be HttpOnly — JS needs to read it for dual-submit"

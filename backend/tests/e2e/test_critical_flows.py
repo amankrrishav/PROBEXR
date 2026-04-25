@@ -85,8 +85,7 @@ class TestCriticalFlows:
         textarea.fill(
             "Artificial intelligence has transformed the technology landscape. "
             "Machine learning algorithms now power recommendation systems, "
-            "natural language processing, and computer vision applications. "
-            * 5
+            "natural language processing, and computer vision applications. " * 5
         )
 
         # Click summarize button

@@ -19,6 +19,7 @@ What we verify:
   7. Lockout is per-email — other accounts are unaffected
   8. Counter resets after the window expires
 """
+
 import asyncio
 
 import pytest
@@ -34,7 +35,7 @@ from app.main import app as fastapi_app
 from app.middleware import CSRF_COOKIE_NAME, CSRF_HEADER_NAME
 
 _TEST_CSRF_TOKEN = "test-csrf-token-for-testing"
-_MAX_ATTEMPTS = 3   # Use 3 in tests so we don't need to repeat 5 requests everywhere
+_MAX_ATTEMPTS = 3  # Use 3 in tests so we don't need to repeat 5 requests everywhere
 _WINDOW = 900
 
 
@@ -67,6 +68,7 @@ async def lockout_client(registered_user):
 # 1. Normal login succeeds before any failures
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_lockout_normal_login_succeeds(lockout_client):
     c, store, user = lockout_client
@@ -83,6 +85,7 @@ async def test_lockout_normal_login_succeeds(lockout_client):
 # ---------------------------------------------------------------------------
 # 2. Failed attempts return 401 and counter increments
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_lockout_wrong_password_increments_counter(lockout_client):
@@ -118,6 +121,7 @@ async def test_lockout_multiple_failures_before_threshold(lockout_client):
 # 3. After max_attempts, account is locked
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_lockout_triggers_after_max_attempts(lockout_client):
     c, store, user = lockout_client
@@ -146,6 +150,7 @@ async def test_lockout_triggers_after_max_attempts(lockout_client):
 # 4. Correct password rejected while account is locked
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_lockout_correct_password_rejected_while_locked(lockout_client):
     c, store, user = lockout_client
@@ -171,6 +176,7 @@ async def test_lockout_correct_password_rejected_while_locked(lockout_client):
 # ---------------------------------------------------------------------------
 # 5. Successful login resets the counter
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_lockout_success_resets_counter(lockout_client):
@@ -204,6 +210,7 @@ async def test_lockout_success_resets_counter(lockout_client):
 # 6. Non-existent email failures also increment (timing consistency)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_lockout_nonexistent_email_increments(lockout_client):
     c, store, user = lockout_client
@@ -229,6 +236,7 @@ async def test_lockout_nonexistent_email_increments(lockout_client):
 # 7. Lockout is per-email — other accounts are unaffected
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_lockout_is_per_email(lockout_client):
     c, store, user = lockout_client
@@ -248,6 +256,7 @@ async def test_lockout_is_per_email(lockout_client):
 # ---------------------------------------------------------------------------
 # 8. Window expiry resets the counter
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_lockout_window_expiry_resets_counter():

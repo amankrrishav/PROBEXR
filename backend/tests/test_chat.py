@@ -6,10 +6,12 @@ Chat requires a document for context, so tests use the document_id fixture.
 Note: The actual LLM call will fail in tests (no API key) so we test
 that the service-layer error is handled gracefully, plus auth/validation guards.
 """
+
 import pytest
 from httpx import AsyncClient
 
 # ---- POST /api/chat/ ----
+
 
 @pytest.mark.asyncio
 async def test_chat_unauthenticated(client: AsyncClient):
@@ -53,6 +55,7 @@ async def test_chat_invalid_session_id(authed_client: AsyncClient, document_id: 
 
 # ---- GET /api/chat/sessions ----
 
+
 @pytest.mark.asyncio
 async def test_list_chat_sessions_empty(authed_client: AsyncClient):
     """New user has no chat sessions."""
@@ -71,6 +74,7 @@ async def test_list_chat_sessions_unauthenticated(client: AsyncClient):
 
 # ---- GET /api/chat/sessions/{id}/messages ----
 
+
 @pytest.mark.asyncio
 async def test_list_session_messages_not_found(authed_client: AsyncClient):
     """Non-existent session returns 404."""
@@ -88,37 +92,37 @@ async def test_list_session_messages_unauthenticated(client: AsyncClient):
 # N-11: assert session_id is not None replaced with proper ValueError guard
 # ---------------------------------------------------------------------------
 
+
 def test_prepare_chat_context_uses_value_error_not_assert():
     """prepare_chat_context must raise ValueError, not assert, for missing session_id."""
     import inspect
 
     from app.services import chat
+
     src = inspect.getsource(chat.prepare_chat_context)
-    assert 'assert session_id' not in src, (
+    assert "assert session_id" not in src, (
         "assert session_id is not None must be replaced with an explicit ValueError guard"
     )
-    assert 'session_id is None' in src, (
-        "prepare_chat_context must have an explicit session_id is None check"
-    )
+    assert "session_id is None" in src, "prepare_chat_context must have an explicit session_id is None check"
 
 
 # ---------------------------------------------------------------------------
 # N-07: list_chat_sessions uses a single aggregated query (no N+1)
 # ---------------------------------------------------------------------------
 
+
 def test_list_chat_sessions_no_loop_query():
     """list_chat_sessions must not execute a DB query per session in a loop."""
     import inspect
 
     from app.routers import chat as chat_router
+
     src = inspect.getsource(chat_router.list_chat_sessions)
     # The old N+1 pattern: for s in sessions_list: await session.execute(...)
     # New pattern uses outerjoin + GROUP BY in a single query
-    assert 'outerjoin' in src, (
-        "list_chat_sessions must use outerjoin to avoid N+1 queries"
-    )
+    assert "outerjoin" in src, "list_chat_sessions must use outerjoin to avoid N+1 queries"
     # Must NOT contain a per-row execute inside the loop
-    assert 'for s in sessions_list' not in src, (
+    assert "for s in sessions_list" not in src, (
         "list_chat_sessions must not loop over sessions and query each one individually"
     )
 
@@ -127,12 +131,14 @@ def test_list_chat_sessions_no_loop_query():
 # N-13: ChatMessage.content field has max_length
 # ---------------------------------------------------------------------------
 
+
 def test_chat_message_content_has_max_length():
     """ChatMessage.content must define max_length to cap stored message size."""
     from pathlib import Path
-    src = Path('app/models/chat.py').read_text()
-    content_lines = [l for l in src.split('\n') if 'content' in l and 'Field' in l]
+
+    src = Path("app/models/chat.py").read_text()
+    content_lines = [l for l in src.split("\n") if "content" in l and "Field" in l]
     assert content_lines, "ChatMessage must have a content field with Field()"
-    assert any('max_length' in l for l in content_lines), (
+    assert any("max_length" in l for l in content_lines), (
         f"ChatMessage.content must have max_length constraint. Found: {content_lines}"
     )

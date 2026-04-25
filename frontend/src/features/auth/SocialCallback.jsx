@@ -48,10 +48,38 @@ export default function SocialCallback({ provider, onResult }) {
     exchangeCode();
   }, [provider, auth, onResult]);
 
+  const isError = status.startsWith("Error");
+
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-white dark:bg-[#0a0a0a]">
-      <div className="h-8 w-8 animate-spin rounded-full border-2 border-black border-t-transparent dark:border-white" />
-      <p className="mt-4 text-sm font-medium">{status}</p>
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 200,
+      display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center",
+      background: "var(--bg-base)",
+    }}>
+      {!isError && (
+        <div style={{
+          width: 32, height: 32,
+          border: "2px solid var(--border-dim)",
+          borderTopColor: "var(--amber)",
+          borderRadius: "50%",
+          animation: "spin 600ms linear infinite",
+        }} />
+      )}
+      {isError && (
+        <div style={{
+          width: 40, height: 40, borderRadius: "50%",
+          background: "rgba(224,92,92,0.1)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 18,
+        }}>⚠</div>
+      )}
+      <p className="font-body" style={{
+        marginTop: 16, fontSize: 14, fontWeight: 500,
+        color: isError ? "var(--rose)" : "var(--ink-primary)",
+      }}>
+        {status}
+      </p>
     </div>
   );
 }

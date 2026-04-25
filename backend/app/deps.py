@@ -62,4 +62,3 @@ from app.rbac import enforce_optional_usage_limit, enforce_usage_limit  # noqa: 
 
 UsageLimitedUser = Annotated[User, Depends(enforce_usage_limit)]
 OptionalUsageLimitedUser = Annotated[User | None, Depends(enforce_optional_usage_limit)]
-

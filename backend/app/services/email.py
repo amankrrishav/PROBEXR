@@ -8,9 +8,7 @@ from app.config import get_config
 logger = logging.getLogger(__name__)
 
 
-async def _record_failed_email(
-    to_email: str, subject: str, template: str, error: str
-) -> None:
+async def _record_failed_email(to_email: str, subject: str, template: str, error: str) -> None:
     """Persist a failed email to the dead-letter table for later retry/review."""
     try:
         from app.db import get_session_factory
@@ -59,7 +57,6 @@ def send_email_background(
             await _record_failed_email(to_email, subject, template, str(exc))
 
     fire_and_forget(_wrapper(), name=f"email:{template}:{to_email}")
-
 
 
 async def send_account_exists_email(to_email: str, login_link: str) -> None:

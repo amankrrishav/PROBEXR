@@ -18,6 +18,7 @@ What we verify
    (no cookie present at that point anyway).
 5. 429 response includes the correct rate-limit headers.
 """
+
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
@@ -29,6 +30,7 @@ from app.services.auth import create_access_token
 # Fixture: real rate limiter scoped to this module, restored after
 # ---------------------------------------------------------------------------
 
+
 @pytest_asyncio.fixture
 async def real_limiter():
     """Swap in a fresh InMemoryRateLimiter for the duration of the test."""
@@ -37,6 +39,7 @@ async def real_limiter():
     yield limiter
     # Restore no-op so other tests are unaffected
     from tests.conftest import _NoOpRateLimiter  # type: ignore
+
     set_rate_limiter(_NoOpRateLimiter())
 
 
@@ -49,16 +52,19 @@ def _make_token(email: str) -> str:
 # 1. IP-based limiting
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_ip_rate_limit_blocks_after_limit(client: AsyncClient, real_limiter: InMemoryRateLimiter):
     """After exhausting the general IP limit, further requests get 429."""
     # Drive the limiter to the edge by direct manipulation
     from app.config import get_config
+
     cfg = get_config()
     limit = cfg.rate_limit_per_minute
 
     # Exhaust the IP counter directly
     import time
+
     minute = int(time.time() // 60)
     key = f"rl:127.0.0.1:general:{minute}"
     for _ in range(limit):
@@ -86,6 +92,7 @@ async def test_429_includes_retry_after(client: AsyncClient, real_limiter: InMem
     import time
 
     from app.config import get_config
+
     cfg = get_config()
     limit = cfg.rate_limit_per_minute
     minute = int(time.time() // 60)
@@ -103,6 +110,7 @@ async def test_429_includes_retry_after(client: AsyncClient, real_limiter: InMem
 # 2. Per-user limiting
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_per_user_limit_blocks_after_limit(client: AsyncClient, real_limiter: InMemoryRateLimiter):
     """A user who exhausts their per-user counter gets 429 even if IP is clean."""
@@ -110,6 +118,7 @@ async def test_per_user_limit_blocks_after_limit(client: AsyncClient, real_limit
     import time
 
     from app.config import get_config
+
     cfg = get_config()
     limit = cfg.rate_limit_per_minute
     email = "heavyuser@example.com"
@@ -129,14 +138,13 @@ async def test_per_user_limit_blocks_after_limit(client: AsyncClient, real_limit
 
 
 @pytest.mark.asyncio
-async def test_per_user_limit_independent_of_other_users(
-    client: AsyncClient, real_limiter: InMemoryRateLimiter
-):
+async def test_per_user_limit_independent_of_other_users(client: AsyncClient, real_limiter: InMemoryRateLimiter):
     """Exhausting user A's quota does NOT affect user B on the same IP."""
     import hashlib
     import time
 
     from app.config import get_config
+
     cfg = get_config()
     limit = cfg.rate_limit_per_minute
 
@@ -173,10 +181,9 @@ async def test_unauthenticated_request_not_blocked_by_user_check(
 # 3. Auth routes exempt from per-user JWT check
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
-async def test_auth_routes_exempt_from_per_user_check(
-    client: AsyncClient, real_limiter: InMemoryRateLimiter
-):
+async def test_auth_routes_exempt_from_per_user_check(client: AsyncClient, real_limiter: InMemoryRateLimiter):
     """
     Auth routes must NOT apply the per-user JWT check.
     Even if a token is somehow present, the check is skipped for
@@ -184,6 +191,7 @@ async def test_auth_routes_exempt_from_per_user_check(
     """
 
     from app.config import get_config
+
     cfg = get_config()
     _ = cfg.rate_limit_auth_per_minute  # verify config field exists
 
@@ -201,30 +209,35 @@ async def test_auth_routes_exempt_from_per_user_check(
     # 401 (wrong creds) is fine — what matters is NOT 429 from the user check
     assert res.status_code != 429 or res.json().get("detail", "").startswith("Too many requests for")
 
+
 # ---------------------------------------------------------------------------
 # N-02: forgot-password + resend-verification included in rate-limited paths
 # ---------------------------------------------------------------------------
 
+
 def test_forgot_password_is_rate_limited_path():
     """forgot-password must be in _AUTH_RATE_LIMITED_PATHS."""
     from app.middleware import _AUTH_RATE_LIMITED_PATHS
+
     assert any("forgot-password" in p for p in _AUTH_RATE_LIMITED_PATHS), (
         "/auth/forgot-password must be rate-limited to prevent email spam"
     )
 
+
 def test_resend_verification_is_rate_limited_path():
     """resend-verification must be in _AUTH_RATE_LIMITED_PATHS."""
     from app.middleware import _AUTH_RATE_LIMITED_PATHS
+
     assert any("resend-verification" in p for p in _AUTH_RATE_LIMITED_PATHS), (
         "/auth/resend-verification must be rate-limited to prevent email spam"
     )
 
+
 @pytest.mark.asyncio
-async def test_forgot_password_counted_as_auth_tier(
-    client: AsyncClient, real_limiter: InMemoryRateLimiter
-):
+async def test_forgot_password_counted_as_auth_tier(client: AsyncClient, real_limiter: InMemoryRateLimiter):
     """forgot-password requests must be counted in the auth rate-limit tier."""
     import time
+
     cfg_limit = 5
     minute = int(time.time() // 60)
     ip = "127.0.0.1"
@@ -236,16 +249,14 @@ async def test_forgot_password_counted_as_auth_tier(
         "/auth/forgot-password",
         json={"email": "test@example.com"},
     )
-    assert res.status_code == 429, (
-        "forgot-password must be blocked when auth rate limit is exhausted"
-    )
+    assert res.status_code == 429, "forgot-password must be blocked when auth rate limit is exhausted"
+
 
 @pytest.mark.asyncio
-async def test_resend_verification_counted_as_auth_tier(
-    client: AsyncClient, real_limiter: InMemoryRateLimiter
-):
+async def test_resend_verification_counted_as_auth_tier(client: AsyncClient, real_limiter: InMemoryRateLimiter):
     """resend-verification requests must be counted in the auth rate-limit tier."""
     import time
+
     cfg_limit = 5
     minute = int(time.time() // 60)
     ip = "127.0.0.1"
@@ -256,6 +267,4 @@ async def test_resend_verification_counted_as_auth_tier(
         "/auth/resend-verification",
         json={"email": "test@example.com"},
     )
-    assert res.status_code == 429, (
-        "resend-verification must be blocked when auth rate limit is exhausted"
-    )
+    assert res.status_code == 429, "resend-verification must be blocked when auth rate limit is exhausted"

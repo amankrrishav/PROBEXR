@@ -5,6 +5,7 @@ Verifies that every response carries an X-Request-ID header,
 that client-supplied IDs are echoed back, and that the middleware
 source contains the request_id field in log extras.
 """
+
 import inspect
 
 import pytest
@@ -52,16 +53,14 @@ async def test_different_requests_get_different_ids(client: AsyncClient):
 def test_logging_middleware_includes_request_id_in_log_extra():
     """LoggingMiddleware must include request_id in structured log extras."""
     from app.middleware import LoggingMiddleware
+
     src = inspect.getsource(LoggingMiddleware.dispatch)
-    assert "request_id" in src, (
-        "LoggingMiddleware must include request_id in log extra fields"
-    )
+    assert "request_id" in src, "LoggingMiddleware must include request_id in log extra fields"
 
 
 def test_logging_middleware_reads_client_request_id_header():
     """LoggingMiddleware must read X-Request-ID from incoming request headers."""
     from app.middleware import LoggingMiddleware
+
     src = inspect.getsource(LoggingMiddleware.dispatch)
-    assert "x-request-id" in src.lower(), (
-        "LoggingMiddleware must read the X-Request-ID header from incoming requests"
-    )
+    assert "x-request-id" in src.lower(), "LoggingMiddleware must read the X-Request-ID header from incoming requests"

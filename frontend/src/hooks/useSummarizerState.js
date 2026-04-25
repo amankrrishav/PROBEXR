@@ -74,13 +74,16 @@ export function useSummarizerState() {
   }, [text, hasSummary, summaryText, documentId]);
 
   // ── Loading message rotation ──
+  // Avoid calling setState synchronously in the effect body (react-hooks/set-state-in-effect).
+  // Use a ref for the step counter; the interval callback is the only place that calls setState.
+  const loadingStepRef = useRef(0);
   useEffect(() => {
     if (!loading) return;
-    setLoadingStep(0);
-    let step = 0;
+    loadingStepRef.current = 0;
+    setLoadingStep(loadingStepRef.current);
     const interval = setInterval(() => {
-      step = (step + 1) % LOADING_MESSAGES.length;
-      setLoadingStep(step);
+      loadingStepRef.current = (loadingStepRef.current + 1) % LOADING_MESSAGES.length;
+      setLoadingStep(loadingStepRef.current);
     }, 900);
     return () => clearInterval(interval);
   }, [loading]);

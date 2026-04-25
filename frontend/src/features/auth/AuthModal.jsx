@@ -244,7 +244,7 @@ export default function AuthModal({
             {localSubmitting ? "Sending…" : resendCooldown ? "Link sent — check inbox" : "Resend verification email"}
           </button>
           <p style={{ textAlign: "center", fontSize: 10, color: "var(--ink-tertiary)", marginTop: 12 }}>
-            Check your spam folder if you don't see it.
+            Check your spam folder if you don&apos;t see it.
           </p>
         </div>
       </div>
@@ -260,7 +260,7 @@ export default function AuthModal({
         <div style={S.modal}>
           <button type="button" onClick={onClose} style={S.escBtn}>Esc</button>
           <div style={{ ...S.title, marginBottom: 4 }}>Reset your password</div>
-          <p style={{ ...S.subtitle, marginBottom: 20 }}>Enter your email and we'll send a reset link.</p>
+          <p style={{ ...S.subtitle, marginBottom: 20 }}>Enter your email and we&apos;ll send a reset link.</p>
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: 12 }}>
               <label style={S.label}>Email</label>

@@ -8,6 +8,7 @@ This means tests never hit external APIs.
 The OAuth state CSRF parameter is generated via conftest.make_oauth_state()
 and set as both a cookie and JSON body field to satisfy the validation.
 """
+
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -51,6 +52,7 @@ def _oauth_state_for(provider: str, client: AsyncClient) -> dict:
 # Google OAuth
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_google_callback_creates_new_user(client: AsyncClient):
     """First-time Google login creates a new user and returns tokens."""
@@ -87,6 +89,7 @@ async def test_google_callback_missing_code(client: AsyncClient):
     res = await client.post("/auth/google/callback", json={**extra})
     assert res.status_code == 422
 
+
 @pytest.mark.asyncio
 async def test_github_callback_missing_code_is_422(client: AsyncClient):
     """Callback with no code returns 422 (Pydantic schema rejects missing required field)."""
@@ -94,11 +97,13 @@ async def test_github_callback_missing_code_is_422(client: AsyncClient):
     res = await client.post("/auth/github/callback", json={**extra})
     assert res.status_code == 422
 
+
 @pytest.mark.asyncio
 async def test_google_callback_empty_body_is_422(client: AsyncClient):
     """Completely empty body returns 422."""
     res = await client.post("/auth/google/callback", json={})
     assert res.status_code == 422
+
 
 @pytest.mark.asyncio
 async def test_github_callback_empty_body_is_422(client: AsyncClient):
@@ -138,6 +143,7 @@ async def test_google_login_redirect(client: AsyncClient):
 # ─────────────────────────────────────────────────────────────────────────────
 # GitHub OAuth
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 @pytest.mark.asyncio
 async def test_github_callback_creates_new_user(client: AsyncClient):
@@ -197,6 +203,7 @@ async def test_github_login_redirect(client: AsyncClient):
 # Account Linking — same email, different provider
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.asyncio
 async def test_social_links_to_existing_email_account(client: AsyncClient):
     """Social login with an email that already has an email/password account links them."""
@@ -212,20 +219,21 @@ async def test_social_links_to_existing_email_account(client: AsyncClient):
     assert res.status_code == 200
     assert "access_token" in res.json()
 
+
 # ---------------------------------------------------------------------------
 # N-14: No duplicate get_config() call in OAuth callbacks
 # ---------------------------------------------------------------------------
+
 
 def test_google_callback_no_duplicate_get_config():
     """google_callback must not call get_config() twice."""
     import inspect
 
     from app.routers.auth import google_callback
+
     src = inspect.getsource(google_callback)
-    count = src.count('get_config()')
-    assert count <= 1, (
-        f"google_callback calls get_config() {count} times — should be at most once"
-    )
+    count = src.count("get_config()")
+    assert count <= 1, f"google_callback calls get_config() {count} times — should be at most once"
 
 
 def test_github_callback_no_duplicate_get_config():
@@ -233,23 +241,24 @@ def test_github_callback_no_duplicate_get_config():
     import inspect
 
     from app.routers.auth import github_callback
+
     src = inspect.getsource(github_callback)
-    count = src.count('get_config()')
-    assert count <= 1, (
-        f"github_callback calls get_config() {count} times — should be at most once"
-    )
+    count = src.count("get_config()")
+    assert count <= 1, f"github_callback calls get_config() {count} times — should be at most once"
 
 
 # ---------------------------------------------------------------------------
 # N-15: OAuth state race condition is documented
 # ---------------------------------------------------------------------------
 
+
 def test_oauth_state_race_condition_is_documented():
     """OAuth callbacks must document the known concurrent tab race condition."""
     import inspect
 
     from app.routers import auth as auth_router
+
     src = inspect.getsource(auth_router)
-    assert 'concurrent tab race' in src or 'race' in src.lower(), (
+    assert "concurrent tab race" in src or "race" in src.lower(), (
         "OAuth callbacks must include a comment documenting the known state race condition"
     )

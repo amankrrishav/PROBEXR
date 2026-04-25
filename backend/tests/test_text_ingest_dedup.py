@@ -4,6 +4,7 @@ tests/test_text_ingest_dedup.py — A-08: Text ingest deduplication by content h
 Verifies that submitting identical text twice returns the same document
 rather than creating a duplicate, using SHA-256 content hash as the dedup key.
 """
+
 import pytest
 from httpx import AsyncClient
 
@@ -19,9 +20,7 @@ async def test_dedup_returns_same_document_id(client: AsyncClient, registered_us
 
     assert res1.status_code == 200
     assert res2.status_code == 200
-    assert res1.json()["id"] == res2.json()["id"], (
-        "Duplicate text must return the same document ID"
-    )
+    assert res1.json()["id"] == res2.json()["id"], "Duplicate text must return the same document ID"
 
 
 @pytest.mark.asyncio
@@ -34,9 +33,7 @@ async def test_different_content_creates_new_document(client: AsyncClient, regis
 
     assert res1.status_code == 200
     assert res2.status_code == 200
-    assert res1.json()["id"] != res2.json()["id"], (
-        "Different content must create different documents"
-    )
+    assert res1.json()["id"] != res2.json()["id"], "Different content must create different documents"
 
 
 @pytest.mark.asyncio
@@ -49,11 +46,10 @@ async def test_url_field_contains_content_hash(client: AsyncClient, registered_u
     assert res.status_code == 200
 
     import hashlib
+
     expected_hash = hashlib.sha256(text.strip().encode()).hexdigest()[:16]
     url_field = res.json().get("url", "")
-    assert expected_hash in url_field, (
-        f"Expected hash {expected_hash} in url field, got {url_field}"
-    )
+    assert expected_hash in url_field, f"Expected hash {expected_hash} in url field, got {url_field}"
 
 
 @pytest.mark.asyncio
@@ -67,6 +63,7 @@ async def test_dedup_is_per_user(client: AsyncClient, registered_user: dict):
     from httpx import AsyncClient as _AsyncClient
 
     from app.main import app as _app
+
     async with _AsyncClient(
         transport=_ASGITransport(app=_app),
         base_url="http://test/api/v1",
@@ -86,5 +83,6 @@ async def test_dedup_is_per_user(client: AsyncClient, registered_user: dict):
 
     # Verify the dedup key (content hash) is embedded in the url field
     import hashlib
+
     expected_hash = hashlib.sha256(text.strip().encode()).hexdigest()[:16]
     assert expected_hash in res1.json().get("url", "")

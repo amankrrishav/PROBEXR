@@ -5,6 +5,7 @@ Verifies that register_user raises a typed DuplicateEmailError (not a bare
 ValueError) when the email is already registered, making future callers
 able to catch it specifically.
 """
+
 import pytest
 
 
@@ -42,4 +43,5 @@ def test_duplicate_email_error_stores_email():
 def test_duplicate_email_error_importable_from_service():
     """DuplicateEmailError must be importable from the auth service module."""
     from app.services.auth import DuplicateEmailError
+
     assert DuplicateEmailError is not None

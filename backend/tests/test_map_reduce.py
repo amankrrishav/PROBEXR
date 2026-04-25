@@ -14,6 +14,7 @@ Strategy
 - Assert the final result has the expected structure.
 - Also test _chunk_text directly as a pure unit test.
 """
+
 from unittest.mock import patch
 
 import pytest
@@ -29,6 +30,7 @@ from app.services.summarizer.core import (
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_long_text(word_count: int) -> str:
     """
@@ -59,6 +61,7 @@ assert len(SHORT_TEXT.split()) <= _CHUNK_WORD_LIMIT
 # ---------------------------------------------------------------------------
 # 1. _chunk_text unit tests
 # ---------------------------------------------------------------------------
+
 
 class TestChunkText:
     def test_short_text_single_chunk(self):
@@ -141,9 +144,7 @@ async def test_map_reduce_flow_returns_required_keys():
         return MOCK_TAKEAWAYS
 
     with patch("app.services.llm.chat_completion", side_effect=mock_llm):
-        result = await _map_reduce_flow(
-            LONG_TEXT, target=150, preset=preset, length="standard"
-        )
+        result = await _map_reduce_flow(LONG_TEXT, target=150, preset=preset, length="standard")
 
     assert "summary" in result
     assert "key_takeaways" in result
@@ -174,9 +175,7 @@ async def test_map_reduce_flow_calls_llm_multiple_times():
         return MOCK_TAKEAWAYS
 
     with patch("app.services.llm.chat_completion", side_effect=mock_llm):
-        await _map_reduce_flow(
-            LONG_TEXT, target=150, preset=preset, length="standard"
-        )
+        await _map_reduce_flow(LONG_TEXT, target=150, preset=preset, length="standard")
 
     assert len(llm_calls) >= min_expected_calls, (
         f"Expected at least {min_expected_calls} LLM calls, got {len(llm_calls)}"
@@ -202,18 +201,14 @@ async def test_map_reduce_flow_uses_reduce_prompt_for_final_call():
         return MOCK_TAKEAWAYS
 
     with patch("app.services.llm.chat_completion", side_effect=mock_llm):
-        await _map_reduce_flow(
-            LONG_TEXT, target=150, preset=preset, length="standard"
-        )
+        await _map_reduce_flow(LONG_TEXT, target=150, preset=preset, length="standard")
 
     # The reduce call (index = len(chunks)) should contain multiple chunk summaries
     reduce_call_messages = captured_messages[len(chunks)]
     reduce_user_content = reduce_call_messages[-1]["content"]
     # All chunk summaries should appear in the reduce prompt
     for i in range(1, len(chunks) + 1):
-        assert f"Chunk summary {i}." in reduce_user_content, (
-            f"Chunk summary {i} missing from reduce prompt"
-        )
+        assert f"Chunk summary {i}." in reduce_user_content, f"Chunk summary {i} missing from reduce prompt"
 
 
 @pytest.mark.asyncio
@@ -236,9 +231,7 @@ async def test_map_reduce_takeaway_failure_does_not_crash():
         raise ValueError("Takeaway extraction failed — simulated error")
 
     with patch("app.services.llm.chat_completion", side_effect=mock_llm):
-        result = await _map_reduce_flow(
-            LONG_TEXT, target=150, preset=preset, length="standard"
-        )
+        result = await _map_reduce_flow(LONG_TEXT, target=150, preset=preset, length="standard")
 
     # Should complete successfully with empty takeaways
     assert result["summary"] == MOCK_FINAL_SUMMARY
@@ -248,6 +241,7 @@ async def test_map_reduce_takeaway_failure_does_not_crash():
 # ---------------------------------------------------------------------------
 # 3. Full summarize() path — map-reduce triggered (LLM mocked)
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_summarize_triggers_map_reduce_for_long_text():
@@ -267,10 +261,12 @@ async def test_summarize_triggers_map_reduce_for_long_text():
             return MOCK_FINAL_SUMMARY
         return MOCK_TAKEAWAYS
 
-    with patch("app.services.llm.chat_completion", side_effect=mock_llm), \
-         patch("app.config.AppConfig.has_llm_provider", new_callable=lambda: property(lambda self: True)), \
-         patch("app.services.cache.get_cached_summary", return_value=None), \
-         patch("app.services.cache.set_cached_summary", return_value=None):
+    with (
+        patch("app.services.llm.chat_completion", side_effect=mock_llm),
+        patch("app.config.AppConfig.has_llm_provider", new_callable=lambda: property(lambda self: True)),
+        patch("app.services.cache.get_cached_summary", return_value=None),
+        patch("app.services.cache.set_cached_summary", return_value=None),
+    ):
         result = await summarize(LONG_TEXT, length="standard")
 
     # map + reduce = at least len(chunks) + 1 calls
@@ -294,10 +290,12 @@ async def test_summarize_uses_single_call_for_short_text():
             return MOCK_FINAL_SUMMARY
         return MOCK_TAKEAWAYS
 
-    with patch("app.services.llm.chat_completion", side_effect=mock_llm), \
-         patch("app.config.AppConfig.has_llm_provider", new_callable=lambda: property(lambda self: True)), \
-         patch("app.services.cache.get_cached_summary", return_value=None), \
-         patch("app.services.cache.set_cached_summary", return_value=None):
+    with (
+        patch("app.services.llm.chat_completion", side_effect=mock_llm),
+        patch("app.config.AppConfig.has_llm_provider", new_callable=lambda: property(lambda self: True)),
+        patch("app.services.cache.get_cached_summary", return_value=None),
+        patch("app.services.cache.set_cached_summary", return_value=None),
+    ):
         result = await summarize(SHORT_TEXT, length="standard")
 
     # Single call flow: 1 summary call + 1 takeaway call = 2 max
@@ -320,10 +318,12 @@ async def test_map_reduce_result_has_metadata():
             return MOCK_FINAL_SUMMARY
         return MOCK_TAKEAWAYS
 
-    with patch("app.services.llm.chat_completion", side_effect=mock_llm), \
-         patch("app.config.AppConfig.has_llm_provider", new_callable=lambda: property(lambda self: True)), \
-         patch("app.services.cache.get_cached_summary", return_value=None), \
-         patch("app.services.cache.set_cached_summary", return_value=None):
+    with (
+        patch("app.services.llm.chat_completion", side_effect=mock_llm),
+        patch("app.config.AppConfig.has_llm_provider", new_callable=lambda: property(lambda self: True)),
+        patch("app.services.cache.get_cached_summary", return_value=None),
+        patch("app.services.cache.set_cached_summary", return_value=None),
+    ):
         result = await summarize(LONG_TEXT, length="standard")
 
     assert "original_word_count" in result or "metadata" in result

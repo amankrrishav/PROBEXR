@@ -1,6 +1,7 @@
 """
 Summarization smoke tests — extractive path (no LLM key needed).
 """
+
 import pytest
 from httpx import AsyncClient
 
@@ -87,10 +88,12 @@ async def test_summarize_invalid_length(client: AsyncClient):
 # A-24: SUMMARIZE_MAX_WORDS cap tests
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_summarize_over_max_words_returns_400(client: AsyncClient):
     """Submitting text over summarize_max_words limit returns 400."""
     from app.config import get_config
+
     cfg = get_config()
     # Build a text just over the limit
     over_limit_text = ("word " * (cfg.summarize_max_words + 1)).strip()
@@ -105,6 +108,7 @@ async def test_summarize_over_max_words_returns_400(client: AsyncClient):
 async def test_summarize_at_max_words_passes(client: AsyncClient):
     """Submitting text exactly at the limit is allowed."""
     from app.config import get_config
+
     cfg = get_config()
     at_limit_text = ("word " * cfg.summarize_max_words).strip()
     res = await client.post("/summarize", json={"text": at_limit_text})
@@ -119,6 +123,7 @@ async def test_summarize_at_max_words_passes(client: AsyncClient):
 async def test_summarize_max_words_error_message_includes_word_count(client: AsyncClient):
     """Error message includes both the limit and the submitted count."""
     from app.config import get_config
+
     cfg = get_config()
     submitted = cfg.summarize_max_words + 500
     over_limit_text = ("word " * submitted).strip()

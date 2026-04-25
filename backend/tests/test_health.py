@@ -2,10 +2,12 @@
 Health, TTS status, and synthesis endpoint tests.
 These are simple endpoints that don't require LLM keys.
 """
+
 import pytest
 from httpx import AsyncClient
 
 # ---- GET / (health) ----
+
 
 @pytest.mark.asyncio
 async def test_health_check(client: AsyncClient):
@@ -21,6 +23,7 @@ async def test_health_check(client: AsyncClient):
 
 
 # ---- TTS ----
+
 
 @pytest.mark.asyncio
 async def test_tts_status(client: AsyncClient):
@@ -56,6 +59,7 @@ async def test_tts_create_unauthenticated(client: AsyncClient):
 
 # ---- Synthesis ----
 
+
 @pytest.mark.asyncio
 async def test_synthesis_unauthenticated(client: AsyncClient):
     """Synthesis requires authentication."""
@@ -90,6 +94,7 @@ async def test_synthesis_too_many_documents(authed_client: AsyncClient):
 # N-17: TTS controlled by tts_enabled feature flag
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.asyncio
 async def test_tts_status_reflects_feature_flag(client: AsyncClient):
     """GET /tts/status available field must reflect the tts_enabled config flag."""
@@ -104,6 +109,7 @@ async def test_tts_status_reflects_feature_flag(client: AsyncClient):
 def test_tts_enabled_flag_exists_in_config():
     """AppConfig must expose a tts_enabled boolean field."""
     from app.config import AppConfig
+
     cfg = AppConfig()
     assert hasattr(cfg, "tts_enabled"), "AppConfig must have a tts_enabled field"
     assert isinstance(cfg.tts_enabled, bool)
@@ -114,10 +120,9 @@ def test_tts_router_uses_feature_flag():
     import inspect
 
     from app.routers import tts as tts_router
+
     src = inspect.getsource(tts_router.create_tts)
-    assert "tts_enabled" in src, (
-        "create_tts must check cfg.tts_enabled before proceeding"
-    )
+    assert "tts_enabled" in src, "create_tts must check cfg.tts_enabled before proceeding"
 
 
 def test_tts_router_calls_service_when_enabled():
@@ -125,7 +130,6 @@ def test_tts_router_calls_service_when_enabled():
     import inspect
 
     from app.routers import tts as tts_router
+
     src = inspect.getsource(tts_router.create_tts)
-    assert "generate_audio_summary" in src, (
-        "create_tts must call generate_audio_summary from tts service when enabled"
-    )
+    assert "generate_audio_summary" in src, "create_tts must call generate_audio_summary from tts service when enabled"

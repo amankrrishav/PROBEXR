@@ -4,6 +4,7 @@ tests/test_import_hygiene.py — A-28: Duplicate timedelta import in auth router
 Verifies that auth.py router has a single merged datetime import line
 instead of two separate `from datetime import ...` statements.
 """
+
 import inspect
 
 
@@ -11,31 +12,32 @@ class TestAuthRouterImportHygiene:
     def test_no_duplicate_timedelta_import(self):
         """auth.py router must import timedelta only once."""
         import app.routers.auth as auth_router
+
         src = inspect.getsource(auth_router)
-        import_lines = [l for l in src.split('\n') if l.startswith('from datetime')]
-        timedelta_imports = [l for l in import_lines if 'timedelta' in l]
+        import_lines = [l for l in src.split("\n") if l.startswith("from datetime")]
+        timedelta_imports = [l for l in import_lines if "timedelta" in l]
         assert len(timedelta_imports) == 1, (
-            f"timedelta should appear in exactly one import line, "
-            f"found {len(timedelta_imports)}: {timedelta_imports}"
+            f"timedelta should appear in exactly one import line, found {len(timedelta_imports)}: {timedelta_imports}"
         )
 
     def test_all_datetime_symbols_in_one_import(self):
         """datetime, timedelta, and UTC/timezone must all be in one import statement."""
         import app.routers.auth as auth_router
+
         src = inspect.getsource(auth_router)
-        import_lines = [l.strip() for l in src.split('\n') if l.startswith('from datetime')]
-        assert len(import_lines) == 1, (
-            f"Expected single datetime import line, got: {import_lines}"
-        )
+        import_lines = [l.strip() for l in src.split("\n") if l.startswith("from datetime")]
+        assert len(import_lines) == 1, f"Expected single datetime import line, got: {import_lines}"
         single_import = import_lines[0]
-        assert 'datetime' in single_import
-        assert 'timedelta' in single_import
+        assert "datetime" in single_import
+        assert "timedelta" in single_import
         # Accept either modern `UTC` constant or legacy `timezone`
-        assert 'timezone' in single_import or 'UTC' in single_import
+        assert "timezone" in single_import or "UTC" in single_import
+
 
 # ---------------------------------------------------------------------------
 # R-01: auth router has no unused imports (Depends, AsyncSession, get_session)
 # ---------------------------------------------------------------------------
+
 
 class TestAuthRouterNoUnusedImports:
     def test_no_unused_depends_import(self):
@@ -43,9 +45,10 @@ class TestAuthRouterNoUnusedImports:
         import inspect
 
         import app.routers.auth as r
+
         src = inspect.getsource(r)
-        import_lines = [l for l in src.split('\n') if l.startswith('from fastapi import')]
-        assert not any('Depends' in l for l in import_lines), (
+        import_lines = [l for l in src.split("\n") if l.startswith("from fastapi import")]
+        assert not any("Depends" in l for l in import_lines), (
             "auth router imports Depends but never uses it directly — remove it"
         )
 
@@ -54,8 +57,9 @@ class TestAuthRouterNoUnusedImports:
         import inspect
 
         import app.routers.auth as r
+
         src = inspect.getsource(r)
-        assert 'from sqlalchemy.ext.asyncio import AsyncSession' not in src, (
+        assert "from sqlalchemy.ext.asyncio import AsyncSession" not in src, (
             "auth router imports AsyncSession but never uses it — remove it"
         )
 
@@ -64,8 +68,9 @@ class TestAuthRouterNoUnusedImports:
         import inspect
 
         import app.routers.auth as r
+
         src = inspect.getsource(r)
-        assert 'from app.db import get_session' not in src, (
+        assert "from app.db import get_session" not in src, (
             "auth router imports get_session but never uses it directly — remove it"
         )
 
@@ -74,16 +79,17 @@ class TestAuthRouterNoUnusedImports:
 # R-02/R-03: typing imports are at top of file, not mid-file
 # ---------------------------------------------------------------------------
 
+
 class TestImportsAtTopOfFile:
     def _first_import_line(self, src: str) -> int:
-        for i, line in enumerate(src.split('\n')):
-            if line.startswith('from typing') or line.startswith('import typing'):
+        for i, line in enumerate(src.split("\n")):
+            if line.startswith("from typing") or line.startswith("import typing"):
                 return i
         return -1
 
     def _router_definition_line(self, src: str) -> int:
-        for i, line in enumerate(src.split('\n')):
-            if line.startswith('router = APIRouter'):
+        for i, line in enumerate(src.split("\n")):
+            if line.startswith("router = APIRouter"):
                 return i
         return -1
 
@@ -92,6 +98,7 @@ class TestImportsAtTopOfFile:
         import inspect
 
         import app.routers.summarize as m
+
         src = inspect.getsource(m)
         typing_line = self._first_import_line(src)
         router_line = self._router_definition_line(src)
@@ -106,6 +113,7 @@ class TestImportsAtTopOfFile:
         import inspect
 
         import app.routers.health as m
+
         src = inspect.getsource(m)
         typing_line = self._first_import_line(src)
         router_line = self._router_definition_line(src)

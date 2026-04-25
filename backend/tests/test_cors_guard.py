@@ -9,6 +9,7 @@ but allows it in development.
 def test_cors_wildcard_blocked_in_production():
     """CORS_ORIGINS=* with environment=production must trigger the guard."""
     from app.config import AppConfig
+
     cfg = AppConfig(
         environment="production",
         cors_origins="*",
@@ -22,6 +23,7 @@ def test_cors_wildcard_blocked_in_production():
 def test_cors_wildcard_allowed_in_development():
     """CORS_ORIGINS=* is fine in development — guard must not fire."""
     from app.config import AppConfig
+
     cfg = AppConfig(
         environment="development",
         cors_origins="*",
@@ -34,6 +36,7 @@ def test_cors_wildcard_allowed_in_development():
 def test_specific_origins_pass_in_production():
     """Specific comma-separated origins in production do not trigger the guard."""
     from app.config import AppConfig
+
     cfg = AppConfig(
         environment="production",
         cors_origins="https://app.probexr.com,https://www.probexr.com",
@@ -48,6 +51,7 @@ def test_cors_guard_present_in_main():
     import inspect
 
     import app.main as main_module
+
     src = inspect.getsource(main_module)
     assert "cors_origins" in src and "production" in src and '"*"' in src, (
         "main.py must contain the CORS wildcard guard"

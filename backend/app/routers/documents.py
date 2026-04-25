@@ -46,9 +46,7 @@ async def list_documents(
 
     # Total count
     count_stmt = (
-        select(func.count())
-        .select_from(Document)
-        .where(Document.user_id == user.id, Document.deleted_at.is_(None))  # type: ignore[union-attr]
+        select(func.count()).select_from(Document).where(Document.user_id == user.id, Document.deleted_at.is_(None))  # type: ignore[union-attr]
     )
     total = (await session.execute(count_stmt)).scalar() or 0
 

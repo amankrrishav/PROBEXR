@@ -91,82 +91,78 @@ export default function App() {
     showSnackbar("Logged out.");
   }
 
-  // B3/B4: Wrap onSummarize to also add to persistent history
-  function doSummarize() {
-    summarizer.onSummarize();
-    // Add to persistent history after a delay (give time for summary to complete)
-    // The actual persistence happens via a listener in the summarizer hook
-  }
-
-  const handleSummarizeWithGate = useCallback(() => {
+  // B3/B4: Summarize gate — checks feature-once and auth before summarizing.
+  // No manual useCallback: React Compiler auto-memoizes this.
+  function handleSummarizeWithGate() {
     if (!hasUsedFeatureOnce) {
       setHasUsedFeatureOnce(true);
       markFeatureUsedOnce();
-      doSummarize();
+      summarizer.onSummarize();
       return;
     }
     if (!auth.isAuthenticated) {
       handleOpenAuth("signup");
       return;
     }
-    doSummarize();
-  }, [hasUsedFeatureOnce, auth.isAuthenticated, summarizer]);
+    summarizer.onSummarize();
+  }
 
   // C3: Global keyboard shortcuts
-  // useCallback with stable primitive deps prevents the handler from being
-  // re-registered on every render (A-25: summarizer is a new object each render).
-  const handleKeyDown = useCallback((e) => {
-    const mod = e.metaKey || e.ctrlKey;
-
-    // ⌘/ — Keyboard shortcuts
-    if (mod && e.key === "/") {
-      e.preventDefault();
-      setShortcutsOpen(o => !o);
-      return;
-    }
-
-    // ⌘F — Focus mode
-    if (mod && e.key === "f" && activeTab === "summarize") {
-      e.preventDefault();
-      setFocusMode(f => !f);
-      return;
-    }
-
-    // ⌘K — New summary (B11)
-    if (mod && e.key === "k") {
-      e.preventDefault();
-      summarizer.reset();
-      setActiveTab("summarize");
-      return;
-    }
-
-    // ⌘+Shift+C — Clear input
-    if (mod && e.shiftKey && e.key === "C") {
-      e.preventDefault();
-      summarizer.setText("");
-      summarizer.setUrl("");
-      return;
-    }
-
-    // Escape — exit modals/focus mode
-    if (e.key === "Escape") {
-      setShortcutsOpen(false);
-      setFocusMode(false);
-      return;
-    }
-
-    // ⌘+Enter — Summarize (C3)
-    if (mod && e.key === "Enter") {
-      e.preventDefault();
-      handleSummarizeWithGate();
-      return;
-    }
-  }, [activeTab, summarizer.reset, summarizer.setText, summarizer.setUrl, handleSummarizeWithGate]);
-
+  // Single effect registers the keydown listener directly. The effect re-runs
+  // whenever its dependencies change, which automatically keeps the handler
+  // in sync without ref-during-render (React Compiler safe).
   useEffect(() => {
+    function handleKeyDown(e) {
+      const mod = e.metaKey || e.ctrlKey;
+
+      // ⌘/ — Keyboard shortcuts
+      if (mod && e.key === "/") {
+        e.preventDefault();
+        setShortcutsOpen(o => !o);
+        return;
+      }
+
+      // ⌘F — Focus mode
+      if (mod && e.key === "f" && activeTab === "summarize") {
+        e.preventDefault();
+        setFocusMode(f => !f);
+        return;
+      }
+
+      // ⌘K — New summary (B11)
+      if (mod && e.key === "k") {
+        e.preventDefault();
+        summarizer.reset();
+        setActiveTab("summarize");
+        return;
+      }
+
+      // ⌘+Shift+C — Clear input
+      if (mod && e.key === "C" && e.shiftKey) {
+        e.preventDefault();
+        summarizer.setText("");
+        summarizer.setUrl("");
+        return;
+      }
+
+      // Escape — exit modals/focus mode
+      if (e.key === "Escape") {
+        setShortcutsOpen(false);
+        setFocusMode(false);
+        return;
+      }
+
+      // ⌘+Enter — Summarize (C3)
+      if (mod && e.key === "Enter") {
+        e.preventDefault();
+        handleSummarizeWithGate();
+        return;
+      }
+    }
+
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [handleKeyDown]);
+  }, [activeTab, summarizer, handleSummarizeWithGate]);
 
   // Trigger page transition on tab change
   const handleSetActiveTab = useCallback((tab) => {

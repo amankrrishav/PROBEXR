@@ -1,10 +1,12 @@
 """
 Auth smoke tests — register, login, /me, logout, refresh, token revocation.
 """
+
 import pytest
 from httpx import AsyncClient
 
 # ---- Registration ----
+
 
 @pytest.mark.asyncio
 async def test_register_success(client: AsyncClient):
@@ -53,6 +55,7 @@ async def test_register_short_password(client: AsyncClient):
 
 
 # ---- Password Policy ----
+
 
 @pytest.mark.asyncio
 async def test_register_password_too_short_11_chars(client: AsyncClient):
@@ -156,6 +159,7 @@ async def test_register_invalid_email(client: AsyncClient):
 
 # ---- Login ----
 
+
 @pytest.mark.asyncio
 async def test_login_success(client: AsyncClient, registered_user: dict):
     res = await client.post(
@@ -189,6 +193,7 @@ async def test_login_nonexistent_user(client: AsyncClient):
 
 # ---- /me ----
 
+
 @pytest.mark.asyncio
 async def test_me_authenticated(client: AsyncClient, registered_user: dict):
     client.cookies.set("access_token", f"Bearer {registered_user['token']}")
@@ -206,6 +211,7 @@ async def test_me_unauthenticated(client: AsyncClient):
 
 
 # ---- Refresh ----
+
 
 @pytest.mark.asyncio
 async def test_refresh_success(client: AsyncClient, registered_user: dict):
@@ -260,6 +266,7 @@ async def test_refresh_no_cookie(client: AsyncClient):
 
 # ---- Logout ----
 
+
 @pytest.mark.asyncio
 async def test_logout(client: AsyncClient, registered_user: dict):
     client.cookies.set("access_token", f"Bearer {registered_user['token']}")
@@ -275,6 +282,7 @@ async def test_logout(client: AsyncClient, registered_user: dict):
 
 
 # ---- Logout All ----
+
 
 @pytest.mark.asyncio
 async def test_logout_all(client: AsyncClient, registered_user: dict):
@@ -302,6 +310,7 @@ async def test_logout_all(client: AsyncClient, registered_user: dict):
 
 # ---- Cookie path correctness ----
 
+
 @pytest.mark.asyncio
 async def test_refresh_cookie_path_is_api_v1_auth(client: AsyncClient):
     """
@@ -318,26 +327,22 @@ async def test_refresh_cookie_path_is_api_v1_auth(client: AsyncClient):
 
     # httpx merges duplicate header names with items() — use multi_items()
     # to get each Set-Cookie header as a separate entry.
-    set_cookie_headers = [
-        v for k, v in res.headers.multi_items()
-        if k.lower() == "set-cookie"
-    ]
-    refresh_header = next(
-        (h for h in set_cookie_headers if "refresh_token=" in h), None
-    )
-    assert refresh_header is not None, (
-        f"refresh_token Set-Cookie header not found. Headers: {set_cookie_headers}"
-    )
+    set_cookie_headers = [v for k, v in res.headers.multi_items() if k.lower() == "set-cookie"]
+    refresh_header = next((h for h in set_cookie_headers if "refresh_token=" in h), None)
+    assert refresh_header is not None, f"refresh_token Set-Cookie header not found. Headers: {set_cookie_headers}"
     assert "path=/api/v1/auth" in refresh_header.lower(), (
         f"Expected path=/api/v1/auth in Set-Cookie, got: {refresh_header}"
     )
 
+
 # ---- SECRET_KEY entropy ----
+
 
 def test_secret_key_entropy_check():
     """SHORT keys must be rejected in production — entropy check runs on startup."""
 
     from app.config import AppConfig
+
     # Simulate a prod config with a short key
     cfg_short = AppConfig(
         environment="production",
@@ -346,12 +351,11 @@ def test_secret_key_entropy_check():
     )
     # The check is in the lifespan startup, not config itself.
     # Verify the length is below threshold so the guard will fire.
-    assert len(cfg_short.SECRET_KEY) < 32, (
-        "Short key should be under 32 chars so startup guard catches it"
-    )
+    assert len(cfg_short.SECRET_KEY) < 32, "Short key should be under 32 chars so startup guard catches it"
 
     # A properly long key should pass the length check
     import secrets
+
     long_key = secrets.token_hex(32)
     assert len(long_key) >= 32
 
@@ -360,23 +364,22 @@ def test_secret_key_entropy_check():
 # R-08: User.full_name and User.avatar_url have max_length bounds
 # ---------------------------------------------------------------------------
 
+
 def test_user_full_name_has_max_length():
     """User.full_name must have a max_length constraint."""
     from pathlib import Path
-    src = Path('app/models/user.py').read_text()
-    lines = [l for l in src.split('\n') if 'full_name' in l and 'Field' in l]
+
+    src = Path("app/models/user.py").read_text()
+    lines = [l for l in src.split("\n") if "full_name" in l and "Field" in l]
     assert lines, "User must have a full_name field with Field()"
-    assert any('max_length' in l for l in lines), (
-        f"User.full_name must have max_length. Found: {lines}"
-    )
+    assert any("max_length" in l for l in lines), f"User.full_name must have max_length. Found: {lines}"
 
 
 def test_user_avatar_url_has_max_length():
     """User.avatar_url must have a max_length constraint."""
     from pathlib import Path
-    src = Path('app/models/user.py').read_text()
-    lines = [l for l in src.split('\n') if 'avatar_url' in l and 'Field' in l]
+
+    src = Path("app/models/user.py").read_text()
+    lines = [l for l in src.split("\n") if "avatar_url" in l and "Field" in l]
     assert lines, "User must have an avatar_url field with Field()"
-    assert any('max_length' in l for l in lines), (
-        f"User.avatar_url must have max_length. Found: {lines}"
-    )
+    assert any("max_length" in l for l in lines), f"User.avatar_url must have max_length. Found: {lines}"

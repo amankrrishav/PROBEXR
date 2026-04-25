@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 # Plan definitions
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True)
 class PlanLimits:
     """Usage limits for a plan tier."""

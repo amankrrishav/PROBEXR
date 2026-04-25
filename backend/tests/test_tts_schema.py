@@ -4,6 +4,7 @@ tests/test_tts_schema.py — N-04: TTSRequest.provider Literal validation
 TTSRequest had no test coverage anywhere in the suite.
 The provider field was an unvalidated str — now a Literal enum.
 """
+
 import pydantic
 import pytest
 
@@ -38,8 +39,7 @@ def test_provider_rejects_empty_string():
 def test_provider_is_literal_type():
     """provider field annotation must be Literal, not plain str."""
     import typing
-    field = TTSRequest.model_fields['provider']
-    origin = getattr(field.annotation, '__origin__', None)
-    assert origin is typing.Literal, (
-        "TTSRequest.provider must be Literal['openai', 'elevenlabs'], not plain str"
-    )
+
+    field = TTSRequest.model_fields["provider"]
+    origin = getattr(field.annotation, "__origin__", None)
+    assert origin is typing.Literal, "TTSRequest.provider must be Literal['openai', 'elevenlabs'], not plain str"
