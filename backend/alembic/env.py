@@ -1,4 +1,5 @@
 """Alembic env.py — supports both sync and async engines, env-driven DATABASE_URL."""
+
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
@@ -27,21 +28,21 @@ if _db_url:
     if "://" in _db_url:
         _scheme_part, _rest = _db_url.split("://", 1)
         _db_url = f"postgresql+psycopg://{_rest}"
-    
+
     # Strip SSL params that psycopg handles via connect_args
     from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
-    
+
     _u = urlparse(_db_url)
     _q = parse_qs(_u.query)
-    
+
     for k in ["sslrootcert", "sslcert", "sslkey"]:
         _q.pop(k, None)
-    
+
     _q["sslmode"] = ["require"]
-    
+
     _u = _u._replace(query=urlencode(_q, doseq=True))
     _db_url = urlunparse(_u)
-    
+
     config.set_main_option("sqlalchemy.url", _db_url.replace("%", "%%"))
 
 
@@ -59,22 +60,23 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     try:
-        # Engine Creation
+        # Engine Creation — add connect_timeout so alembic doesn't hang
+        # indefinitely if the database is unreachable (critical for Render deploys)
         connectable = engine_from_config(
             config.get_section(config.config_ini_section, {}),
             prefix="sqlalchemy.",
             poolclass=pool.NullPool,
+            connect_args={"connect_timeout": 10},
         )
-        
+
         with connectable.connect() as connection:
-            context.configure(
-                connection=connection, target_metadata=target_metadata
-            )
+            context.configure(connection=connection, target_metadata=target_metadata)
             with context.begin_transaction():
                 context.run_migrations()
     except Exception as e:
         print(f"ALEMBIC FATAL ERROR: {type(e).__name__}: {str(e)}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 
