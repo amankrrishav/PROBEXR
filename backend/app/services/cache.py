@@ -61,7 +61,7 @@ async def _get_redis() -> Any:
     # Fast path: reuse the shared client from startup
     if _shared_redis is not None:
         try:
-            await _shared_redis.ping()  # type: ignore[misc]
+            await _shared_redis.ping()
             return _shared_redis, False  # (client, needs_close)
         except Exception:
             # Shared client lost connection — fall through to create a new one
@@ -79,7 +79,7 @@ async def _get_redis() -> Any:
             decode_responses=True,
             socket_connect_timeout=1,
         )
-        await client.ping()  # type: ignore[misc]
+        await client.ping()
         return client, True  # (client, needs_close)
     except Exception:
         return None, False

@@ -67,6 +67,7 @@ export default function Editor({ onSummarize, handleKeyDown, focusMode }) {
   // Rotate loading phases
   useEffect(() => {
     if (!isBusy) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset phase on start
     setLoadingPhase(0);
     let i = 0;
     const interval = setInterval(() => {
@@ -85,6 +86,7 @@ export default function Editor({ onSummarize, handleKeyDown, focusMode }) {
   }, [text, textareaRef]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- derived state from text prop
     setIsSampleLoaded(text === SAMPLE_TEXT);
   }, [text]);
 

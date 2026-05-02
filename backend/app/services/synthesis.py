@@ -23,8 +23,8 @@ async def synthesize_documents(
     prompt: str | None = None,
 ) -> Synthesis:
     statement = select(Document).where(
-        Document.id.in_(document_ids),
-        Document.user_id == user_id,  # type: ignore
+        Document.id.in_(document_ids),  # type: ignore[union-attr]
+        Document.user_id == user_id,  # type: ignore[union-attr]
         Document.deleted_at.is_(None),  # type: ignore[union-attr]
     )
     result = await session.execute(statement)

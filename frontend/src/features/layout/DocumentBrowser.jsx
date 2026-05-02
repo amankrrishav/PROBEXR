@@ -97,6 +97,7 @@ export default function DocumentBrowser({ onSelectDocument }) {
         }
     }, []);
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount pattern
     useEffect(() => {
         if (user) fetchDocuments(1);
     }, [user, fetchDocuments]);

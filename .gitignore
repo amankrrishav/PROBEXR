@@ -80,11 +80,7 @@ htmlcov/
 lint_output.txt
 .eslintcache
 
-# ===============================
-# Misc
-# ===============================
-api/
-Dont_Post_Github.md
+
 
 # ===============================
 # Additional Environment Patterns
@@ -103,3 +99,7 @@ Dont_Post_Github.md
 # Sentry Sourcemaps
 # ===============================
 *.map
+
+/api/
+Report.md
+Report_Maker.md

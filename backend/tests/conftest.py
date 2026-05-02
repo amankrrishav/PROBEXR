@@ -7,12 +7,10 @@ Provides:
   - registered_user: a pre-registered AND email-verified user with token
 """
 
-import asyncio
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime, timedelta
 
 import jwt as jose_jwt
-import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -51,38 +49,45 @@ _TEST_CSRF_TOKEN = "test-csrf-token-for-testing"
 
 
 # ---- In-memory async engine for testing ----
+# Created lazily inside a session-scoped fixture so it binds to the
+# correct event loop (pytest-asyncio ≥1.0 no longer uses a manual
+# event_loop fixture — the loop is managed internally).
 
-_test_engine = create_async_engine(
-    "sqlite+aiosqlite://",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
+_test_engine = None
+_TestSessionLocal = None
 
-_TestSessionLocal = async_sessionmaker(_test_engine, class_=AsyncSession, expire_on_commit=False)
+
+def _get_test_engine():
+    global _test_engine, _TestSessionLocal
+    if _test_engine is None:
+        _test_engine = create_async_engine(
+            "sqlite+aiosqlite://",
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
+        _TestSessionLocal = async_sessionmaker(
+            _test_engine, class_=AsyncSession, expire_on_commit=False
+        )
+    return _test_engine
 
 
 async def _override_get_session() -> AsyncGenerator[AsyncSession, None]:
-    async with _TestSessionLocal() as session:
+    _get_test_engine()  # ensure engine exists
+    async with _TestSessionLocal() as session:  # type: ignore[misc]
         yield session
 
 
 fastapi_app.dependency_overrides[get_session] = _override_get_session
 
 
-@pytest.fixture(scope="session")
-def event_loop():  # type: ignore[override]
-    loop = asyncio.new_event_loop()
-    yield loop
-    loop.close()
-
-
 @pytest_asyncio.fixture(autouse=True)
 async def _setup_db():
     """Create all tables before each test, drop after."""
-    async with _test_engine.begin() as conn:
+    engine = _get_test_engine()
+    async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
     yield
-    async with _test_engine.begin() as conn:
+    async with engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.drop_all)
 
 

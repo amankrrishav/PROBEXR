@@ -131,7 +131,7 @@ class InMemoryRateLimiter:
 class RedisRateLimiter:
     """Redis-backed rate limiter using atomic INCR + EXPIRE."""
 
-    def __init__(self, redis_client: object) -> None:  # type: ignore[override]
+    def __init__(self, redis_client: Any) -> None:
         self._redis = redis_client
 
     async def check_and_increment(self, key: str, limit: int) -> tuple[bool, int]:

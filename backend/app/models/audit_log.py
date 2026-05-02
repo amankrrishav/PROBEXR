@@ -23,7 +23,7 @@ def _utcnow() -> datetime:
 class AuditLog(SQLModel, table=True):
     """Immutable audit event record."""
 
-    __tablename__ = "audit_log"  # type: ignore[assignment]
+    __tablename__ = "audit_log"
 
     id: int | None = Field(default=None, primary_key=True)
 

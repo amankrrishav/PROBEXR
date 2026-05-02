@@ -11,6 +11,7 @@ export default function SocialCallback({ provider, onResult }) {
     const code = params.get("code") || params.get("token");
 
     if (!code) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- error handling during mount
       setStatus("Error: No authentication token received.");
       onResult?.(false);
       return;

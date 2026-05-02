@@ -133,6 +133,7 @@ export function useSummarizer() {
 
       // Streaming first
       const controller = new AbortController();
+      // eslint-disable-next-line react-hooks/immutability -- ref.current mutation is a valid React pattern
       stream.abortControllerRef.current = controller;
       stream.setStreaming(true);
       state.setHasSummary(true);

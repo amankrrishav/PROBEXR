@@ -20,7 +20,7 @@ Lockout flow in authenticate_user:
 import hashlib
 import logging
 import time
-from typing import Protocol
+from typing import Any, Protocol
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +106,7 @@ class RedisLockoutStore:
 
     def __init__(
         self,
-        redis_client: object,  # type: ignore[override]
+        redis_client: Any,
         max_attempts: int = 5,
         window_seconds: int = 900,
     ) -> None:

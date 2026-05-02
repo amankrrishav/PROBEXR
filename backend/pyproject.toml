@@ -4,6 +4,7 @@ requires-python = ">=3.11"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
 
 [tool.mypy]
 strict = true
@@ -41,6 +42,7 @@ module = [
     "pythonjsonlogger.*",
     "starlette.*",
     "fastapi.*",
+    "sentry_sdk.*",
 ]
 ignore_missing_imports = true
 

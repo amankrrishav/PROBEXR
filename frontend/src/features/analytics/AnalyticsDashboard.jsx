@@ -256,6 +256,7 @@ export default function AnalyticsDashboard() {
     finally { setLoading(false); }
   }, []);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount pattern: setLoading is part of the fetch lifecycle
   useEffect(() => { if (user) load(); }, [user, load]);
 
   // Local-only analytics (B3) — shown even when not authenticated
@@ -308,7 +309,11 @@ export default function AnalyticsDashboard() {
   const streak = data?.streak || 0;
   const hasDocs = (s.total_documents || 0) > 0;
 
-  const sparklineData = Array.from({ length: 7 }, () => Math.floor(Math.random() * 10));
+  // Use a stable seed instead of Math.random() during render (react-hooks/impure-function-during-render)
+  const sparklineData = useMemo(
+    () => [3, 7, 2, 9, 5, 1, 8],
+    []
+  );
 
   return (
     <div className="animate-in">
