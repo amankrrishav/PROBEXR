@@ -29,9 +29,9 @@ To contribute, please reach out to the maintainer to discuss the feature or fix 
 
 ## Testing
 
-- Backend tests use `pytest` with async fixtures. Load testing and E2E tests are also supported.
+- Backend tests use `pytest` with async fixtures. Coverage must stay ≥ 75% (CI enforced).
 - Frontend tests use `vitest` with `@testing-library/react`.
-- All PRs must maintain 100% pass rate (currently 349 backend + 108 frontend tests).
+- All PRs must maintain 100% pass rate (currently 450 backend + 108 frontend tests).
 
 ---
 

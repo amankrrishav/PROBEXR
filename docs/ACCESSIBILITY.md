@@ -3,12 +3,14 @@
 This checklist guides frontend developers through the WCAG 2.1 Level AA
 requirements for PROBEXR. Apply these when building or reviewing UI components.
 
+> **Last audited:** v1.1.0 (2026-05-14). Items marked `[x]` have been implemented.
+
 ## 1. Perceivable
 
 ### 1.1 Text Alternatives
-- [ ] All `<img>` tags have descriptive `alt` attributes
-- [ ] Decorative images use `alt=""`
-- [ ] Icon-only buttons have `aria-label` or visually hidden text
+- [x] All `<img>` tags have descriptive `alt` attributes
+- [x] Decorative images use `alt=""`
+- [x] Icon-only buttons have `aria-label` or visually hidden text
 - [ ] Charts/graphs have text alternatives or data tables
 
 ### 1.2 Color & Contrast
@@ -51,7 +53,7 @@ requirements for PROBEXR. Apply these when building or reviewing UI components.
 ## 3. Understandable
 
 ### 3.1 Language
-- [ ] `<html lang="en">` is set
+- [x] `<html lang="en">` is set
 - [ ] Foreign language passages use `lang` attribute
 
 ### 3.2 Forms
@@ -68,9 +70,9 @@ requirements for PROBEXR. Apply these when building or reviewing UI components.
 ## 4. Robust
 
 ### 4.1 ARIA
-- [ ] Use native HTML elements before ARIA (`<button>` not `<div role="button">`)
+- [x] Use native HTML elements before ARIA (`<button>` not `<div role="button">`)
 - [ ] Custom widgets follow WAI-ARIA Authoring Practices
-- [ ] `aria-expanded`, `aria-selected`, `aria-checked` used correctly
+- [x] `aria-expanded`, `aria-selected`, `aria-checked` used correctly
 - [ ] Dynamic content updates use `aria-live="polite"` or `"assertive"`
 
 ### 4.2 Validation

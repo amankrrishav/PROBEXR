@@ -1,6 +1,6 @@
 # PROBEXR
 
-PROBEXR is a full-stack article summarizer and learning platform: paste text or URLs, get a short, human-like summary, chat with the document, and export flashcards.  **RIGHT NOW ITS FEATURE LIMITED BUT -- NEW FEATURES COMING SOON**
+PROBEXR is a full-stack article summarizer and learning platform: paste text or URLs, get a short, human-like summary, chat with the document, and export flashcards.
 *Extract signal. Ignore noise.*
 
 **Live App:** *https://probexr.vercel.app*
@@ -28,9 +28,17 @@ PROBEXR is a full-stack article summarizer and learning platform: paste text or 
 **Authentication & Security**  
 - Social Login (Google, GitHub) with timing-safe OAuth state  
 - Magic Links (passwordless via SMTP)  
+- API Key authentication for programmatic access  
 - Enterprise-grade: Account Lockout, Email Enumeration Defense, NIST SP 800-63B passwords  
 - Cross-domain CSRF protection (Origin-header + dual-submit cookie)  
 - HttpOnly JWT cookies with `SameSite=None; Secure` for split deployments  
+- Server header version suppression across all deployment targets  
+
+**Compliance & Accessibility**  
+- GDPR: data export (`GET /auth/export`), account deletion (`DELETE /auth/account`)  
+- Cookie consent banner with accept/decline  
+- WCAG 2.1 AA: aria-labels, semantic landmarks, keyboard navigation  
+- Privacy Policy, Terms of Service, MIT License  
 
 **Architecture Highlights**  
 - Fully async backend (FastAPI + asyncpg/aiosqlite)  
@@ -45,9 +53,12 @@ PROBEXR is a full-stack article summarizer and learning platform: paste text or 
 - Provider-agnostic LLM layer (Groq, OpenAI, OpenRouter)  
 
 **Quality**  
-- 357 backend tests + 108 frontend tests — 100% pass rate  
-- Comprehensive Load and E2E Testing suites
-- CI/CD pipeline via GitHub Actions (pytest, vitest, strict mypy mode, ruff, eslint)  
+- 450 backend tests + 108 frontend tests (558 total) — 100% pass rate  
+- 78% backend code coverage with 75% CI enforcement  
+- Bundle size monitoring (600KB limit)  
+- SBOM generation for license compliance  
+- LLM API cost tracking via Prometheus metrics  
+- CI/CD pipeline via GitHub Actions (pytest, vitest, strict mypy, ruff, eslint)  
 
 ---
 

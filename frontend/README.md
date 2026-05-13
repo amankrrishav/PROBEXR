@@ -10,5 +10,8 @@ React 19 + Vite frontend with premium auth UX, real-time streaming, and modern d
 - Service Worker integration for offline support and caching assets
 - Code-split lazy loading with minimal skeleton loading screens
 - React Error Boundary for app-wide crash protection
+- GDPR cookie consent banner with localStorage persistence
+- WCAG 2.1 AA accessibility (aria-labels, semantic landmarks, keyboard nav)
 - Dark mode with smooth UI transitions
-- 108 frontend tests — 100% pass rate, ready for E2E testing
+- 108 frontend tests — 100% pass rate
+
