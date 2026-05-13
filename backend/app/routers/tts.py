@@ -1,3 +1,4 @@
+"""TTS router — text-to-speech audio summary generation (stub, feature-flagged)."""
 import logging
 
 from fastapi import APIRouter, HTTPException, status

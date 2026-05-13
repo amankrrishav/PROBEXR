@@ -1,3 +1,4 @@
+"""Summarization router — two-stage human-like summarization with extractive fallback."""
 from typing import Any
 
 from fastapi import APIRouter, HTTPException

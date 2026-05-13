@@ -1,3 +1,4 @@
+"""Social login service — Google and GitHub OAuth2 token exchange."""
 from typing import Any
 
 from app.config import get_config

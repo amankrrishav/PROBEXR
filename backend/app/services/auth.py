@@ -1,3 +1,4 @@
+"""Auth service — user creation, credential verification, JWT tokens, and magic links."""
 import hashlib
 import uuid
 from datetime import UTC, datetime, timedelta

@@ -1,3 +1,4 @@
+"""Synthesis router — multi-document cross-analysis and insight extraction."""
 import logging
 
 from fastapi import APIRouter, HTTPException, status

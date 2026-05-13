@@ -1,3 +1,4 @@
+"""Authentication router — registration, login, password reset, magic links, and OAuth."""
 import logging
 import secrets
 from datetime import UTC, datetime, timedelta
