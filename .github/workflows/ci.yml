@@ -61,6 +61,12 @@ jobs:
       - name: Test — pytest + coverage
         run: pytest tests/ -q --tb=short --cov=app --cov-report=term-missing --cov-fail-under=75
 
+      - name: SBOM — generate license inventory
+        run: |
+          pip install pip-licenses
+          pip-licenses --format=json --output-file=sbom-backend.json
+          echo "Backend SBOM generated ($(wc -l < sbom-backend.json) lines)"
+
   # ──────────────────────────── Frontend ────────────────────────────
   frontend:
     runs-on: ubuntu-latest

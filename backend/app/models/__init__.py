@@ -1,3 +1,4 @@
+from app.models.api_key import APIKey
 from app.models.audit_log import AuditLog
 from app.models.chat import ChatMessage, ChatSession
 from app.models.document import Document

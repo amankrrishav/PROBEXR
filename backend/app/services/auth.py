@@ -576,9 +576,14 @@ async def get_current_user(
 ) -> User:
     """
     Strict auth dependency: requires a valid Bearer token and existing active user.
+    Supports both JWT tokens and API keys (probexr_ prefix).
     """
     if not token:
         raise _credentials_exception()
+
+    # API key authentication — tokens prefixed with "probexr_"
+    if token.startswith("probexr_"):
+        return await _authenticate_api_key(token, session)
 
     payload = _decode_token(token)
     email = payload.get("sub")
@@ -590,6 +595,30 @@ async def get_current_user(
         raise _credentials_exception()
     if not user.is_active:
         raise _credentials_exception()
+    return user
+
+
+async def _authenticate_api_key(raw_key: str, session: AsyncSession) -> User:
+    """Look up a user by API key hash."""
+    from app.models.api_key import APIKey
+
+    key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
+    stmt = select(APIKey).where(APIKey.key_hash == key_hash, APIKey.is_active == True)  # noqa: E712
+    result = await session.execute(stmt)
+    api_key = result.scalars().first()
+
+    if not api_key:
+        raise _credentials_exception()
+
+    # Update last_used_at
+    api_key.last_used_at = datetime.now(UTC).replace(tzinfo=None)
+    session.add(api_key)
+
+    # Fetch the owning user
+    user = await session.get(User, api_key.user_id)
+    if not user or not user.is_active:
+        raise _credentials_exception()
+
     return user
 
 

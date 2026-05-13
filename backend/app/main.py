@@ -35,6 +35,7 @@ from app.middleware import (
 )
 from app.routers import (
     analytics,
+    api_keys,
     auth,
     chat,
     documents,
@@ -312,6 +313,7 @@ v1_router.include_router(tts.router, tags=["TTS"])
 v1_router.include_router(documents.router, tags=["Documents"])
 v1_router.include_router(analytics.router, tags=["Analytics"])
 v1_router.include_router(streaming.router, tags=["Streaming"])
+v1_router.include_router(api_keys.router, tags=["API Keys"])
 
 # Observability
 from app.metrics import metrics_endpoint
