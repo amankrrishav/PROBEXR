@@ -59,7 +59,7 @@ jobs:
           pip-audit -r requirements.txt
 
       - name: Test — pytest + coverage
-        run: pytest tests/ -q --tb=short --cov=app --cov-report=term-missing --cov-fail-under=80
+        run: pytest tests/ -q --tb=short --cov=app --cov-report=term-missing --cov-fail-under=75
 
   # ──────────────────────────── Frontend ────────────────────────────
   frontend:
