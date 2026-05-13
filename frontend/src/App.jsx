@@ -93,8 +93,7 @@ export default function App() {
   }
 
   // B3/B4: Summarize gate — checks feature-once and auth before summarizing.
-  // No manual useCallback: React Compiler auto-memoizes this.
-  function handleSummarizeWithGate() {
+  const handleSummarizeWithGate = useCallback(() => {
     if (!hasUsedFeatureOnce) {
       setHasUsedFeatureOnce(true);
       markFeatureUsedOnce();
@@ -106,7 +105,7 @@ export default function App() {
       return;
     }
     summarizer.onSummarize();
-  }
+  }, [hasUsedFeatureOnce, auth.isAuthenticated, summarizer.onSummarize]);
 
   // C3: Global keyboard shortcuts
   // Single effect registers the keydown listener directly. The effect re-runs

@@ -89,3 +89,17 @@ jobs:
 
       - name: Test — Vitest
         run: npm test
+
+      - name: Build — production bundle
+        run: npm run build
+
+      - name: Bundle size check
+        run: |
+          MAX_KB=600
+          MAIN_JS=$(find dist/assets -name '*.js' -not -name 'index-[A-Z]*.js' | head -1)
+          SIZE_KB=$(( $(wc -c < "$MAIN_JS") / 1024 ))
+          echo "Main bundle: ${SIZE_KB}KB (limit: ${MAX_KB}KB)"
+          if [ "$SIZE_KB" -gt "$MAX_KB" ]; then
+            echo "::error::Bundle size ${SIZE_KB}KB exceeds ${MAX_KB}KB limit"
+            exit 1
+          fi
