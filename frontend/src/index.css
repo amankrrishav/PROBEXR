@@ -441,6 +441,11 @@ a:hover {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes cookieBannerIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(24px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
 
 /* ═══════════════════════════════════════════════════════════════
    RESPONSIVE

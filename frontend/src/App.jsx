@@ -16,6 +16,7 @@ import { AuthModal, SocialCallback } from "./features/auth";
 import { ErrorBoundary } from "./components/ErrorBoundary.jsx";
 import CustomCursor from "./components/CustomCursor.jsx";
 import KeyboardShortcuts from "./components/KeyboardShortcuts.jsx";
+import CookieConsent from "./components/CookieConsent.jsx";
 import { SkeletonDashboard } from "./components/Skeleton.jsx";
 
 // Lazy-loaded pages — loaded only when the user navigates to them
@@ -336,6 +337,9 @@ export default function App() {
       {snackbar && (
         <Toast message={snackbar} onDone={() => setSnackbar(null)} />
       )}
+
+      {/* GDPR Cookie Consent */}
+      <CookieConsent />
     </div>
   );
 }
