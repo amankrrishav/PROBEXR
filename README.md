@@ -45,7 +45,7 @@ PROBEXR is a full-stack article summarizer and learning platform: paste text or 
 - Provider-agnostic LLM layer (Groq, OpenAI, OpenRouter)  
 
 **Quality**  
-- 335 backend tests + 108 frontend tests — 100% pass rate  
+- 357 backend tests + 108 frontend tests — 100% pass rate  
 - Comprehensive Load and E2E Testing suites
 - CI/CD pipeline via GitHub Actions (pytest, vitest, strict mypy mode, ruff, eslint)  
 
