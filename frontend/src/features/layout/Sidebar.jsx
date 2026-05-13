@@ -116,8 +116,9 @@ export default function Sidebar({ appName, onOpenAuth, onLogout, activeTab, setA
           style={{ height: 44, fontSize: 14 }}
           disabled={providerStatus.status === "offline"}
           title={providerStatus.status === "offline" ? "Provider unavailable" : ""}
+          aria-label="Create new summary"
         >
-          <span>✦</span>
+          <span aria-hidden="true">✦</span>
           New Summary
         </button>
       </div>
@@ -125,7 +126,7 @@ export default function Sidebar({ appName, onOpenAuth, onLogout, activeTab, setA
       {/* ── Workspace Nav ── */}
       <div style={{ padding: "0 12px" }}>
         <p className="section-header" style={{ padding: "8px 12px 8px" }}>Workspace</p>
-        <nav className="flex flex-col" style={{ gap: 2 }}>
+        <nav className="flex flex-col" role="navigation" aria-label="Main navigation" style={{ gap: 2 }}>
           {NAV_ITEMS.map((item) => {
             const isActive = activeTab === item.id;
             return (
@@ -192,8 +193,10 @@ export default function Sidebar({ appName, onOpenAuth, onLogout, activeTab, setA
           onClick={() => setHistoryOpen(!historyOpen)}
           className="section-header flex items-center gap-2 w-full text-left"
           style={{ padding: "8px 12px", cursor: "pointer", border: "none", background: "none" }}
+          aria-expanded={historyOpen}
+          aria-label="Toggle recent summaries"
         >
-          <span style={{
+          <span aria-hidden="true" style={{
             fontSize: 8, transition: "transform 200ms",
             transform: historyOpen ? "rotate(90deg)" : "rotate(0deg)",
           }}>▸</span>
@@ -281,6 +284,7 @@ export default function Sidebar({ appName, onOpenAuth, onLogout, activeTab, setA
                 <button
                   onClick={clearAll}
                   className="font-mono"
+                  aria-label="Clear all recent summaries"
                   style={{
                     display: "block", width: "100%",
                     padding: "8px 12px", marginTop: 4,
@@ -417,7 +421,7 @@ export default function Sidebar({ appName, onOpenAuth, onLogout, activeTab, setA
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="anim-sidebar" style={{
+      <aside className="anim-sidebar" role="complementary" aria-label="Sidebar" style={{
         display: "none",
         width: 248, flexShrink: 0, height: "100vh",
         position: "sticky", top: 0,
@@ -435,6 +439,7 @@ export default function Sidebar({ appName, onOpenAuth, onLogout, activeTab, setA
       {/* Mobile hamburger */}
       <button
         onClick={() => setMobileOpen(true)}
+        aria-label="Open navigation menu"
         style={{
           display: "none",
           position: "fixed", top: 16, left: 16, zIndex: 50,
@@ -444,7 +449,7 @@ export default function Sidebar({ appName, onOpenAuth, onLogout, activeTab, setA
           fontSize: 18, color: "var(--ink-primary)", cursor: "pointer",
         }}
       >
-        ☰
+        <span aria-hidden="true">☰</span>
       </button>
       <style>{`
         @media (max-width: 1023px) {

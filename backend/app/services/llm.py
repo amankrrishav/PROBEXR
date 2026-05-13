@@ -19,6 +19,64 @@ from app.http_client import get_http_client
 
 logger = logging.getLogger(__name__)
 
+# Estimated cost per 1K tokens (USD) — conservative defaults.
+# Update when switching models or providers.
+_COST_PER_1K: dict[str, tuple[float, float]] = {
+    # (prompt_per_1k, completion_per_1k)
+    "gpt-4o": (0.0025, 0.01),
+    "gpt-4o-mini": (0.00015, 0.0006),
+    "gpt-4-turbo": (0.01, 0.03),
+    "gpt-3.5-turbo": (0.0005, 0.0015),
+    "llama-3.1-70b-versatile": (0.00059, 0.00079),
+    "llama-3.1-8b-instant": (0.00005, 0.00008),
+    "mixtral-8x7b-32768": (0.00024, 0.00024),
+    "gemma2-9b-it": (0.0002, 0.0002),
+}
+
+
+def _record_usage(response_data: dict, model: str) -> None:
+    """Extract token usage from LLM response and record to Prometheus."""
+    from app.metrics import LLM_COST_USD, LLM_TOKENS_TOTAL
+
+    usage = response_data.get("usage")
+    if not usage:
+        return
+
+    prompt_tokens = usage.get("prompt_tokens", 0)
+    completion_tokens = usage.get("completion_tokens", 0)
+
+    LLM_TOKENS_TOTAL.labels(model=model, type="prompt").inc(prompt_tokens)
+    LLM_TOKENS_TOTAL.labels(model=model, type="completion").inc(completion_tokens)
+
+    # Estimate cost
+    model_lower = model.lower()
+    costs = _COST_PER_1K.get(model_lower)
+    if not costs:
+        # Try partial match (e.g. "llama-3.1-70b-versatile" in "groq/llama-3.1-70b-versatile")
+        for key, val in _COST_PER_1K.items():
+            if key in model_lower:
+                costs = val
+                break
+
+    if costs:
+        prompt_cost = (prompt_tokens / 1000) * costs[0]
+        completion_cost = (completion_tokens / 1000) * costs[1]
+        total_cost = prompt_cost + completion_cost
+        LLM_COST_USD.labels(model=model).inc(total_cost)
+        logger.info(
+            "LLM usage: prompt=%d completion=%d est_cost=$%.6f",
+            prompt_tokens,
+            completion_tokens,
+            total_cost,
+        )
+    else:
+        logger.info(
+            "LLM usage: prompt=%d completion=%d (no cost estimate for model=%s)",
+            prompt_tokens,
+            completion_tokens,
+            model,
+        )
+
 
 def _build_request(
     messages: list[dict[str, str]],
@@ -157,6 +215,10 @@ async def generate_full(
             if not choice:
                 raise ValueError("No completion in response")
             content = (choice.get("message") or {}).get("content") or ""
+
+            # Track token usage and estimated cost
+            _record_usage(data, str(resolved_model))
+
             return content.strip()
 
         except Exception as e:

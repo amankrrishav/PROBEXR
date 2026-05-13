@@ -16,6 +16,18 @@ LLM_CALLS_TOTAL = Counter(
     ["model", "method", "status", "result"],
 )
 
+LLM_TOKENS_TOTAL = Counter(
+    "llm_tokens_total",
+    "Total tokens consumed by LLM API calls",
+    ["model", "type"],  # type: prompt | completion
+)
+
+LLM_COST_USD = Counter(
+    "llm_cost_usd_total",
+    "Estimated cumulative LLM API cost in USD",
+    ["model"],
+)
+
 # ── A-35: HTTP route metrics ──────────────────────────────────────────────
 
 HTTP_REQUEST_DURATION_SECONDS = Histogram(

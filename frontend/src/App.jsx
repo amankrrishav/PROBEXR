@@ -219,7 +219,7 @@ export default function App() {
       </div>
 
       {/* Main content */}
-      <main style={{ flex: 1, minWidth: 0, overflowY: "auto", minHeight: "100vh", position: "relative", zIndex: 1 }}>
+      <main id="main-content" aria-label="Main content" style={{ flex: 1, minWidth: 0, overflowY: "auto", minHeight: "100vh", position: "relative", zIndex: 1 }}>
         <ErrorBoundary>
         <div key={pageKey} className="page-enter" style={{ padding: "48px 40px" }}>
 
