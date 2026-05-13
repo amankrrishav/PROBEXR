@@ -466,3 +466,123 @@ async def logout_all(
 @router.get("/me", response_model=UserRead)
 async def read_me(current_user: CurrentUser) -> UserRead:
     return UserRead.model_validate(current_user)
+
+
+# ---------------------------------------------------------------------------
+# GDPR — Data export & account deletion
+# ---------------------------------------------------------------------------
+
+
+@router.get("/export")
+async def export_user_data(
+    current_user: CurrentUser,
+    session: DbSession,
+) -> dict:
+    """GDPR Article 20 — Right to data portability.
+
+    Returns all user data as JSON so the user can download it.
+    """
+    from sqlmodel import select
+
+    from app.models.chat import ChatMessage, ChatSession
+    from app.models.document import Document
+
+    if current_user.id is None:
+        raise HTTPException(status_code=500, detail="User lookup failed")
+
+    user_id = current_user.id
+
+    # Documents
+    docs_result = await session.execute(
+        select(Document).where(
+            Document.user_id == user_id,
+            Document.deleted_at.is_(None),  # type: ignore[union-attr]
+        )
+    )
+    documents = [
+        {
+            "id": d.id,
+            "title": d.title,
+            "url": d.url,
+            "created_at": d.created_at.isoformat() if d.created_at else None,
+            "word_count": len(d.cleaned_content.split()) if d.cleaned_content else 0,
+        }
+        for d in docs_result.scalars().all()
+    ]
+
+    # Chat sessions & messages
+    sessions_result = await session.execute(
+        select(ChatSession).where(ChatSession.user_id == user_id)
+    )
+    chat_data = []
+    for cs in sessions_result.scalars().all():
+        msgs_result = await session.execute(
+            select(ChatMessage).where(ChatMessage.session_id == cs.id)
+        )
+        messages = [
+            {
+                "role": m.role,
+                "content": m.content,
+                "created_at": m.created_at.isoformat() if m.created_at else None,
+            }
+            for m in msgs_result.scalars().all()
+        ]
+        chat_data.append({
+            "session_id": cs.id,
+            "document_id": cs.document_id,
+            "created_at": cs.created_at.isoformat() if cs.created_at else None,
+            "messages": messages,
+        })
+
+    return {
+        "user": {
+            "id": current_user.id,
+            "email": current_user.email,
+            "full_name": current_user.full_name,
+            "avatar_url": current_user.avatar_url,
+            "is_verified": current_user.is_verified,
+            "plan": current_user.plan,
+            "signup_source": current_user.signup_source,
+            "created_at": current_user.created_at.isoformat() if current_user.created_at else None,
+            "last_login_at": current_user.last_login_at.isoformat() if current_user.last_login_at else None,
+        },
+        "documents": documents,
+        "chat_sessions": chat_data,
+    }
+
+
+@router.delete("/account", status_code=status.HTTP_200_OK)
+async def delete_account(
+    current_user: CurrentUser,
+    response: Response,
+    session: DbSession,
+) -> dict[str, str]:
+    """GDPR Article 17 — Right to erasure.
+
+    Deactivates the user account, revokes all tokens, and clears cookies.
+    Documents are retained with soft-delete for 30 days before permanent removal.
+    """
+    if current_user.id is None:
+        raise HTTPException(status_code=500, detail="User lookup failed")
+
+    # Revoke all refresh tokens
+    await revoke_all_user_tokens(session, current_user.id)
+
+    # Deactivate account (soft delete — keeps data for 30-day grace period)
+    current_user.is_active = False
+    current_user.email = f"deleted-{current_user.id}@probexr.local"
+    session.add(current_user)
+    await session.commit()
+
+    # Clear auth cookies
+    delete_auth_cookies(response)
+
+    await record_audit_event(
+        session,
+        user_id=current_user.id,
+        action="account_deleted",
+        detail="User requested account deletion (GDPR Article 17)",
+    )
+
+    logger.info("Account deleted: user_id=%s", current_user.id)
+    return {"message": "Account deleted. Your data will be permanently removed within 30 days."}
