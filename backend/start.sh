@@ -15,4 +15,5 @@ exec gunicorn app.main:app \
     -k uvicorn.workers.UvicornWorker \
     --bind "0.0.0.0:${PORT:-10000}" \
     --timeout 120 \
-    --graceful-timeout 30
+    --graceful-timeout 30 \
+    --header "server:"
