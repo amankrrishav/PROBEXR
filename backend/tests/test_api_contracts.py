@@ -19,6 +19,7 @@ from sqlmodel import SQLModel
 
 from app.db import get_session
 from app.main import app
+from tests.conftest import _override_get_session
 from app.models import *  # noqa: F401,F403 — ensure all models are registered
 
 # ---------------------------------------------------------------------------
@@ -58,7 +59,7 @@ async def client(session) -> AsyncGenerator[AsyncClient, None]:
         cookies={"csrf_token": _TEST_CSRF_TOKEN},
     ) as c:
         yield c
-    app.dependency_overrides.clear()
+    app.dependency_overrides[get_session] = _override_get_session
 
 
 # ---------------------------------------------------------------------------

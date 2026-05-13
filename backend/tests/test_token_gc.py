@@ -13,10 +13,15 @@ from app.models.refresh_token import RefreshToken
 from app.models.used_token import UsedToken
 from app.services.token_gc import _cleanup_tokens, _gc_loop
 
-# Re-use the test engine from conftest
-from tests.conftest import _test_engine
+# Re-use the test engine from conftest — must call _get_test_engine()
+# to ensure the engine is initialized (it starts as None).
+from tests.conftest import _get_test_engine
 
-_TestSession = async_sessionmaker(_test_engine, class_=AsyncSession, expire_on_commit=False)
+
+def _get_test_session_factory():
+    """Lazily build a sessionmaker bound to the test engine."""
+    engine = _get_test_engine()
+    return async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
 # ---- CancelledError propagation ----
@@ -25,7 +30,7 @@ _TestSession = async_sessionmaker(_test_engine, class_=AsyncSession, expire_on_c
 @pytest.mark.asyncio
 async def test_gc_loop_propagates_cancelled_error():
     """CancelledError must propagate out of _gc_loop for clean shutdown."""
-    task = asyncio.create_task(_gc_loop(_TestSession))
+    task = asyncio.create_task(_gc_loop(_get_test_session_factory()))
     # Give the loop a moment to start (it will try cleanup then sleep)
     await asyncio.sleep(0.05)
     task.cancel()
@@ -39,6 +44,7 @@ async def test_gc_loop_propagates_cancelled_error():
 @pytest.mark.asyncio
 async def test_cleanup_purges_expired_used_tokens():
     """Expired UsedToken rows must be deleted by _cleanup_tokens."""
+    _TestSession = _get_test_session_factory()
     async with _TestSession() as session:
         # Insert an already-expired UsedToken
         expired = UsedToken(
@@ -61,7 +67,7 @@ async def test_cleanup_purges_expired_used_tokens():
     assert count >= 1
 
     # Verify: expired token is gone, valid token remains
-    async with _TestSession() as session:
+    async with _get_test_session_factory()() as session:
         remaining = (await session.execute(select(UsedToken))).scalars().all()
         jtis = [t.jti for t in remaining]
         assert "expired-jti-001" not in jtis
@@ -74,6 +80,7 @@ async def test_cleanup_purges_expired_used_tokens():
 @pytest.mark.asyncio
 async def test_cleanup_purges_expired_refresh_tokens():
     """Expired RefreshToken rows must still be deleted after the UsedToken addition."""
+    _TestSession = _get_test_session_factory()
     async with _TestSession() as session:
         expired_rt = RefreshToken(
             user_id=1,
@@ -96,7 +103,7 @@ async def test_cleanup_purges_expired_refresh_tokens():
     count = await _cleanup_tokens(_TestSession)
     assert count >= 1
 
-    async with _TestSession() as session:
+    async with _get_test_session_factory()() as session:
         remaining = (await session.execute(select(RefreshToken))).scalars().all()
         tokens = [t.token for t in remaining]
         assert "expired-token-001" not in tokens
