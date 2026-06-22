@@ -25,7 +25,7 @@ jobs:
       ENVIRONMENT: "testing"
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v6
@@ -75,7 +75,7 @@ jobs:
         working-directory: ./frontend
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up Node.js 20
         uses: actions/setup-node@v6
