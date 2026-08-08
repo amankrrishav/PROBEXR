@@ -560,6 +560,7 @@ def test_middleware_stack_registered():
 def test_v1_router_has_all_expected_routes():
     """v1 router includes expected sub-routers."""
     from fastapi.testclient import TestClient
+
     from app.main import app
 
     client = TestClient(app)
