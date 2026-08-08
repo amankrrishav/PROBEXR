@@ -559,9 +559,15 @@ def test_middleware_stack_registered():
 
 def test_v1_router_has_all_expected_routes():
     """v1 router includes expected sub-routers."""
+    from fastapi.testclient import TestClient
     from app.main import app
 
-    route_paths = [r.path for r in app.routes if hasattr(r, "path")]
+    client = TestClient(app)
+    response = client.get("/openapi.json")
+    assert response.status_code == 200
+    openapi = response.json()
+    paths = openapi.get("paths", {})
+
     # Spot check key endpoints
-    assert any("/api/v1/auth" in p for p in route_paths)
-    assert any("/api/v1/health" in p for p in route_paths)
+    assert any("/api/v1/auth" in p for p in paths)
+    assert any("/api/v1/health" in p for p in paths)
