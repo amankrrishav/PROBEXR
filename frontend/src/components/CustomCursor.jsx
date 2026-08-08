@@ -28,11 +28,13 @@ export default function CustomCursor() {
     const interactiveTags = new Set(["A", "BUTTON", "INPUT", "TEXTAREA", "SELECT", "LABEL"]);
 
     const enter = (e) => {
+      if (!e.target || typeof e.target.closest !== "function") return;
       if (interactiveTags.has(e.target.tagName) || e.target.closest("button, a, input, textarea, select, [role='button']")) {
         setHovering(true);
       }
     };
     const leave = (e) => {
+      if (!e.target || typeof e.target.closest !== "function") return;
       if (interactiveTags.has(e.target.tagName) || e.target.closest("button, a, input, textarea, select, [role='button']")) {
         setHovering(false);
       }

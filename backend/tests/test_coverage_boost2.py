@@ -8,7 +8,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-
 # =====================================================================
 # Email service — SMTP paths (mocked)
 # =====================================================================
@@ -102,11 +101,16 @@ async def test_send_verification_email_smtp_failure():
     mock_cfg.smtp_user = "user"
     mock_cfg.smtp_password = "pass"
 
-    with patch("app.services.email.get_config", return_value=mock_cfg), \
-         patch("app.services.email.asyncio.to_thread", new_callable=AsyncMock,
-               side_effect=Exception("SMTP connection refused")):
-        with pytest.raises(ValueError, match="Failed to send email"):
-            await send_verification_email("user@test.com", "https://example.com/verify")
+    with (
+        patch("app.services.email.get_config", return_value=mock_cfg),
+        patch(
+            "app.services.email.asyncio.to_thread",
+            new_callable=AsyncMock,
+            side_effect=Exception("SMTP connection refused"),
+        ),
+        pytest.raises(ValueError, match="Failed to send email"),
+    ):
+        await send_verification_email("user@test.com", "https://example.com/verify")
 
 
 @pytest.mark.asyncio
@@ -123,9 +127,8 @@ async def test_send_password_reset_email_smtp_failure():
 
     with patch("app.services.email.get_config", return_value=mock_cfg), \
          patch("app.services.email.asyncio.to_thread", new_callable=AsyncMock,
-               side_effect=Exception("SMTP timeout")):
-        with pytest.raises(ValueError, match="Failed to send email"):
-            await send_password_reset_email("user@test.com", "https://example.com/reset")
+               side_effect=Exception("SMTP timeout")), pytest.raises(ValueError, match="Failed to send email"):
+        await send_password_reset_email("user@test.com", "https://example.com/reset")
 
 
 @pytest.mark.asyncio
@@ -142,9 +145,8 @@ async def test_send_magic_link_email_smtp_failure():
 
     with patch("app.services.email.get_config", return_value=mock_cfg), \
          patch("app.services.email.asyncio.to_thread", new_callable=AsyncMock,
-               side_effect=Exception("SMTP auth failed")):
-        with pytest.raises(ValueError, match="Failed to send email"):
-            await send_magic_link_email("user@test.com", "https://example.com/magic")
+               side_effect=Exception("SMTP auth failed")), pytest.raises(ValueError, match="Failed to send email"):
+        await send_magic_link_email("user@test.com", "https://example.com/magic")
 
 
 @pytest.mark.asyncio
@@ -161,9 +163,8 @@ async def test_send_account_exists_email_smtp_failure():
 
     with patch("app.services.email.get_config", return_value=mock_cfg), \
          patch("app.services.email.asyncio.to_thread", new_callable=AsyncMock,
-               side_effect=Exception("Network error")):
-        with pytest.raises(ValueError, match="Failed to send email"):
-            await send_account_exists_email("user@test.com", "https://example.com/login")
+               side_effect=Exception("Network error")), pytest.raises(ValueError, match="Failed to send email"):
+        await send_account_exists_email("user@test.com", "https://example.com/login")
 
 
 # =====================================================================
@@ -256,9 +257,11 @@ async def test_github_auth_error_raises():
     mock_client = AsyncMock()
     mock_client.post.return_value = mock_token_resp
 
-    with patch("app.services.social.get_http_client", return_value=mock_client):
-        with pytest.raises(ValueError, match="GitHub Auth Error"):
-            await get_github_user_info("bad-code")
+    with (
+        patch("app.services.social.get_http_client", return_value=mock_client),
+        pytest.raises(ValueError, match="GitHub Auth Error"),
+    ):
+        await get_github_user_info("bad-code")
 
 
 # =====================================================================

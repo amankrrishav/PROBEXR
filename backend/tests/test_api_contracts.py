@@ -19,8 +19,8 @@ from sqlmodel import SQLModel
 
 from app.db import get_session
 from app.main import app
-from tests.conftest import _override_get_session
 from app.models import *  # noqa: F401,F403 — ensure all models are registered
+from tests.conftest import _override_get_session
 
 # ---------------------------------------------------------------------------
 # Fixtures

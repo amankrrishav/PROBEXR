@@ -1,16 +1,17 @@
 """Alembic env.py — supports both sync and async engines, env-driven DATABASE_URL."""
 
+import os
+import sys
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
-from alembic import context
 
-import os
-import sys
+from alembic import context
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from sqlmodel import SQLModel
+
 import app.models  # noqa: F401 — registers all models on metadata
 
 target_metadata = SQLModel.metadata
@@ -30,7 +31,7 @@ if _db_url:
         _db_url = f"postgresql+psycopg://{_rest}"
 
     # Strip SSL params that psycopg handles via connect_args
-    from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
+    from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
     _u = urlparse(_db_url)
     _q = parse_qs(_u.query)
@@ -74,9 +75,9 @@ def run_migrations_online() -> None:
             with context.begin_transaction():
                 context.run_migrations()
     except Exception as e:
-        print(f"ALEMBIC FATAL ERROR: {type(e).__name__}: {str(e)}")
         import traceback
 
+        sys.stderr.write(f"ALEMBIC FATAL ERROR: {type(e).__name__}: {str(e)}\n")
         traceback.print_exc()
         sys.exit(1)
 

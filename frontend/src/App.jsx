@@ -105,6 +105,7 @@ export default function App() {
       return;
     }
     summarizer.onSummarize();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasUsedFeatureOnce, auth.isAuthenticated, summarizer.onSummarize]);
 
   // C3: Global keyboard shortcuts
@@ -185,6 +186,7 @@ export default function App() {
         customInstructions: summarizer.customInstructions,
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [summarizer.summarizeStatus]);
 
   if (isCallback) {

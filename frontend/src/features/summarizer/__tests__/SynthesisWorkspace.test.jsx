@@ -5,7 +5,7 @@
  * submit disabled when < 2 docs selected, error display.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import SynthesisWorkspace from '../SynthesisWorkspace.jsx';
 
 // ── Mocks ────────────────────────────────────────────────────────────────

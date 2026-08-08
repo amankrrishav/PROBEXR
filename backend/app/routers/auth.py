@@ -577,11 +577,10 @@ async def delete_account(
     # Clear auth cookies
     delete_auth_cookies(response)
 
-    await record_audit_event(
-        session,
-        user_id=current_user.id,
-        action="account_deleted",
-        detail="User requested account deletion (GDPR Article 17)",
+    record_audit_event(
+        "account_deleted",
+        user=current_user,
+        detail={"info": "User requested account deletion (GDPR Article 17)"},
     )
 
     logger.info("Account deleted: user_id=%s", current_user.id)

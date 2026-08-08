@@ -58,11 +58,10 @@ async def create_api_key(
     await session.commit()
     await session.refresh(api_key)
 
-    await record_audit_event(
-        session,
-        user_id=user.id,
-        action="api_key_created",
-        detail=f"API key '{request.name}' created (prefix: {raw_key[:16]})",
+    record_audit_event(
+        "api_key_created",
+        user=user,
+        detail={"info": f"API key '{request.name}' created (prefix: {raw_key[:16]})"},
     )
 
     logger.info("API key created: user_id=%s prefix=%s", user.id, raw_key[:16])
@@ -119,10 +118,9 @@ async def revoke_api_key(
     session.add(api_key)
     await session.commit()
 
-    await record_audit_event(
-        session,
-        user_id=user.id,
-        action="api_key_revoked",
-        detail=f"API key '{api_key.name}' revoked (prefix: {api_key.prefix})",
+    record_audit_event(
+        "api_key_revoked",
+        user=user,
+        detail={"info": f"API key \'{api_key.name}\' revoked (prefix: {api_key.prefix})"},
     )
     logger.info("API key revoked: user_id=%s key_id=%s", user.id, key_id)

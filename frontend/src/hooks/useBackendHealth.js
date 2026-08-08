@@ -12,7 +12,7 @@ export function useBackendHealth(options = {}) {
 
   useEffect(() => {
     if (!enabled) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     setIsFetching(true);
     let cancelled = false;
     getHealth()

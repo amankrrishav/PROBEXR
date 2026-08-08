@@ -23,7 +23,6 @@ vi.mock('../../services/auth.js', () => ({
 import {
   getCurrentUser,
   login as loginApi,
-  register as registerApi,
   logout as logoutApi,
   refreshToken,
 } from '../../services/auth.js';

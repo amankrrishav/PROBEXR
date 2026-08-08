@@ -16,7 +16,7 @@ class APIKey(SQLModel, table=True):
     at creation time and never stored.
     """
 
-    __tablename__ = "api_key"  # type: ignore[assignment]
+    __tablename__ = "api_key"
 
     id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(index=True, foreign_key="user.id")

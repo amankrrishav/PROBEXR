@@ -3,18 +3,13 @@ export default function InputTabs({
   isUrlMode,
   setIsUrlMode,
   text,
-  setText,
   url,
-  setUrl,
   isSampleLoaded,
-  setIsSampleLoaded,
   handleLoadSample,
   handleClearSample,
   handleClear
 }) {
   if (hasSummary) return null;
-
-  const SAMPLE_TEXT = `Artificial intelligence has rapidly transformed from a research curiosity into a cornerstone of modern technology...`;
 
   return (
     <div className="flex items-center" style={{

@@ -7,7 +7,7 @@
  * OutputCard reads exclusively from SummarizerContext — mocked here.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import OutputCard from '../OutputCard.jsx';
 
 // ── Sub-component mocks ──────────────────────────────────────────────────

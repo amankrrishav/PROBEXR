@@ -79,7 +79,7 @@ class AppConfig(BaseSettings):
     smtp_from_email: str = "noreply@probexr.com"
 
     # ── Auth / JWT ───────────────────────────────────────────────
-    secret_key: str = "dev-secret-change-this"
+    secret_key: str = "dev-secret-change-this-very-long-string-to-be-32-bytes"
     algorithm: str = "HS256"
     # RS256 readiness: set these + algorithm="RS256" to switch to asymmetric JWTs.
     # Values are PEM-encoded keys (include \n literals or use multi-line env vars).

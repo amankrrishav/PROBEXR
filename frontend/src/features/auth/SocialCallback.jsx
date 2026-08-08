@@ -11,7 +11,7 @@ export default function SocialCallback({ provider, onResult }) {
     const code = params.get("code") || params.get("token");
 
     if (!code) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- error handling during mount
+       
       setStatus("Error: No authentication token received.");
       onResult?.(false);
       return;
@@ -35,7 +35,7 @@ export default function SocialCallback({ provider, onResult }) {
           throw new Error(data.detail || "Social authentication failed.");
         }
 
-        const data = await resp.json();
+        await resp.json();
         // The backend sets the auth cookies, but we might need to refresh local state
         await auth.refreshUser();
         setStatus("Success! Redirecting...");

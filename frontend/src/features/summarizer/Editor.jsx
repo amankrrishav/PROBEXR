@@ -2,7 +2,7 @@
  * Editor — Main input component.
  * Refactored into sub-components for maintainability.
  */
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useSummarizerContext } from "../../contexts/SummarizerContext.jsx";
 import { useAppContext } from "../../contexts/AppContext.jsx";
 
@@ -34,11 +34,7 @@ function getWordCountColor(count) {
   return "var(--ink-secondary)";
 }
 
-function getWordCountTooltip(count) {
-  if (count > 10000) return "Over 10,000 word limit";
-  if (count > 8000) return "Approaching limit";
-  return null;
-}
+
 
 export default function Editor({ onSummarize, handleKeyDown, focusMode }) {
   const {
@@ -67,7 +63,7 @@ export default function Editor({ onSummarize, handleKeyDown, focusMode }) {
   // Rotate loading phases
   useEffect(() => {
     if (!isBusy) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset phase on start
+     
     setLoadingPhase(0);
     let i = 0;
     const interval = setInterval(() => {
@@ -86,7 +82,7 @@ export default function Editor({ onSummarize, handleKeyDown, focusMode }) {
   }, [text, textareaRef]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- derived state from text prop
+     
     setIsSampleLoaded(text === SAMPLE_TEXT);
   }, [text]);
 

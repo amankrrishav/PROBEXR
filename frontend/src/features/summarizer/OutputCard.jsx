@@ -24,7 +24,7 @@ export default function OutputCard() {
   const {
     summaryText, documentId, isRestored, loading,
     streaming, streamingText, summaryMeta, keyTakeaways, reset,
-    summaryMode, hasSummary, onSummarize,
+    summaryMode, onSummarize,
   } = useSummarizerContext();
 
   const [copied, setCopied] = useState(false);
@@ -65,7 +65,6 @@ export default function OutputCard() {
   };
 
   const showSummary = summaryText && !streaming && !loading;
-  const showStreaming = streaming || (summaryText && streaming);
   const showLoading = loading && !streaming && !summaryText;
 
   // Extract simple themes from key takeaways for the graph

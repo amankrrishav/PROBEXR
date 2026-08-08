@@ -130,7 +130,7 @@ async def lifespan(app_inst: FastAPI) -> AsyncGenerator[None, None]:
             decode_responses=True,
             socket_connect_timeout=3,
         )
-        await redis_client.ping()
+        await redis_client.ping()  # type: ignore[misc]
         set_rate_limiter(RedisRateLimiter(redis_client))
         set_lockout_manager(
             RedisLockoutStore(

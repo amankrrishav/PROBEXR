@@ -19,7 +19,7 @@ LLM_CALLS_TOTAL = Counter(
 LLM_TOKENS_TOTAL = Counter(
     "llm_tokens_total",
     "Total tokens consumed by LLM API calls",
-    ["model", "type"],  # type: prompt | completion
+    ["model", "type"],  # e.g., type: prompt | completion
 )
 
 LLM_COST_USD = Counter(

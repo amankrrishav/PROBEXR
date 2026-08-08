@@ -6,7 +6,6 @@ integration tests (dev-mode email fallback, cache key building,
 DB engine proxy, response envelope helpers, etc.).
 """
 
-import asyncio
 import csv
 from io import StringIO
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -15,7 +14,6 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.main import app as fastapi_app
-
 
 # =====================================================================
 # Email service — dev-mode (no SMTP) fallbacks
@@ -79,6 +77,10 @@ def test_send_email_background_fires_and_forgets():
             template="verification",
         )
         mock_ff.assert_called_once()
+
+        wrapper_coro = mock_ff.call_args[0][0]
+        wrapper_coro.close()
+        mock_coro.close()
 
 
 # =====================================================================
@@ -160,7 +162,7 @@ async def test_set_cached_summary_noop():
 
 def test_set_cache_redis():
     """set_cache_redis sets the shared client."""
-    from app.services.cache import _shared_redis, set_cache_redis
+    from app.services.cache import set_cache_redis
 
     mock_redis = MagicMock()
     set_cache_redis(mock_redis)
@@ -188,7 +190,7 @@ def test_engine_proxy_delegates():
 
 def test_reset_engine():
     """reset_engine clears the cached engine and factory."""
-    from app.db import _async_engine, _async_session_factory, reset_engine
+    from app.db import reset_engine
 
     reset_engine()
     import app.db

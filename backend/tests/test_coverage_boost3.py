@@ -5,10 +5,9 @@ ingest service, main.py lifespan config checks, and remaining gaps.
 
 import smtplib
 from email.message import EmailMessage
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
-
 
 # =====================================================================
 # Email — inner _send_email functions (the SMTP body, ~60 lines)
@@ -294,7 +293,7 @@ async def test_in_memory_rate_limiter_blocks_over_limit():
 
     limiter = InMemoryRateLimiter()
 
-    for i in range(5):
+    for _i in range(5):
         allowed, _ = await limiter.check_and_increment("flood-key", limit=5)
 
     # 6th request should be blocked

@@ -256,11 +256,17 @@ export default function AnalyticsDashboard() {
     finally { setLoading(false); }
   }, []);
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount pattern: setLoading is part of the fetch lifecycle
+   
   useEffect(() => { if (user) load(); }, [user, load]);
 
   // Local-only analytics (B3) — shown even when not authenticated
   const hasLocalData = analytics.totalSummaries > 0;
+
+  // Use a stable seed instead of Math.random() during render (react-hooks/impure-function-during-render)
+  const sparklineData = useMemo(
+    () => [3, 7, 2, 9, 5, 1, 8],
+    []
+  );
 
   // Show local analytics for non-authenticated users
   if (!user && !hasLocalData) return (
@@ -308,12 +314,6 @@ export default function AnalyticsDashboard() {
   const s = data?.summary_stats || {};
   const streak = data?.streak || 0;
   const hasDocs = (s.total_documents || 0) > 0;
-
-  // Use a stable seed instead of Math.random() during render (react-hooks/impure-function-during-render)
-  const sparklineData = useMemo(
-    () => [3, 7, 2, 9, 5, 1, 8],
-    []
-  );
 
   return (
     <div className="animate-in">

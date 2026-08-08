@@ -333,6 +333,7 @@ async def test_csrf_cookie_refreshed_on_valid_request(csrf_valid_client: AsyncCl
 async def test_csrf_existing_cookie_value_preserved(csrf_client: AsyncClient):
     """If csrf_token cookie already exists on request, same value is echoed back."""
     existing_token = "my-existing-csrf-token-999"
-    res = await csrf_client.get("/", cookies={CSRF_COOKIE_NAME: existing_token})
+    csrf_client.cookies.set(CSRF_COOKIE_NAME, existing_token)
+    res = await csrf_client.get("/")
     assert CSRF_COOKIE_NAME in res.cookies
     assert res.cookies[CSRF_COOKIE_NAME] == existing_token

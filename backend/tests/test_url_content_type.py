@@ -57,9 +57,9 @@ async def test_html_content_type_passes_validation(authed_client: AsyncClient):
         "content-type": "text/html; charset=utf-8",
         "content-length": "100",
     }
-    mock_response.aiter_bytes = AsyncMock(
-        return_value=iter([b"<html><head><title>Test</title></head><body>Hello world.</body></html>"])
-    )
+    async def mock_aiter_bytes(*args, **kwargs):
+        yield b"<html><head><title>Test</title></head><body>Hello world.</body></html>"
+    mock_response.aiter_bytes = mock_aiter_bytes
     mock_response.__aenter__ = AsyncMock(return_value=mock_response)
     mock_response.__aexit__ = AsyncMock(return_value=False)
 
@@ -85,7 +85,9 @@ async def test_text_plain_content_type_passes_validation(authed_client: AsyncCli
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.headers = {"content-type": "text/plain; charset=utf-8"}
-    mock_response.aiter_bytes = AsyncMock(return_value=iter([b"Plain text article content here." * 10]))
+    async def mock_aiter_bytes(*args, **kwargs):
+        yield b"Plain text article content here." * 10
+    mock_response.aiter_bytes = mock_aiter_bytes
     mock_response.__aenter__ = AsyncMock(return_value=mock_response)
     mock_response.__aexit__ = AsyncMock(return_value=False)
 
@@ -110,7 +112,9 @@ async def test_missing_content_type_does_not_crash(authed_client: AsyncClient):
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.headers = {}  # no content-type
-    mock_response.aiter_bytes = AsyncMock(return_value=iter([b"<html><body>Content</body></html>"]))
+    async def mock_aiter_bytes(*args, **kwargs):
+        yield b"<html><body>Content</body></html>"
+    mock_response.aiter_bytes = mock_aiter_bytes
     mock_response.__aenter__ = AsyncMock(return_value=mock_response)
     mock_response.__aexit__ = AsyncMock(return_value=False)
 
