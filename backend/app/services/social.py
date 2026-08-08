@@ -9,7 +9,7 @@ from app.http_client import get_http_client
 async def get_google_user_info(code: str, redirect_uri: str) -> dict[str, Any]:
     """Exchange Google OAuth2 code for user profile info."""
     cfg = get_config()
-    token_url = "https://oauth2.googleapis.com/token"
+    token_url = "https://oauth2.googleapis.com/token"  # nosec B105
     data = {
         "code": code,
         "client_id": cfg.google_client_id,
@@ -35,7 +35,7 @@ async def get_google_user_info(code: str, redirect_uri: str) -> dict[str, Any]:
 async def get_github_user_info(code: str) -> dict[str, Any]:
     """Exchange GitHub OAuth2 code for user profile info."""
     cfg = get_config()
-    token_url = "https://github.com/login/oauth/access_token"
+    token_url = "https://github.com/login/oauth/access_token"  # nosec B105
     headers = {"Accept": "application/json"}
     data = {
         "client_id": cfg.github_client_id,

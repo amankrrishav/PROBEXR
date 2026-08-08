@@ -177,7 +177,7 @@ async def summarize_stream(
                     if "token" in token_data:
                         collected_tokens.append(token_data["token"])
                 except Exception:
-                    pass
+                    pass  # nosec B110
 
             # Skip the inner _stream_llm done event (we'll emit our own)
             if chunk.startswith('data: {"done"'):

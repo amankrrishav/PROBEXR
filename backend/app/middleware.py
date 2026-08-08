@@ -273,7 +273,7 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
                             )
                 except Exception:
                     # Malformed / expired token — fall through, IP check already passed
-                    pass
+                    pass  # nosec B110
 
         # --- Per-email check (auth routes only, POST with JSON body) ---
         if is_auth_route and request.method == "POST":
@@ -308,7 +308,7 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
                         )
             except Exception:
                 # Body parsing failed — fall through, IP check already passed
-                pass
+                pass  # nosec B110
 
         # --- Standard rate-limit headers on success ---
         remaining = max(0, limit - ip_count)

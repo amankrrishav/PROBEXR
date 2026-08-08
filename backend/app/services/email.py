@@ -113,7 +113,7 @@ The PROBEXR Team
 
     def _send_email() -> None:
         try:
-            assert cfg.smtp_host is not None
+            assert cfg.smtp_host is not None  # nosec B101
             with smtplib.SMTP(cfg.smtp_host, cfg.smtp_port) as server:
                 server.starttls()
                 if cfg.smtp_user and cfg.smtp_password:
@@ -177,7 +177,7 @@ The PROBEXR Team
 
     def _send_email() -> None:
         try:
-            assert cfg.smtp_host is not None
+            assert cfg.smtp_host is not None  # nosec B101
             with smtplib.SMTP(cfg.smtp_host, cfg.smtp_port) as server:
                 server.starttls()
                 if cfg.smtp_user and cfg.smtp_password:
@@ -244,7 +244,7 @@ The PROBEXR Team
 
     def _send_email() -> None:
         try:
-            assert cfg.smtp_host is not None
+            assert cfg.smtp_host is not None  # nosec B101
             with smtplib.SMTP(cfg.smtp_host, cfg.smtp_port) as server:
                 server.starttls()
                 if cfg.smtp_user and cfg.smtp_password:
@@ -308,7 +308,7 @@ The PROBEXR Team
 
     def _send_email() -> None:
         try:
-            assert cfg.smtp_host is not None
+            assert cfg.smtp_host is not None  # nosec B101
             with smtplib.SMTP(cfg.smtp_host, cfg.smtp_port) as server:
                 server.starttls()
                 if cfg.smtp_user and cfg.smtp_password:

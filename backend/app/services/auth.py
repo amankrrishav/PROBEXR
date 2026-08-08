@@ -122,7 +122,7 @@ async def verify_password_reset_token(session: AsyncSession, token: str, new_pas
     session.add(user)
 
     # Revoke all refresh tokens so all existing sessions are invalidated
-    assert user.id is not None
+    assert user.id is not None  # nosec B101
     await revoke_all_user_tokens(session, user.id)
 
     await session.commit()

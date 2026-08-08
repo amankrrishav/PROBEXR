@@ -76,7 +76,7 @@ async def lifespan(app_inst: FastAPI) -> AsyncGenerator[None, None]:
 
     # --- Startup assertions ---
     # 1. SECRET_KEY must not be default in production
-    if cfg.environment == "production" and cfg.SECRET_KEY == "dev-secret-change-this":
+    if cfg.environment == "production" and cfg.SECRET_KEY == "dev-secret-change-this":  # nosec B105
         raise RuntimeError(
             "FATAL: SECRET_KEY is set to the default value in production. "
             "Set a strong, unique SECRET_KEY environment variable before deploying."

@@ -120,7 +120,7 @@ async def get_dashboard(user_id: int, session: AsyncSession) -> dict[str, Any]:
             if host:
                 domain_counter[host] += 1
         except Exception:
-            pass
+            pass  # nosec B110
 
     top_domains: list[dict[str, str | int]] = [
         {"domain": domain, "count": count} for domain, count in domain_counter.most_common(8)

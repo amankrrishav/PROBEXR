@@ -65,7 +65,7 @@ async def _get_redis() -> Any:
             return _shared_redis, False  # (client, needs_close)
         except Exception:
             # Shared client lost connection — fall through to create a new one
-            pass
+            pass  # nosec B110
 
     # Slow path: create a temporary client (dev/tests/startup race)
     try:

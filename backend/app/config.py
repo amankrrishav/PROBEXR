@@ -217,7 +217,7 @@ class AppConfig(BaseSettings):
             u = u._replace(query=urlencode(q, doseq=True))
             url = urlunparse(u)
         except Exception:
-            pass
+            pass  # nosec B110
 
         return url
 
