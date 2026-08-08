@@ -79,7 +79,7 @@ async def _get_redis() -> Any:
             decode_responses=True,
             socket_connect_timeout=1,
         )
-        await client.ping()  # type: ignore[misc]
+        await client.ping()
         return client, True  # (client, needs_close)
     except Exception:
         return None, False

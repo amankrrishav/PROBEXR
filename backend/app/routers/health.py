@@ -62,7 +62,7 @@ async def readiness() -> JSONResponse:
 
         cfg = get_config()
         r = aioredis.from_url(cfg.redis_url, decode_responses=True, socket_connect_timeout=2)
-        await r.ping()  # type: ignore[misc]
+        await r.ping()
         await r.aclose()
         checks["redis"] = {"status": "ok"}
     except Exception as exc:

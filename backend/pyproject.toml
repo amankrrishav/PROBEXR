@@ -31,16 +31,10 @@ module = [
     "httpx.*",
     "pydantic_settings.*",
     "redis.*",
-    "aiosqlite.*",
-    "asyncpg.*",
     "bs4.*",
     "prometheus_client.*",
     "argon2.*",
     "jwt.*",
-    "uvicorn.*",
-    "gunicorn.*",
-    "alembic.*",
-    "python_json_logger.*",
     "pythonjsonlogger.*",
     "starlette.*",
     "fastapi.*",
@@ -84,8 +78,3 @@ ignore = [
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
-
-
-[[tool.mypy.overrides]]
-module = "tests.*"
-ignore_errors = true
