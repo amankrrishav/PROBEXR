@@ -1,4 +1,5 @@
 """Synthesis service — multi-document analysis and combined insight generation."""
+
 import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession

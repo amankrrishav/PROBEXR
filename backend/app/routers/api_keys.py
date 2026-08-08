@@ -1,4 +1,5 @@
 """API key router — create, list, and revoke API keys for programmatic access."""
+
 import hashlib
 import logging
 
@@ -121,6 +122,6 @@ async def revoke_api_key(
     record_audit_event(
         "api_key_revoked",
         user=user,
-        detail={"info": f"API key \'{api_key.name}\' revoked (prefix: {api_key.prefix})"},
+        detail={"info": f"API key '{api_key.name}' revoked (prefix: {api_key.prefix})"},
     )
     logger.info("API key revoked: user_id=%s key_id=%s", user.id, key_id)

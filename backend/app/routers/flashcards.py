@@ -1,4 +1,5 @@
 """Flashcard router — generate and export Anki-compatible flashcards from documents."""
+
 import logging
 from typing import Any
 

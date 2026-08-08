@@ -1,4 +1,5 @@
 """Ingest router — URL and text ingestion with content extraction and validation."""
+
 import logging
 
 from fastapi import APIRouter, HTTPException, status

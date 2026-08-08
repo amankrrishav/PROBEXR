@@ -25,8 +25,10 @@ async def test_send_verification_email_smtp_success():
     mock_cfg.smtp_user = "user"
     mock_cfg.smtp_password = "pass"
 
-    with patch("app.services.email.get_config", return_value=mock_cfg), \
-         patch("app.services.email.asyncio.to_thread", new_callable=AsyncMock) as mock_thread:
+    with (
+        patch("app.services.email.get_config", return_value=mock_cfg),
+        patch("app.services.email.asyncio.to_thread", new_callable=AsyncMock) as mock_thread,
+    ):
         mock_thread.return_value = None
         await send_verification_email("user@test.com", "https://example.com/verify")
         mock_thread.assert_called_once()
@@ -44,8 +46,10 @@ async def test_send_password_reset_email_smtp_success():
     mock_cfg.smtp_user = "user"
     mock_cfg.smtp_password = "pass"
 
-    with patch("app.services.email.get_config", return_value=mock_cfg), \
-         patch("app.services.email.asyncio.to_thread", new_callable=AsyncMock) as mock_thread:
+    with (
+        patch("app.services.email.get_config", return_value=mock_cfg),
+        patch("app.services.email.asyncio.to_thread", new_callable=AsyncMock) as mock_thread,
+    ):
         mock_thread.return_value = None
         await send_password_reset_email("user@test.com", "https://example.com/reset")
         mock_thread.assert_called_once()
@@ -63,8 +67,10 @@ async def test_send_magic_link_email_smtp_success():
     mock_cfg.smtp_user = "user"
     mock_cfg.smtp_password = "pass"
 
-    with patch("app.services.email.get_config", return_value=mock_cfg), \
-         patch("app.services.email.asyncio.to_thread", new_callable=AsyncMock) as mock_thread:
+    with (
+        patch("app.services.email.get_config", return_value=mock_cfg),
+        patch("app.services.email.asyncio.to_thread", new_callable=AsyncMock) as mock_thread,
+    ):
         mock_thread.return_value = None
         await send_magic_link_email("user@test.com", "https://example.com/magic")
         mock_thread.assert_called_once()
@@ -82,8 +88,10 @@ async def test_send_account_exists_email_smtp_success():
     mock_cfg.smtp_user = "user"
     mock_cfg.smtp_password = "pass"
 
-    with patch("app.services.email.get_config", return_value=mock_cfg), \
-         patch("app.services.email.asyncio.to_thread", new_callable=AsyncMock) as mock_thread:
+    with (
+        patch("app.services.email.get_config", return_value=mock_cfg),
+        patch("app.services.email.asyncio.to_thread", new_callable=AsyncMock) as mock_thread,
+    ):
         mock_thread.return_value = None
         await send_account_exists_email("user@test.com", "https://example.com/login")
         mock_thread.assert_called_once()
@@ -125,9 +133,11 @@ async def test_send_password_reset_email_smtp_failure():
     mock_cfg.smtp_user = "user"
     mock_cfg.smtp_password = "pass"
 
-    with patch("app.services.email.get_config", return_value=mock_cfg), \
-         patch("app.services.email.asyncio.to_thread", new_callable=AsyncMock,
-               side_effect=Exception("SMTP timeout")), pytest.raises(ValueError, match="Failed to send email"):
+    with (
+        patch("app.services.email.get_config", return_value=mock_cfg),
+        patch("app.services.email.asyncio.to_thread", new_callable=AsyncMock, side_effect=Exception("SMTP timeout")),
+        pytest.raises(ValueError, match="Failed to send email"),
+    ):
         await send_password_reset_email("user@test.com", "https://example.com/reset")
 
 
@@ -143,9 +153,13 @@ async def test_send_magic_link_email_smtp_failure():
     mock_cfg.smtp_user = "user"
     mock_cfg.smtp_password = "pass"
 
-    with patch("app.services.email.get_config", return_value=mock_cfg), \
-         patch("app.services.email.asyncio.to_thread", new_callable=AsyncMock,
-               side_effect=Exception("SMTP auth failed")), pytest.raises(ValueError, match="Failed to send email"):
+    with (
+        patch("app.services.email.get_config", return_value=mock_cfg),
+        patch(
+            "app.services.email.asyncio.to_thread", new_callable=AsyncMock, side_effect=Exception("SMTP auth failed")
+        ),
+        pytest.raises(ValueError, match="Failed to send email"),
+    ):
         await send_magic_link_email("user@test.com", "https://example.com/magic")
 
 
@@ -161,9 +175,11 @@ async def test_send_account_exists_email_smtp_failure():
     mock_cfg.smtp_user = "user"
     mock_cfg.smtp_password = "pass"
 
-    with patch("app.services.email.get_config", return_value=mock_cfg), \
-         patch("app.services.email.asyncio.to_thread", new_callable=AsyncMock,
-               side_effect=Exception("Network error")), pytest.raises(ValueError, match="Failed to send email"):
+    with (
+        patch("app.services.email.get_config", return_value=mock_cfg),
+        patch("app.services.email.asyncio.to_thread", new_callable=AsyncMock, side_effect=Exception("Network error")),
+        pytest.raises(ValueError, match="Failed to send email"),
+    ):
         await send_account_exists_email("user@test.com", "https://example.com/login")
 
 
@@ -395,7 +411,7 @@ def test_flashcard_csv_special_chars():
             self.front = f
             self.back = b
 
-    cards = [MockCard("What's a \"quote\"?", "It's a 'mark'")]
+    cards = [MockCard('What\'s a "quote"?', "It's a 'mark'")]
     csv_str = generate_csv_export(cards)
     assert len(csv_str) > 0
     assert "quote" in csv_str
@@ -523,6 +539,7 @@ async def test_tasks_fire_and_forget():
     fire_and_forget(_task(), name="test-task")
     # Give the event loop a tick to process
     import asyncio
+
     await asyncio.sleep(0.1)
     assert result == [True]
 

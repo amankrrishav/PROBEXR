@@ -120,6 +120,7 @@ def test_build_cache_key_different_params_differ():
 async def test_cache_get_returns_none_without_redis():
     """cache_get returns None when Redis is unavailable."""
     import app.services.cache
+
     app.services.cache._shared_redis = None  # ensure no shared client
     from app.services.cache import cache_get
 
@@ -132,6 +133,7 @@ async def test_cache_get_returns_none_without_redis():
 async def test_cache_set_noop_without_redis():
     """cache_set should not raise when Redis is unavailable."""
     import app.services.cache
+
     app.services.cache._shared_redis = None
     from app.services.cache import cache_set
 
@@ -143,6 +145,7 @@ async def test_cache_set_noop_without_redis():
 async def test_get_cached_summary_returns_none():
     """get_cached_summary returns None without Redis."""
     import app.services.cache
+
     app.services.cache._shared_redis = None
     from app.services.cache import get_cached_summary
 
@@ -154,6 +157,7 @@ async def test_get_cached_summary_returns_none():
 async def test_set_cached_summary_noop():
     """set_cached_summary should not raise without Redis."""
     import app.services.cache
+
     app.services.cache._shared_redis = None
     from app.services.cache import set_cached_summary
 

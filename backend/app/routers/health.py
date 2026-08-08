@@ -1,4 +1,5 @@
 """Health router — readiness and liveness probes for infrastructure monitoring."""
+
 import logging
 from typing import Any
 

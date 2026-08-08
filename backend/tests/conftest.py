@@ -65,9 +65,7 @@ def _get_test_engine():
             connect_args={"check_same_thread": False},
             poolclass=StaticPool,
         )
-        _TestSessionLocal = async_sessionmaker(
-            _test_engine, class_=AsyncSession, expire_on_commit=False
-        )
+        _TestSessionLocal = async_sessionmaker(_test_engine, class_=AsyncSession, expire_on_commit=False)
     return _test_engine
 
 

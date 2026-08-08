@@ -1,4 +1,5 @@
 """API key model — programmatic access for integrations and CI/CD pipelines."""
+
 import secrets
 from datetime import UTC, datetime
 

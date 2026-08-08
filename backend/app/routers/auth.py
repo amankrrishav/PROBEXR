@@ -1,4 +1,5 @@
 """Authentication router — registration, login, password reset, magic links, and OAuth."""
+
 import logging
 import secrets
 from datetime import UTC, datetime, timedelta
@@ -511,14 +512,10 @@ async def export_user_data(
     ]
 
     # Chat sessions & messages
-    sessions_result = await session.execute(
-        select(ChatSession).where(ChatSession.user_id == user_id)
-    )
+    sessions_result = await session.execute(select(ChatSession).where(ChatSession.user_id == user_id))
     chat_data = []
     for cs in sessions_result.scalars().all():
-        msgs_result = await session.execute(
-            select(ChatMessage).where(ChatMessage.session_id == cs.id)
-        )
+        msgs_result = await session.execute(select(ChatMessage).where(ChatMessage.session_id == cs.id))
         messages = [
             {
                 "role": m.role,
@@ -527,12 +524,14 @@ async def export_user_data(
             }
             for m in msgs_result.scalars().all()
         ]
-        chat_data.append({
-            "session_id": cs.id,
-            "document_id": cs.document_id,
-            "created_at": cs.created_at.isoformat() if cs.created_at else None,
-            "messages": messages,
-        })
+        chat_data.append(
+            {
+                "session_id": cs.id,
+                "document_id": cs.document_id,
+                "created_at": cs.created_at.isoformat() if cs.created_at else None,
+                "messages": messages,
+            }
+        )
 
     return {
         "user": {

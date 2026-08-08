@@ -1,4 +1,5 @@
 """Email service — transactional email delivery with SMTP and dead-letter fallback."""
+
 import asyncio
 import logging
 import smtplib

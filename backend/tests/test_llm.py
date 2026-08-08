@@ -1,6 +1,7 @@
 """
 Tests for LLM service (generate_full, generate_stream, and retries).
 """
+
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -20,13 +21,14 @@ def mock_config():
         m_config.return_value = cfg
         yield cfg
 
+
 @pytest.mark.asyncio
 async def test_generate_full_success(mock_config):
     mock_resp = MagicMock()
     mock_resp.status_code = 200
     mock_resp.json.return_value = {
         "choices": [{"message": {"content": "Hello World!"}}],
-        "usage": {"prompt_tokens": 10, "completion_tokens": 5}
+        "usage": {"prompt_tokens": 10, "completion_tokens": 5},
     }
 
     mock_client = MagicMock()
@@ -37,6 +39,7 @@ async def test_generate_full_success(mock_config):
         assert res == "Hello World!"
         mock_client.post.assert_called_once()
 
+
 @pytest.mark.asyncio
 async def test_generate_full_retries_on_502(mock_config):
     mock_err_resp = MagicMock()
@@ -44,9 +47,7 @@ async def test_generate_full_retries_on_502(mock_config):
 
     mock_ok_resp = MagicMock()
     mock_ok_resp.status_code = 200
-    mock_ok_resp.json.return_value = {
-        "choices": [{"message": {"content": "Retry Success"}}]
-    }
+    mock_ok_resp.json.return_value = {"choices": [{"message": {"content": "Retry Success"}}]}
 
     mock_client = MagicMock()
     mock_client.post = AsyncMock(side_effect=[mock_err_resp, mock_ok_resp])
@@ -58,6 +59,7 @@ async def test_generate_full_retries_on_502(mock_config):
         res = await generate_full([{"role": "user", "content": "hi"}])
         assert res == "Retry Success"
         assert mock_client.post.call_count == 2
+
 
 @pytest.mark.asyncio
 async def test_generate_full_handles_429(mock_config):
@@ -76,6 +78,7 @@ async def test_generate_full_handles_429(mock_config):
             await generate_full([{"role": "user", "content": "hi"}])
         assert exc.value.response.status_code == 429
 
+
 @pytest.mark.asyncio
 async def test_generate_stream_success(mock_config):
     mock_resp = MagicMock()
@@ -84,7 +87,7 @@ async def test_generate_stream_success(mock_config):
     async def mock_aiter_lines():
         yield 'data: {"choices": [{"delta": {"content": "Hello"}}]}'
         yield 'data: {"choices": [{"delta": {"content": " World"}}]}'
-        yield 'data: [DONE]'
+        yield "data: [DONE]"
 
     mock_resp.aiter_lines = mock_aiter_lines
     mock_resp.__aenter__ = AsyncMock(return_value=mock_resp)
@@ -99,6 +102,7 @@ async def test_generate_stream_success(mock_config):
             chunks.append(chunk)
 
         assert chunks == ["Hello", " World"]
+
 
 def test_chat_completion_alias():
     assert chat_completion is generate_full

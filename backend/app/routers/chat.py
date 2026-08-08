@@ -1,4 +1,5 @@
 """Chat router — contextual document Q&A with session management."""
+
 import logging
 from typing import Any
 

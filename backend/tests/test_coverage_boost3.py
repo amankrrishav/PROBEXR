@@ -225,14 +225,21 @@ def test_ingest_private_ip_detection():
     import ipaddress
 
     private_ips = [
-        "10.0.0.1", "172.16.0.1", "192.168.1.1",
-        "127.0.0.1", "169.254.169.254", "0.0.0.0",
+        "10.0.0.1",
+        "172.16.0.1",
+        "192.168.1.1",
+        "127.0.0.1",
+        "169.254.169.254",
+        "0.0.0.0",
     ]
     for ip_str in private_ips:
         ip = ipaddress.ip_address(ip_str)
         is_private = (
-            ip.is_private or ip.is_loopback or ip.is_reserved
-            or ip.is_link_local or ip.is_multicast
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_reserved
+            or ip.is_link_local
+            or ip.is_multicast
             or str(ip) == "0.0.0.0"
         )
         assert is_private, f"{ip_str} should be detected as private/reserved"
