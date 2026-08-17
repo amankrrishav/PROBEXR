@@ -42,8 +42,10 @@ fastapi==0.141.1
     # via
     #   -r requirements.in
     #   sentry-sdk
-greenlet==3.5.4
-    # via -r requirements.in
+greenlet==3.5.5
+    # via
+    #   -r requirements.in
+    #   sqlalchemy
 gunicorn==26.0.0
     # via -r requirements.in
 h11==0.16.0
@@ -100,11 +102,11 @@ pyyaml==6.0.3
     #   uvicorn
 redis==8.1.0
     # via -r requirements.in
-sentry-sdk[fastapi]==2.66.1
+sentry-sdk[fastapi]==2.68.0
     # via -r requirements.in
 soupsieve==2.9.2
     # via beautifulsoup4
-sqlalchemy==2.0.51
+sqlalchemy==2.0.52
     # via
     #   -r requirements.in
     #   alembic
@@ -116,12 +118,15 @@ starlette==1.5.1
 typing-extensions==4.16.0
     # via
     #   alembic
+    #   anyio
     #   beautifulsoup4
     #   fastapi
+    #   psycopg
     #   pydantic
     #   pydantic-core
     #   sqlalchemy
     #   sqlmodel
+    #   starlette
     #   typing-inspection
 typing-inspection==0.4.2
     # via
@@ -130,7 +135,7 @@ typing-inspection==0.4.2
     #   pydantic-settings
 urllib3==2.7.0
     # via sentry-sdk
-uvicorn[standard]==0.52.1
+uvicorn[standard]==0.52.3
     # via -r requirements.in
 uvloop==0.22.1
     # via uvicorn
